@@ -144,8 +144,8 @@ def to_rows(file_lines):
 
 
 def write_to_csv(csv_path, data):
-    with open(csv_path, "w") as f:
-        writer = csv.writer(f, dialect='excel', delimiter="\t")
+    with open(csv_path, "w", encoding="utf-8") as f:
+        writer = csv.writer(f, dialect='excel', delimiter=",")
         writer.writerow(headers)
         writer.writerows(data)
 
@@ -175,6 +175,7 @@ def main():
     # print(table)
 
     write_to_csv('out.csv', data)
+    write_to_xlsx('globalise-word-joins.csv', data)
 
 
 if __name__ == '__main__':
