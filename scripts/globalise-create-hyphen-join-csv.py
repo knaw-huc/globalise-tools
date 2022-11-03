@@ -7,7 +7,7 @@ import xlsxwriter
 from pagexml.parser import parse_pagexml_file
 
 data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
-headers = ["url", "n", "line n", "join?", "line n+1", "below/next", "roi n", "roi n+1"]
+headers = ["scan", "n", "line n", "join?", "new paragraph?", "line n+1", "below/next", "roi n", "roi n+1"]
 
 files = [
     '199/NL-HaNA_1.04.02_1297_0019.xml',
@@ -137,9 +137,10 @@ def to_rows(file_lines):
             bn += "b"
         if line.is_next_to(next_line):
             bn += "n"
-        roi_n = line.metadata['reading_order']['index']
-        roi_n1 = next_line.metadata['reading_order']['index']
-        row = [url, i, line.text, "", next_line.text, bn, roi_n, roi_n1]
+        roi_n = int(line.metadata['reading_order']['index'])
+        roi_n1 = int(next_line.metadata['reading_order']['index'])
+        par_break = (bn == "") or (roi_n1 <= roi_n)
+        row = [url, i, line.text, False, par_break, next_line.text, bn, roi_n, roi_n1]
         rows.append(row)
     return rows
 
@@ -157,25 +158,31 @@ def write_to_xlsx(xlsx, data):
         {'bold': True, 'bg_color': 'cyan', 'align': 'center', 'locked': True, 'border': 6})
     unlocked_center_format = workbook.add_format({'align': 'center', 'locked': False})
     locked_right_format = workbook.add_format({'align': 'right', 'locked': True})
+    locked_center_format = workbook.add_format({'align': 'center', 'locked': True})
     locked_format = workbook.add_format({'locked': True})
     worksheet = workbook.add_worksheet()
     worksheet.protect()
-    worksheet.set_column('A:A', 100)
-    worksheet.set_column('B:B', None, None, {"collapsed": 1})
+    worksheet.set_column('A:A', 25)
+    worksheet.set_column('B:B', 4, None, {"collapsed": 1})
     worksheet.set_column('C:C', 60)
-    worksheet.set_column('D:D', 4)
-    worksheet.set_column('E:E', 60)
+    worksheet.set_column('D:D', 6)
+    worksheet.set_column('E:E', 15)
+    worksheet.set_column('F:F', 60)
+    worksheet.set_column('G:G', 10, locked_center_format)
+    worksheet.set_column('H:I', 6, locked_center_format)
     worksheet.write_row(row=0, col=0, data=headers, cell_format=header_format)
     for i, data_row in enumerate(data):
         row = i + 1
-        worksheet.write(row, 0, data_row[0], locked_format)
+        url = data_row[0]
+        worksheet.write_url(row, 0, url, cell_format=locked_format, string=url.split('/')[-1])
         worksheet.write(row, 1, data_row[1], locked_format)
         worksheet.write(row, 2, data_row[2], locked_right_format)
-        worksheet.write(row, 3, data_row[3], unlocked_center_format)
-        worksheet.write(row, 4, data_row[4], locked_format)
+        worksheet.write(row, 3, "X" if data_row[3] else "", unlocked_center_format)
+        worksheet.write(row, 4, "X" if data_row[4] else "", unlocked_center_format)
         worksheet.write(row, 5, data_row[5], locked_format)
         worksheet.write(row, 6, data_row[6], locked_format)
-        worksheet.write(row, 7, data_row[7], locked_format)
+        worksheet.write_number(row, 7, int(data_row[7]))
+        worksheet.write_number(row, 8, int(data_row[8]))
     workbook.close()
 
 
