@@ -3,6 +3,7 @@ import csv
 from itertools import chain
 
 import tabulate
+import xlsxwriter
 from pagexml.parser import parse_pagexml_file
 
 data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
@@ -151,7 +152,31 @@ def write_to_csv(csv_path, data):
 
 
 def write_to_xlsx(xlsx, data):
-    pass
+    workbook = xlsxwriter.Workbook(xlsx)
+    header_format = workbook.add_format(
+        {'bold': True, 'bg_color': 'cyan', 'align': 'center', 'locked': True, 'border': 6})
+    unlocked_center_format = workbook.add_format({'align': 'center', 'locked': False})
+    locked_right_format = workbook.add_format({'align': 'right', 'locked': True})
+    locked_format = workbook.add_format({'locked': True})
+    worksheet = workbook.add_worksheet()
+    worksheet.protect()
+    worksheet.set_column('A:A', 100)
+    worksheet.set_column('B:B', None, None, {"collapsed": 1})
+    worksheet.set_column('C:C', 60)
+    worksheet.set_column('D:D', 4)
+    worksheet.set_column('E:E', 60)
+    worksheet.write_row(row=0, col=0, data=headers, cell_format=header_format)
+    for i, data_row in enumerate(data):
+        row = i + 1
+        worksheet.write(row, 0, data_row[0], locked_format)
+        worksheet.write(row, 1, data_row[1], locked_format)
+        worksheet.write(row, 2, data_row[2], locked_right_format)
+        worksheet.write(row, 3, data_row[3], unlocked_center_format)
+        worksheet.write(row, 4, data_row[4], locked_format)
+        worksheet.write(row, 5, data_row[5], locked_format)
+        worksheet.write(row, 6, data_row[6], locked_format)
+        worksheet.write(row, 7, data_row[7], locked_format)
+    workbook.close()
 
 
 def na_url(file_path):
@@ -175,7 +200,7 @@ def main():
     # print(table)
 
     write_to_csv('out.csv', data)
-    write_to_xlsx('globalise-word-joins.csv', data)
+    write_to_xlsx('globalise-word-joins.xlsx', data)
 
 
 if __name__ == '__main__':
