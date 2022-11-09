@@ -6,6 +6,8 @@ import tabulate
 import xlsxwriter
 from pagexml.parser import parse_pagexml_file
 
+from globalise_tools.tools import na_url
+
 data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
 headers = ["scan", "n", "line n", "join?", "new paragraph?", "line n+1", "below/next", "roi n", "roi n+1"]
 
@@ -184,13 +186,6 @@ def write_to_xlsx(xlsx, data):
         worksheet.write_number(row, 7, int(data_row[7]))
         worksheet.write_number(row, 8, int(data_row[8]))
     workbook.close()
-
-
-def na_url(file_path):
-    file_name = file_path.split('/')[1]
-    inv_nr = file_name.split('_')[2]
-    file = file_name.replace('.xml', '')
-    return f"https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inv_nr}/file/{file}"
 
 
 def main():
