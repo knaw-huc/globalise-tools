@@ -128,14 +128,15 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
                 last_char = word.text[-1]
                 first_char = next_word.text[0]
                 joined_text = None
-                if word.text[-2:] == "„„" and first_char in ["„", ","]:
-                    joined_text = word.text[0:-2] + next_word.text[1:]
-                elif last_char in ["„", ".", "¬", ","] and first_char in ["„", ","]:
-                    joined_text = word.text[0:-1] + next_word.text[1:]
-                elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
-                    joined_text = word.text + next_word.text[1:]
-                elif last_char in ["„", "¬"] and first_char != "„" and first_char.islower():
-                    joined_text = word.text[0:-1] + next_word.text
+                if len(word.text) > 1 and len(next_word.text) > 1:
+                    if word.text[-2:] == "„„" and first_char in ["„", ","]:
+                        joined_text = word.text[0:-2] + next_word.text[1:]
+                    elif last_char in ["„", ".", "¬", ",", "="] and first_char in ["„", ","]:
+                        joined_text = word.text[0:-1] + next_word.text[1:]
+                    elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
+                        joined_text = word.text + next_word.text[1:]
+                    elif last_char in ["„", "¬", "="] and first_char.islower():
+                        joined_text = word.text[0:-1] + next_word.text
                 if joined_text is None:
                     new_word = DisplayWord([word], word.text + " ")
                 else:
