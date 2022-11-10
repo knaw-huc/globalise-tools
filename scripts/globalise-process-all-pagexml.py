@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 from dataclasses import dataclass
+from typing import List
 
 from pagexml.model.physical_document_model import Coords
 from pagexml.parser import parse_pagexml_file
@@ -105,33 +106,99 @@ class PXWord:
     coords: Coords
 
 
+@dataclass
+class DisplayWord:
+    px_words: List[PXWord]
+    text: str
+
+
+def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
+    new_words = []
+    i = 0
+    px_words_len = len(px_words)
+    while i < (px_words_len - 1):
+        word = px_words[i]
+        next_word = px_words[i + 1]
+        if not in_same_text_region(word, next_word):
+            new_word = DisplayWord([word], word.text + "\n\n")
+        else:
+            if in_same_text_line(word, next_word):
+                new_word = DisplayWord([word], word.text + " ")
+            else:
+                last_char = word.text[-1]
+                first_char = next_word.text[0]
+                joined_text = None
+                if word.text[-2:] == "„„" and first_char == "„":
+                    joined_text = word.text[0:-2] + next_word.text[1:]
+                elif last_char in ["„", ".", "¬"] and first_char == "„":
+                    joined_text = word.text[0:-1] + next_word.text[1:]
+                elif last_char in ["„", "¬"] and first_char != "„":
+                    joined_text = word.text[0:-1] + next_word.text
+                if joined_text is None:
+                    new_word = DisplayWord([word], word.text + " ")
+                else:
+                    if (i + 2) >= px_words_len:
+                        word_separator = ""
+                    else:
+                        word3 = px_words[i + 2]
+                        if in_same_text_region(next_word, word3):
+                            word_separator = " "
+                        else:
+                            word_separator = "\n\n"
+                    new_word = DisplayWord([word, next_word], joined_text + word_separator)
+
+        new_words.append(new_word)
+        i += len(new_word.px_words)
+    if i < px_words_len:
+        last_word = px_words[-1]
+        new_word = DisplayWord([last_word], last_word.text)
+        new_words.append(new_word)
+    return new_words
+
+
+def in_same_text_line(word: str, next_word: str) -> bool:
+    return word.line_id == next_word.line_id
+
+
+def in_same_text_region(word: str, next_word: str) -> bool:
+    return word.text_region_id == next_word.text_region_id
+
+
 def print_paragraphs(file_path: str):
     scan_doc = parse_pagexml_file(f"{data_dir}/{file_path}")
 
-    pxwords = []
+    px_words = []
     for tr in scan_doc.get_text_regions_in_reading_order():
         for l in tr.lines:
             for w in l.words:
                 if w.text:
-                    pxwords.append(PXWord(tr.id, l.id, w.text, w.coords))
+                    px_words.append(PXWord(tr.id, l.id, w.text, w.coords))
 
-    text = join_words(pxwords)
+    display_words = to_display_words(px_words)
+
+    text = join_words(px_words)
 
     print("[LINES]\n")
     print(text)
 
     print("-" * 80)
 
-    print("[JOINED]\n")
-    joined = text.replace(".|\n „", "").replace("„|\n „", "").replace("„|\n ", "").replace("|\n ", " ")
-    print(joined)
+    print("[DISPLAY]\n")
+    display_text = ''.join([w.text for w in display_words])
+    print(display_text)
+
+    print("\nJoined words:")
+    joined_words = [f"'{w.px_words[0].text}' + '{w.px_words[1].text}' => '{w.text}'"
+                    for w in display_words
+                    if len(w.px_words) == 2]
+    print("\n".join(joined_words))
 
 
-def join_words(pxwords):
+def join_words(px_words):
     text = ""
     last_text_region = None
     last_line = None
-    for w in pxwords:
+    for w in px_words:
         if w.text_region_id == last_text_region:
             if w.line_id != last_line:
                 text += "|\n"
