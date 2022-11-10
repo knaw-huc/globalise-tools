@@ -8,7 +8,7 @@ from typing import List, AnyStr, Dict, Any
 
 import pagexml.parser as pxp
 from dataclasses_json import dataclass_json
-from pagexml.model.physical_document_model import PageXMLScan
+from pagexml.model.physical_document_model import PageXMLScan, Coords
 
 import globalise_tools.tools as gt
 
@@ -26,6 +26,8 @@ class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Annotation):
             return obj.to_dict()
+        if isinstance(obj, Coords):
+            return obj.points
 
 
 def list_pagexml_files(directory: str):
@@ -42,16 +44,34 @@ def process_pagexml(path):
 
     px_words = gt.extract_pxwords(scan_doc)
     display_words = gt.to_display_words(px_words)
-    text = ''.join(w.text for w in display_words)
-    paragraphs = [f'{p}\n' for p in text.split("\n\n")]
+    text = ''
+    for w in display_words:
+        stripped = w.text.strip()
+        annotations.append(
+            Annotation(
+                type="Word",
+                offset=len(text),
+                length=len(stripped),
+                metadata={
+                    "text": stripped,
+                    "coords": [pxw.coords for pxw in w.px_words]
+                }
+            )
+        )
+        text += w.text
+
+    # text = ''.join(w.text for w in display_words)
+    paragraphs = [f'{p}\n' for p in text.split("\n")]
     total_size = len("".join(paragraphs))
 
+    page_id = path.split('/')[-1].replace(".xml", "")
     annotations.append(
         Annotation(
             type="Page",
             offset=0,
             length=total_size,
             metadata={
+                "id": page_id,
                 "file": path,
                 "url": gt.na_url(path)
             }
