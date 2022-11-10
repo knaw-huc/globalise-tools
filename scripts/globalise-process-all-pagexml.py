@@ -1,11 +1,8 @@
 #!/usr/bin/env python3
-from dataclasses import dataclass
-from typing import List
 
-from pagexml.model.physical_document_model import Coords
 from pagexml.parser import parse_pagexml_file
 
-from globalise_tools.tools import na_url
+import globalise_tools.tools as gt
 
 data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
 
@@ -98,86 +95,12 @@ files = [
 ]
 
 
-@dataclass
-class PXWord:
-    text_region_id: str
-    line_id: str
-    text: str
-    coords: Coords
-
-
-@dataclass
-class DisplayWord:
-    px_words: List[PXWord]
-    text: str
-
-
-def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
-    new_words = []
-    i = 0
-    px_words_len = len(px_words)
-    while i < (px_words_len - 1):
-        word = px_words[i]
-        next_word = px_words[i + 1]
-        if not in_same_text_region(word, next_word):
-            new_word = DisplayWord([word], word.text + "\n\n")
-        else:
-            if in_same_text_line(word, next_word):
-                new_word = DisplayWord([word], word.text + " ")
-            else:
-                last_char = word.text[-1]
-                first_char = next_word.text[0]
-                joined_text = None
-                if len(word.text) > 1 and len(next_word.text) > 1:
-                    if word.text[-2:] == "„„" and first_char in ["„", ","]:
-                        joined_text = word.text[0:-2] + next_word.text[1:]
-                    elif last_char in ["„", ".", "¬", ",", "="] and first_char in ["„", ","]:
-                        joined_text = word.text[0:-1] + next_word.text[1:]
-                    elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
-                        joined_text = word.text + next_word.text[1:]
-                    elif last_char in ["„", "¬", "="] and first_char.islower():
-                        joined_text = word.text[0:-1] + next_word.text
-                if joined_text is None:
-                    new_word = DisplayWord([word], word.text + " ")
-                else:
-                    if (i + 2) >= px_words_len:
-                        word_separator = ""
-                    else:
-                        word3 = px_words[i + 2]
-                        if in_same_text_region(next_word, word3):
-                            word_separator = " "
-                        else:
-                            word_separator = "\n\n"
-                    new_word = DisplayWord([word, next_word], joined_text + word_separator)
-
-        new_words.append(new_word)
-        i += len(new_word.px_words)
-    if i < px_words_len:
-        last_word = px_words[-1]
-        new_word = DisplayWord([last_word], last_word.text)
-        new_words.append(new_word)
-    return new_words
-
-
-def in_same_text_line(word: str, next_word: str) -> bool:
-    return word.line_id == next_word.line_id
-
-
-def in_same_text_region(word: str, next_word: str) -> bool:
-    return word.text_region_id == next_word.text_region_id
-
-
 def print_paragraphs(file_path: str):
     scan_doc = parse_pagexml_file(f"{data_dir}/{file_path}")
 
-    px_words = []
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        for l in tr.lines:
-            for w in l.words:
-                if w.text:
-                    px_words.append(PXWord(tr.id, l.id, w.text, w.coords))
+    px_words = gt.extract_pxwords(scan_doc)
 
-    display_words = to_display_words(px_words)
+    display_words = gt.to_display_words(px_words)
 
     text = join_words(px_words)
 
@@ -217,7 +140,7 @@ def join_words(px_words):
 def main():
     for file_path in files:
         print(file_path)
-        print(na_url(file_path))
+        print(gt.na_url(file_path))
         print("-" * 80)
         print_paragraphs(file_path)
         print()
