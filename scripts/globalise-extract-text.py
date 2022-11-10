@@ -6,8 +6,9 @@ from dataclasses import dataclass
 from json import JSONEncoder
 from typing import List, AnyStr, Dict, Any
 
+import pagexml.parser as pxp
 from dataclasses_json import dataclass_json
-from pagexml.parser import parse_pagexml_file
+from pagexml.model.physical_document_model import PageXMLScan
 
 import globalise_tools.tools as gt
 
@@ -34,12 +35,17 @@ def list_pagexml_files(directory: str):
 
 def process_pagexml(path):
     annotations = []
-    scan_doc = parse_pagexml_file(path)
-    lines = scan_doc.get_lines()
-    for word in scan_doc.get_words():
-        print(type(word))
-        paragraphs = [line.text + "\n" for line in lines if line.text]
+    scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
+
+    # lines = scan_doc.get_lines()
+    # paragraphs = [line.text + "\n" for line in lines if line.text]
+
+    px_words = gt.extract_pxwords(scan_doc)
+    display_words = gt.to_display_words(px_words)
+    text = ''.join(w.text for w in display_words)
+    paragraphs = [f'{p}\n' for p in text.split("\n\n")]
     total_size = len("".join(paragraphs))
+
     annotations.append(
         Annotation(
             type="Page",
@@ -51,18 +57,18 @@ def process_pagexml(path):
             }
         )
     )
-    return paragraphs, annotations
+    return paragraphs, annotations, total_size
 
 
 def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any]):
     file_name = f"{base_name}.txt"
     print(f"exporting text to {file_name}")
-    with open(file_name, 'w') as f:
+    with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(all_text)
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
-    with open(metadata_file_name, 'w') as f:
+    with open(metadata_file_name, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
 
 
@@ -72,12 +78,12 @@ def process_directory(directory: str):
     all_annotations = []
     start_offset = 0
     for f in pagexml_files:
-        (paragraphs, annotations) = process_pagexml(f)
+        (paragraphs, annotations, par_length) = process_pagexml(f)
         all_pars += paragraphs
         for annotation in annotations:
             annotation.offset += start_offset
             all_annotations.append(annotation)
-        start_offset = start_offset + len("".join(paragraphs))
+        start_offset = start_offset + par_length
 
     base_name = directory.split('/')[-1]
     metadata = {"annotations": all_annotations}
