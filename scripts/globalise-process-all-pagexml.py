@@ -132,7 +132,7 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
                     joined_text = word.text[0:-2] + next_word.text[1:]
                 elif last_char in ["„", ".", "¬", ","] and first_char in ["„", ","]:
                     joined_text = word.text[0:-1] + next_word.text[1:]
-                elif last_char not in ["„", "¬"] and first_char == "„":
+                elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
                     joined_text = word.text + next_word.text[1:]
                 elif last_char in ["„", "¬"] and first_char != "„" and first_char.islower():
                     joined_text = word.text[0:-1] + next_word.text
