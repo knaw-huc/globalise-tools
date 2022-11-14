@@ -3,7 +3,7 @@ SHELL=/bin/bash
 
 .PHONY: extract-all
 extract-all:
-	@echo `for d in data/[0-9]*; do poetry run scripts/globalise-extract-text.py $$d; done && mv [0-9]*.{txt,json} out/`
+	@echo `poetry run scripts/globalise-extract-text.py data/[0-9]* && mv *.{txt,json} out/`
 
 .PHONY: help
 help:
