@@ -44,9 +44,6 @@ def process_pagexml(path):
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
 
-    # lines = scan_doc.get_lines()
-    # paragraphs = [line.text + "\n" for line in lines if line.text]
-
     px_words, tr_idx, tl_idx = gt.extract_pxwords(scan_doc)
     display_words = gt.to_display_words(px_words)
     text = ''
@@ -65,11 +62,10 @@ def process_pagexml(path):
         )
         text += w.text
 
-    # text = ''.join(w.text for w in display_words)
     paragraphs = [f'{p}\n' for p in text.split("\n")]
     total_size = len("".join(paragraphs))
 
-    page_id = path.split('/')[-1].replace(".xml", "")
+    page_id = to_base_name(path)
     annotations.append(
         Annotation(
             type="Page",
@@ -99,10 +95,28 @@ def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
 
 
+def to_base_name(path: str) -> str:
+    return path.split('/')[-1].replace(".xml", "")
+
+
+def create_base_name(pagexml_files: List[str]) -> str:
+    first = to_base_name(pagexml_files[0])
+    last = to_base_name(pagexml_files[-1])
+    i = first.rindex("_")
+    base = first[0:i]
+    first_page = first[i + 1:]
+    last_page = last[i + 1:]
+    return f"{base}_{first_page}_{last_page}"
+
+
 def process_directory_group(group_name: str, directory_group: str):
     pagexml_files = []
     for directory in directory_group:
         pagexml_files.extend(list_pagexml_files(directory))
+    pagexml_files.sort()
+
+    base_name = create_base_name(pagexml_files)
+
     all_pars = []
     all_annotations = []
     start_offset = 0
@@ -115,7 +129,7 @@ def process_directory_group(group_name: str, directory_group: str):
         start_offset = start_offset + par_length
 
     metadata = {"annotations": all_annotations}
-    export(group_name, all_pars, metadata)
+    export(base_name, all_pars, metadata)
 
 
 def main():
