@@ -98,7 +98,7 @@ files = [
 def print_paragraphs(file_path: str):
     scan_doc = parse_pagexml_file(f"{data_dir}/{file_path}")
 
-    px_words = gt.extract_pxwords(scan_doc)
+    px_words, tr_idx, tl_idx = gt.extract_pxwords(scan_doc)
 
     display_words = gt.to_display_words(px_words)
 
