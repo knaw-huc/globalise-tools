@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import itertools
 import json
 import os
 from dataclasses import dataclass
@@ -26,7 +27,11 @@ class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Annotation):
             return obj.to_dict()
-        if isinstance(obj, Coords):
+        elif isinstance(obj, gt.PXTextRegion):
+            return obj.to_dict()
+        elif isinstance(obj, gt.PXTextLine):
+            return obj.to_dict()
+        elif isinstance(obj, Coords):
             return obj.points
 
 
@@ -42,7 +47,7 @@ def process_pagexml(path):
     # lines = scan_doc.get_lines()
     # paragraphs = [line.text + "\n" for line in lines if line.text]
 
-    px_words = gt.extract_pxwords(scan_doc)
+    px_words, tr_idx, tl_idx = gt.extract_pxwords(scan_doc)
     display_words = gt.to_display_words(px_words)
     text = ''
     for w in display_words:
@@ -72,8 +77,10 @@ def process_pagexml(path):
             length=total_size,
             metadata={
                 "id": page_id,
+                "n": page_id.split("_")[-1],
                 "file": path,
-                "url": gt.na_url(path)
+                "na_url": gt.na_url(path),
+                "tr_url": gt.tr_url(path)
             }
         )
     )
@@ -88,12 +95,14 @@ def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
-    with open(metadata_file_name, 'w', encoding='utf-8') as f:
+    with open(metadata_file_name, 'w') as f:
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
 
 
-def process_directory(directory: str):
-    pagexml_files = list_pagexml_files(directory)
+def process_directory_group(group_name: str, directory_group: str):
+    pagexml_files = []
+    for directory in directory_group:
+        pagexml_files.extend(list_pagexml_files(directory))
     all_pars = []
     all_annotations = []
     start_offset = 0
@@ -105,9 +114,8 @@ def process_directory(directory: str):
             all_annotations.append(annotation)
         start_offset = start_offset + par_length
 
-    base_name = directory.split('/')[-1]
     metadata = {"annotations": all_annotations}
-    export(base_name, all_pars, metadata)
+    export(group_name, all_pars, metadata)
 
 
 def main():
@@ -115,12 +123,16 @@ def main():
         description="Extract text from all the PageXML in the given directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("directory",
-                        help="The directory containing the PageXML files to extract the text from.",
+                        help="A directory containing the PageXML files to extract the text from.",
+                        nargs='+',
                         type=str)
     args = parser.parse_args()
 
     if args.directory:
-        process_directory(args.directory)
+        directories = args.directory
+        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
+        for key, group in groups:
+            process_directory_group(key, group)
 
 
 if __name__ == '__main__':
