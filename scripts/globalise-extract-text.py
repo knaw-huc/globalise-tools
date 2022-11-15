@@ -151,7 +151,7 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
     return tokens, offsets
 
 
-def process_directory_group(group_name: str, directory_group: str):
+def process_directory_group(directory_group: str):
     pagexml_files = []
     for directory in directory_group:
         pagexml_files.extend(list_pagexml_files(directory))
@@ -195,7 +195,7 @@ def main():
         directories = args.directory
         groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
         for key, group in groups:
-            process_directory_group(key, group)
+            process_directory_group(group)
 
 
 if __name__ == '__main__':

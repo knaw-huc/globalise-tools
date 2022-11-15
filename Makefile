@@ -15,5 +15,5 @@ help:
 	@echo
 	@echo "Please use \`make <target>', where <target> is one of:"
 	@echo "  extract-all           to extract text and annotations from all document directories"
-	@echo "  install-spacy-model   to load the 'nl_core_news_lg'	 language model used by spacy"
+	@echo "  install-spacy-model   to load the 'nl_core_news_lg' language model used by spacy"
 	@echo
