@@ -8,6 +8,7 @@ from json import JSONEncoder
 from typing import List, AnyStr, Dict, Any
 
 import pagexml.parser as pxp
+import spacy
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import PageXMLScan, Coords
 
@@ -83,16 +84,43 @@ def process_pagexml(path):
     return paragraphs, annotations, total_size
 
 
-def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any]):
+def to_conll2002(token: str) -> str:
+    return "\n" if token in ["", "\n"] else f"{token} O\n"
+
+
+def as_conll2002(tokens: List[str]) -> List[str]:
+    return [to_conll2002(t) for t in tokens]
+
+
+def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any], tokens: List[str], token_offsets):
+    print(f"{base_name}:")
+
     file_name = f"{base_name}.txt"
     print(f"exporting text to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(all_text)
 
+    file_name = f"{base_name}-tokens.json"
+    print(f"exporting tokens to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        json.dump(tokens, f, indent=2)
+
+    file_name = f"{base_name}-CoNLL_2002.txt"
+    print(f"exporting tokens as CoNLL 2002 to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        f.writelines(as_conll2002(tokens))
+
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
     with open(metadata_file_name, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
+
+    file_name = f"{base_name}-token-offsets.json"
+    print(f"exporting token offsets to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        json.dump(token_offsets, f, indent=2, cls=AnnotationEncoder)
+
+    print()
 
 
 def to_base_name(path: str) -> str:
@@ -107,6 +135,20 @@ def create_base_name(pagexml_files: List[str]) -> str:
     first_page = first[i + 1:]
     last_page = last[i + 1:]
     return f"{base}_{first_page}_{last_page}"
+
+
+def tokenize(all_pars: List[str]) -> (List[str], List[int]):
+    tokens = []
+    offsets = []
+    text = ''.join(all_pars)
+    doc = nlp(text)
+    for sentence in doc.sents:
+        for token in [t for t in sentence if t.text != "\n"]:
+            tokens.append(token.text)
+            offsets.append(token.idx)
+        tokens.append("")
+        offsets.append(-1)
+    return tokens, offsets
 
 
 def process_directory_group(group_name: str, directory_group: str):
@@ -128,8 +170,14 @@ def process_directory_group(group_name: str, directory_group: str):
             all_annotations.append(annotation)
         start_offset = start_offset + par_length
 
+    (tokens, token_offsets) = tokenize(all_pars)
     metadata = {"annotations": all_annotations}
-    export(base_name, all_pars, metadata)
+    export(base_name, all_pars, metadata, tokens, token_offsets)
+
+
+def init_spacy():
+    global nlp
+    nlp = spacy.load("nl_core_news_lg")
 
 
 def main():
@@ -143,6 +191,7 @@ def main():
     args = parser.parse_args()
 
     if args.directory:
+        init_spacy()
         directories = args.directory
         groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
         for key, group in groups:
