@@ -326,7 +326,7 @@ diagrams = ["jinja2", "railroad-diagrams"]
 
 [[package]]
 name = "python-dateutil"
-version = "2.8.2"
+version = "2.8.1"
 description = "Extensions to the standard Python datetime module"
 category = "main"
 optional = false
@@ -506,6 +506,20 @@ python-versions = ">=3.7"
 widechars = ["wcwidth"]
 
 [[package]]
+name = "textrepo-client"
+version = "0.5.1"
+description = "A Python client to access a textrepo server"
+category = "main"
+optional = false
+python-versions = ">=3.7,<4.0"
+
+[package.dependencies]
+dataclasses-json = ">=0.5.7,<0.6.0"
+marshmallow = ">=3.15.0,<4.0.0"
+python-dateutil = "2.8.1"
+requests = ">=2.27.1,<3.0.0"
+
+[[package]]
 name = "thinc"
 version = "8.1.5"
 description = "A refreshing functional take on deep learning, compatible with your favorite libraries"
@@ -656,7 +670,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "85ef1c020f486d6e17a47fae0f08804c78604e3824c2873c45e0ecf878dc1be9"
+content-hash = "934a94424d97939d6ba7bfa662d9712da6beca575c5d1a3a2d2ae5627fd5a633"
 
 [metadata.files]
 asttokens = [
@@ -978,8 +992,8 @@ pyparsing = [
     {file = "pyparsing-3.0.9.tar.gz", hash = "sha256:2b020ecf7d21b687f219b71ecad3631f644a47f01403fa1d1036b0c6416d70fb"},
 ]
 python-dateutil = [
-    {file = "python-dateutil-2.8.2.tar.gz", hash = "sha256:0123cacc1627ae19ddf3c27a5de5bd67ee4586fbdd6440d9748f8abb483d3e86"},
-    {file = "python_dateutil-2.8.2-py2.py3-none-any.whl", hash = "sha256:961d03dc3453ebbc59dbdea9e4e11c5651520a876d0f4db161e8674aae935da9"},
+    {file = "python-dateutil-2.8.1.tar.gz", hash = "sha256:73ebfe9dbf22e832286dafa60473e4cd239f8592f699aa5adaf10050e6e1823c"},
+    {file = "python_dateutil-2.8.1-py2.py3-none-any.whl", hash = "sha256:75bb3f31ea686f1197762692a9ee6a7550b59fc6ca3a1f4b5d7e32fb98e2da2a"},
 ]
 requests = [
     {file = "requests-2.28.1-py3-none-any.whl", hash = "sha256:8fefa2a1a1365bf5520aac41836fbee479da67864514bdb821f31ce07ce65349"},
@@ -1091,6 +1105,10 @@ srsly = [
 tabulate = [
     {file = "tabulate-0.9.0-py3-none-any.whl", hash = "sha256:024ca478df22e9340661486f85298cff5f6dcdba14f3813e8830015b9ed1948f"},
     {file = "tabulate-0.9.0.tar.gz", hash = "sha256:0095b12bf5966de529c0feb1fa08671671b3368eec77d7ef7ab114be2c068b3c"},
+]
+textrepo-client = [
+    {file = "textrepo-client-0.5.1.tar.gz", hash = "sha256:f0e21cdb411928bb58f8cdac528d7e53bd9ce3708eac048feef53ac9870c5e1b"},
+    {file = "textrepo_client-0.5.1-py3-none-any.whl", hash = "sha256:928390236f7bcf7ae2bee561f263ef12b1804596bf437ba9f31ac3064fad19f7"},
 ]
 thinc = [
     {file = "thinc-8.1.5-cp310-cp310-macosx_10_9_x86_64.whl", hash = "sha256:5dc6629e4770a13dec34eda3c4d89302f1b5c91ac4663cd53f876a4e761fcc00"},
