@@ -91,7 +91,7 @@ def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
-    with open(metadata_file_name, 'w') as f:
+    with open(metadata_file_name, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
 
 
