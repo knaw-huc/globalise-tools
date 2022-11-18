@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import csv
 import itertools
 import json
 import os
@@ -13,6 +14,10 @@ from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import PageXMLScan, Coords
 
 import globalise_tools.tools as gt
+
+spacy_core = "nl_core_news_lg"
+metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
+metadata_records = []
 
 
 @dataclass_json
@@ -151,6 +156,17 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
     return tokens, offsets
 
 
+def read_metadata(basename: str) -> Dict[str, str]:
+    (_a, _b, index_nr, scan_nr) = basename.split("_")
+    scan = int(scan_nr)
+    relevant = [r for r in metadata_records if
+                r['Indexnr'] == index_nr and int(r['Scan-begin']) <= scan <= int(r['Scan-Eind'])]
+    if len(relevant) > 1:
+        raise ">1 metadata records relevant"
+    else:
+        return relevant[0]
+
+
 def process_directory_group(directory_group: str):
     pagexml_files = []
     for directory in directory_group:
@@ -171,16 +187,39 @@ def process_directory_group(directory_group: str):
         start_offset = start_offset + par_length
 
     (tokens, token_offsets) = tokenize(all_pars)
-    metadata = {"annotations": all_annotations}
+    metadata = read_metadata(to_base_name(pagexml_files[0]))
+    metadata.update({
+        "tanap_vestiging": "Batavia",
+        "tanap_jaar": 1684,
+        "annotations": all_annotations,
+    })
     export(base_name, all_pars, metadata, tokens, token_offsets)
 
 
 def init_spacy():
     global nlp
-    nlp = spacy.load("nl_core_news_lg")
+    nlp = spacy.load(spacy_core)
+
+
+def load_metadata():
+    with open(metadata_csv) as f:
+        reader = csv.DictReader(f)
+        for i, row in enumerate(reader):
+            metadata_records.append(row)
 
 
 def main():
+    args = setup_argparser()
+    if args.directory:
+        init_spacy()
+        load_metadata()
+        directories = args.directory
+        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
+        for key, group in groups:
+            process_directory_group(group)
+
+
+def setup_argparser():
     parser = argparse.ArgumentParser(
         description="Extract text from all the PageXML in the given directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -189,13 +228,7 @@ def main():
                         nargs='+',
                         type=str)
     args = parser.parse_args()
-
-    if args.directory:
-        init_spacy()
-        directories = args.directory
-        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
-        for key, group in groups:
-            process_directory_group(group)
+    return args
 
 
 if __name__ == '__main__':
