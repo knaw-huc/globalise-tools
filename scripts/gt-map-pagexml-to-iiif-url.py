@@ -6,6 +6,8 @@ from dataclasses import dataclass
 from typing import List
 from xml.etree.ElementTree import Element
 
+from tqdm import tqdm
+
 data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
 
 
@@ -73,16 +75,15 @@ def main():
     with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
 
-    mappings = []
-    for r in records:
-        m = get_mappings(r)
-        mappings.extend(m)
-
     with open(f"{data_dir}/iiif-url-mapping.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(["pagexml_id", "iiif_base_url"])
-        for m in mappings:
-            writer.writerow(m)
+        bar = tqdm(range(len(records)))
+        for i in bar:
+            r = records[i]
+            bar.set_description("processing " + to_mets_id(r['METS link']))
+            for m in get_mappings(r):
+                writer.writerow(m)
 
 
 if __name__ == '__main__':
