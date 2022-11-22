@@ -13,6 +13,14 @@ def to_mets_id(url: str) -> str:
     return url.split('/')[-1]
 
 
+def print_failed_urls(failed_urls):
+    size = len(failed_urls)
+    if size > 0:
+        print(f"\n{size} failed mets urls:")
+        for f in failed_urls:
+            print(f)
+
+
 def main():
     with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
@@ -36,10 +44,7 @@ def main():
             else:
                 failed_urls.append(url)
 
-    if len(failed_urls) > 0:
-        print("failed mets urls:")
-        for f in failed_urls:
-            print(f)
+    print_failed_urls(failed_urls)
 
 
 if __name__ == '__main__':

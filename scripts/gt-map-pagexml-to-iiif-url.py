@@ -3,6 +3,7 @@
 import csv
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
+from pathlib import Path
 from typing import List
 from xml.etree.ElementTree import Element
 
@@ -58,10 +59,8 @@ def to_mapping_pair(div: Div, root: Element) -> (str, str):
     return b, u
 
 
-def get_mappings(record) -> List:
-    url = record['METS link']
-    mets_id = to_mets_id(url)
-    with open(f'{data_dir}/mets/{mets_id}.xml') as f:
+def get_mappings(file_path: str) -> List:
+    with open(file_path) as f:
         xml = f.read()
     root = ET.fromstring(xml)
     divs = [to_div(e) for e in root.findall(".//{http://www.loc.gov/METS/}div[@ORDERLABEL='record (item)']")]
@@ -71,19 +70,35 @@ def get_mappings(record) -> List:
     return mappings
 
 
+def print_missing_files(missing_files):
+    if len(missing_files) > 0:
+        print("missing mets files:")
+        for f in missing_files:
+            print(f)
+
+
 def main():
     with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
 
+    missing_files = []
     with open(f"{data_dir}/iiif-url-mapping.csv", "w") as f:
         writer = csv.writer(f)
         writer.writerow(["pagexml_id", "iiif_base_url"])
         bar = tqdm(range(len(records)))
         for i in bar:
             r = records[i]
-            bar.set_description("processing " + to_mets_id(r['METS link']))
-            for m in get_mappings(r):
-                writer.writerow(m)
+            url = r['METS link']
+            mets_id = to_mets_id(url)
+            bar.set_description(f"processing {mets_id}...")
+            file_path = f'{data_dir}/mets/{mets_id}.xml'
+            if Path(file_path).is_file():
+                for m in get_mappings(file_path):
+                    writer.writerow(m)
+            else:
+                missing_files.append(file_path)
+
+    print_missing_files(missing_files)
 
 
 if __name__ == '__main__':
