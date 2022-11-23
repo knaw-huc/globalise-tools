@@ -61,6 +61,7 @@ def process_pagexml(path):
                 offset=len(text),
                 length=len(stripped),
                 metadata={
+                    "id": ":".join([pxw.id for pxw in w.px_words]),
                     "text": stripped,
                     "coords": [pxw.coords for pxw in w.px_words]
                 }
@@ -86,6 +87,36 @@ def process_pagexml(path):
             }
         )
     )
+
+    for text_region in tr_idx.values():
+        offset = -1
+        length = -1
+        annotations.append(
+            Annotation(
+                type="TextRegion",
+                offset=offset,
+                length=length,
+                metadata={
+                    "id": text_region.id,
+                    "coords": text_region.coords
+                }
+            )
+        )
+
+    for text_line in tl_idx.values():
+        offset = -1
+        length = -1
+        annotations.append(
+            Annotation(
+                type="TextLine",
+                offset=offset,
+                length=length,
+                metadata={
+                    "id": text_line.id,
+                    "coords": text_line.coords
+                }
+            )
+        )
     return paragraphs, annotations, total_size
 
 
@@ -209,7 +240,7 @@ def load_metadata():
 
 
 def main():
-    args = setup_argparser()
+    args = get_arguments()
     if args.directory:
         init_spacy()
         load_metadata()
@@ -219,7 +250,7 @@ def main():
             process_directory_group(group)
 
 
-def setup_argparser():
+def get_arguments():
     parser = argparse.ArgumentParser(
         description="Extract text from all the PageXML in the given directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -227,8 +258,7 @@ def setup_argparser():
                         help="A directory containing the PageXML files to extract the text from.",
                         nargs='+',
                         type=str)
-    args = parser.parse_args()
-    return args
+    return parser.parse_args()
 
 
 if __name__ == '__main__':

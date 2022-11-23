@@ -104,17 +104,20 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
     return new_words
 
 
+def generate_word_id(line_id: str, n: int) -> str:
+    return f"{line_id}.{str(n).rjust(4, '0')}"
+
+
 def extract_pxwords(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextRegion], Dict[str, PXTextLine]):
     text_region_idx = {}
     text_line_idx = {}
     px_words = []
     for tr in scan_doc.get_text_regions_in_reading_order():
         text_region_idx[tr.id] = PXTextRegion(tr.id, tr.coords)
-        for l in tr.lines:
-            text_line_idx[l.id] = PXTextLine(l.id, tr.id, l.coords)
-            for w in l.words:
+        for line in tr.lines:
+            text_line_idx[line.id] = PXTextLine(line.id, tr.id, line.coords)
+            for i, w in enumerate(line.words):
                 if w.text:
-                    px_words.append(PXWord(w.id, l.id, tr.id, w.text, w.coords))
+                    word_id = w.id if w.id else generate_word_id(line.id, i + 1)
+                    px_words.append(PXWord(word_id, line.id, tr.id, w.text, w.coords))
     return px_words, text_region_idx, text_line_idx
-
-
