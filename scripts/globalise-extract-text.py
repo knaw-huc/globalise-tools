@@ -219,6 +219,33 @@ def read_metadata(basename: str) -> Dict[str, str]:
         return relevant[0]
 
 
+def make_token_annotations(tokens, token_offsets):
+    annotations = []
+    sentence_offset = 0
+    sentence_length = 0
+    for i, token in enumerate(tokens):
+        offset = token_offsets[i]
+        token_is_sentence_end = offset < 0
+        if token_is_sentence_end:
+            annotations.append(Annotation(
+                type="Sentence",
+                offset=sentence_offset,
+                length=sentence_length,
+                metadata={}
+            ))
+            sentence_offset += sentence_length
+        else:
+            token_length = len(token)
+            annotations.append(Annotation(
+                type="Token",
+                offset=offset,
+                length=token_length,
+                metadata={}
+            ))
+            sentence_length = offset - sentence_offset + token_length
+    return annotations
+
+
 def process_directory_group(directory_group: str):
     pagexml_files = []
     for directory in directory_group:
@@ -239,6 +266,9 @@ def process_directory_group(directory_group: str):
         start_offset = start_offset + par_length
 
     (tokens, token_offsets) = tokenize(all_pars)
+    token_annotations = make_token_annotations(tokens, token_offsets)
+    all_annotations.extend(token_annotations)
+
     metadata = read_metadata(to_base_name(pagexml_files[0]))
     metadata.update({
         "tanap_vestiging": "Batavia",
