@@ -46,9 +46,14 @@ def list_pagexml_files(directory: str):
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith(".xml")])
 
 
+def make_id_prefix(scan_doc) -> str:
+    return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
+
+
 def process_pagexml(path):
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
+    id_prefix = make_id_prefix(scan_doc)
 
     px_words, tr_idx, tl_idx = gt.extract_pxwords(scan_doc)
     display_words = gt.to_display_words(px_words)
@@ -61,7 +66,7 @@ def process_pagexml(path):
                 offset=len(text),
                 length=len(stripped),
                 metadata={
-                    "id": ":".join([pxw.id for pxw in w.px_words]),
+                    "id": make_word_id(id_prefix, w),
                     "text": stripped,
                     "coords": [pxw.coords for pxw in w.px_words]
                 }
@@ -79,7 +84,7 @@ def process_pagexml(path):
             offset=0,
             length=total_size,
             metadata={
-                "id": page_id,
+                "id": make_page_id(id_prefix, page_id),
                 "n": page_id.split("_")[-1],
                 "file": path,
                 "na_url": gt.na_url(path),
@@ -97,7 +102,7 @@ def process_pagexml(path):
                 offset=offset,
                 length=length,
                 metadata={
-                    "id": text_region.id,
+                    "id": make_textregion_id(id_prefix, text_region.id),
                     "coords": text_region.coords
                 }
             )
@@ -112,12 +117,28 @@ def process_pagexml(path):
                 offset=offset,
                 length=length,
                 metadata={
-                    "id": text_line.id,
+                    "id": make_textline_id(id_prefix, text_line.id),
                     "coords": text_line.coords
                 }
             )
         )
     return paragraphs, annotations, total_size
+
+
+def make_word_id(prefix: str, w) -> str:
+    return prefix + ":word:" + ":".join([pxw.id for pxw in w.px_words])
+
+
+def make_textline_id(prefix: str, line_id) -> str:
+    return prefix + ":textline:" + line_id
+
+
+def make_page_id(prefix: str, page_id) -> str:
+    return prefix + ":page:" + page_id
+
+
+def make_textregion_id(prefix: str, textregion_id) -> str:
+    return prefix + ":textregion:" + textregion_id
 
 
 def to_conll2002(token: str) -> str:
