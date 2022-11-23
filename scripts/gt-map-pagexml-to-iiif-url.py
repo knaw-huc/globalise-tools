@@ -76,10 +76,15 @@ def print_missing_files(missing_files):
 
 
 def map_pagexml_to_iiif_url(data_dir: str):
-    with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
+    mets_csv = f"{data_dir}/NL-HaNA_1.04.02_mets.csv"
+    mapping_csv = f"{data_dir}/iiif-url-mapping.csv"
+    print(f"reading {mets_csv}...")
+    with open(mets_csv) as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
+
     missing_files = []
-    with open(f"{data_dir}/iiif-url-mapping.csv", "w") as f:
+    print(f"writing {mapping_csv}...")
+    with open(mapping_csv, "w") as f:
         writer = csv.writer(f)
         writer.writerow(["pagexml_id", "iiif_base_url"])
         bar = tqdm(range(len(records)))

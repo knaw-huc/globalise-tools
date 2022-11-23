@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import csv
+import os
 from pathlib import Path
 
 import requests
@@ -20,11 +21,15 @@ def print_failed_urls(failed_urls):
 
 
 def download_mets(data_dir: str):
-    with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
+    mets_csv = f'{data_dir}/NL-HaNA_1.04.02_mets.csv'
+    print(f"reading {mets_csv}...")
+    with open(mets_csv) as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
 
     bar = tqdm(range(len(records)))
     failed_urls = []
+
+    os.makedirs(os.path.join(data_dir, "mets"), exist_ok=True)
 
     for i in bar:
         url = records[i]['METS link']
