@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
-
+import argparse
 import csv
 from pathlib import Path
 
 import requests
 from tqdm import tqdm
-
-data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
 
 
 def to_mets_id(url: str) -> str:
@@ -21,7 +19,7 @@ def print_failed_urls(failed_urls):
             print(f)
 
 
-def main():
+def download_mets(data_dir: str):
     with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
 
@@ -47,5 +45,20 @@ def main():
     print_failed_urls(failed_urls)
 
 
+def get_arguments():
+    parser = argparse.ArgumentParser(
+        description="Download METS files",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-d",
+                        "--data-dir",
+                        required=True,
+                        help="The data directory.",
+                        type=str,
+                        metavar="data_dir")
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    main()
+    args = get_arguments()
+    if args.data_dir:
+        download_mets(args.data_dir)

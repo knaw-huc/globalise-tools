@@ -2,7 +2,6 @@ from dataclasses import dataclass
 from typing import List, Dict
 
 from dataclasses_json import dataclass_json
-from icecream import ic
 from pagexml.model.physical_document_model import Coords, PageXMLScan
 
 
@@ -117,3 +116,5 @@ def extract_pxwords(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextReg
                 if w.text:
                     px_words.append(PXWord(w.id, l.id, tr.id, w.text, w.coords))
     return px_words, text_region_idx, text_line_idx
+
+

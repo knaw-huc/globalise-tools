@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-
+import argparse
 import csv
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
@@ -8,8 +8,6 @@ from typing import List
 from xml.etree.ElementTree import Element
 
 from tqdm import tqdm
-
-data_dir = '/Users/bram/workspaces/globalise/globalise-tools/data'
 
 
 @dataclass
@@ -77,10 +75,9 @@ def print_missing_files(missing_files):
             print(f)
 
 
-def main():
+def map_pagexml_to_iiif_url(data_dir: str):
     with open(f'{data_dir}/NL-HaNA_1.04.02_mets.csv') as f:
         records = [r for r in csv.DictReader(f) if r['METS link'] != '']
-
     missing_files = []
     with open(f"{data_dir}/iiif-url-mapping.csv", "w") as f:
         writer = csv.writer(f)
@@ -97,9 +94,23 @@ def main():
                     writer.writerow(m)
             else:
                 missing_files.append(file_path)
-
     print_missing_files(missing_files)
 
 
+def get_arguments():
+    parser = argparse.ArgumentParser(
+        description="Create a csv file mapping a pagexml base name to a IIIF base url",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-d",
+                        "--data-dir",
+                        required=True,
+                        help="The data directory.",
+                        type=str,
+                        metavar="data_dir")
+    return parser.parse_args()
+
+
 if __name__ == '__main__':
-    main()
+    args = get_arguments()
+    if args.data_dir:
+        map_pagexml_to_iiif_url(args.data_dir)
