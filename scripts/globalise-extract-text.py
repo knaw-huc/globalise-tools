@@ -4,7 +4,9 @@ import csv
 import itertools
 import json
 import os
+import uuid as uuid
 from dataclasses import dataclass
+from datetime import datetime
 from json import JSONEncoder
 from typing import List, AnyStr, Dict, Any
 
@@ -29,10 +31,35 @@ class Annotation:
     length: int
 
 
+@dataclass
+class WebAnnotation:
+    body: Dict[str, Any]
+    target: Any
+
+    def wrapped(self):
+        anno_uuid = uuid.uuid4()
+        return {
+            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "id": f"urn:globalise:annotation:{anno_uuid}",
+            "type": "Annotation",
+            "motivation": "classifying",
+            "generated": datetime.today().isoformat(),
+            "generator": {
+                "id": "https://github.com/brambg/globalise-tools",
+                "type": "Software",
+                "name": "globalise-extract-text"
+            },
+            "body": self.body,
+            "target": self.target
+        }
+
+
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Annotation):
             return obj.to_dict()
+        if isinstance(obj, WebAnnotation):
+            return obj.wrapped()
         elif isinstance(obj, gt.PXTextRegion):
             return obj.to_dict()
         elif isinstance(obj, gt.PXTextLine):
@@ -149,7 +176,13 @@ def as_conll2002(tokens: List[str]) -> List[str]:
     return [to_conll2002(t) for t in tokens]
 
 
-def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any], tokens: List[str], token_offsets):
+def export(base_name: AnyStr,
+           all_text: List[AnyStr],
+           metadata: Dict[AnyStr, Any],
+           tokens: List[str],
+           token_offsets,
+           web_annotations: List[WebAnnotation]
+           ):
     print(f"{base_name}:")
 
     file_name = f"{base_name}.txt"
@@ -176,6 +209,11 @@ def export(base_name: AnyStr, all_text: List[AnyStr], metadata: Dict[AnyStr, Any
     print(f"exporting token offsets to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
         json.dump(token_offsets, f, indent=2, cls=AnnotationEncoder)
+
+    file_name = f"{base_name}-web-annotations.json"
+    print(f"exporting web annotations to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        json.dump(web_annotations, f, indent=2, cls=AnnotationEncoder)
 
     print()
 
@@ -219,31 +257,50 @@ def read_metadata(basename: str) -> Dict[str, str]:
         return relevant[0]
 
 
-def make_token_annotations(tokens, token_offsets):
+def make_token_annotations(base_name, tokens, token_offsets):
     annotations = []
     sentence_offset = 0
     sentence_length = 0
-    for i, token in enumerate(tokens):
-        offset = token_offsets[i]
+    sentence_num = 1
+    for i, pair in enumerate(zip(tokens, token_offsets)):
+        (token, offset) = pair
         token_is_sentence_end = offset < 0
         if token_is_sentence_end:
             annotations.append(Annotation(
                 type="Sentence",
                 offset=sentence_offset,
                 length=sentence_length,
-                metadata={}
+                metadata={
+                    "id": f"urn:globalise:{base_name}:sentence:{sentence_num}"
+                }
             ))
             sentence_offset += sentence_length
+            sentence_num += 1
         else:
             token_length = len(token)
             annotations.append(Annotation(
                 type="Token",
                 offset=offset,
                 length=token_length,
-                metadata={}
+                metadata={
+                    "id": f"urn:globalise:{base_name}:token:{i}"
+                }
             ))
             sentence_length = offset - sentence_offset + token_length
     return annotations
+
+
+def to_web_annotation(annotation: Annotation) -> WebAnnotation:
+    body = {
+        "id": annotation.metadata["id"],
+        "type": annotation.type
+    }
+    target = []
+    return WebAnnotation(body=body, target=target)
+
+
+def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
+    return [to_web_annotation(a) for a in annotations]
 
 
 def process_directory_group(directory_group: str):
@@ -266,7 +323,7 @@ def process_directory_group(directory_group: str):
         start_offset = start_offset + par_length
 
     (tokens, token_offsets) = tokenize(all_pars)
-    token_annotations = make_token_annotations(tokens, token_offsets)
+    token_annotations = make_token_annotations(base_name, tokens, token_offsets)
     all_annotations.extend(token_annotations)
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
@@ -275,7 +332,8 @@ def process_directory_group(directory_group: str):
         "tanap_jaar": 1684,
         "annotations": all_annotations,
     })
-    export(base_name, all_pars, metadata, tokens, token_offsets)
+    web_annotations = make_web_annotations(all_annotations)
+    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
 
 
 def init_spacy():

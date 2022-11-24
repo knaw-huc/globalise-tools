@@ -16,6 +16,7 @@ spacy = {extras = ["apple"], version = "^3.4.3"}
 tabulate = "^0.9.0"
 textrepo-client = "^0.5.1"
 xlsxwriter = "^3.0.3"
+uuid = "^1.30"
 
 [build-system]
 requires = ["poetry-core"]

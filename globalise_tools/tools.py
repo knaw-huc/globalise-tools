@@ -105,7 +105,7 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
 
 
 def generate_word_id(line_id: str, n: int) -> str:
-    return f"{line_id}.{str(n).rjust(4, '0')}"
+    return f"{line_id}.{n:04d}"
 
 
 def extract_pxwords(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextRegion], Dict[str, PXTextLine]):
