@@ -39,7 +39,8 @@ class WebAnnotation:
     def wrapped(self):
         anno_uuid = uuid.uuid4()
         return {
-            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "@context": ["http://www.w3.org/ns/anno.jsonld",
+                         {"px": "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15#"}],
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
             "motivation": "classifying",
@@ -89,12 +90,13 @@ def process_pagexml(path):
         stripped = w.text.strip()
         annotations.append(
             Annotation(
-                type="Word",
+                type="px:Word",
                 offset=len(text),
                 length=len(stripped),
                 metadata={
                     "id": make_word_id(id_prefix, w),
                     "text": stripped,
+                    "page_id": w.px_words[0].page_id,
                     "coords": [pxw.coords for pxw in w.px_words]
                 }
             )
@@ -107,7 +109,7 @@ def process_pagexml(path):
     page_id = to_base_name(path)
     annotations.append(
         Annotation(
-            type="Page",
+            type="px:Page",
             offset=0,
             length=total_size,
             metadata={
@@ -125,11 +127,12 @@ def process_pagexml(path):
         length = -1
         annotations.append(
             Annotation(
-                type="TextRegion",
+                type="px:TextRegion",
                 offset=offset,
                 length=length,
                 metadata={
                     "id": make_textregion_id(id_prefix, text_region.id),
+                    "page_id": text_region.page_id,
                     "coords": text_region.coords
                 }
             )
@@ -140,11 +143,12 @@ def process_pagexml(path):
         length = -1
         annotations.append(
             Annotation(
-                type="TextLine",
+                type="px:TextLine",
                 offset=offset,
                 length=length,
                 metadata={
                     "id": make_textline_id(id_prefix, text_line.id),
+                    "page_id": text_line.page_id,
                     "coords": text_line.coords
                 }
             )
@@ -290,13 +294,59 @@ def make_token_annotations(base_name, tokens, token_offsets):
     return annotations
 
 
+iiif_base_url_idx = {}
+
+
+def init_iiif_base_url_idx(path: str):
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
+
+
+def get_iiif_base_url(page_id: str) -> str:
+    return iiif_base_url_idx[page_id]
+
+
+def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
+    targets = []
+    iiif_base_url = get_iiif_base_url(page_id)
+    for c in coords:
+        xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
+        target = {
+            "source": f"{iiif_base_url}/full/max/0/default.jpg",
+            "type": "Image",
+            "selector": {
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh={xywh}"
+            }
+        }
+        targets.append(target)
+        target = {
+            "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
+            "type": "Image"
+        }
+        targets.append(target)
+
+    return targets
+
+
 def to_web_annotation(annotation: Annotation) -> WebAnnotation:
     body = {
         "id": annotation.metadata["id"],
         "type": annotation.type
     }
-    target = []
-    return WebAnnotation(body=body, target=target)
+    if "text" in annotation.metadata:
+        body["text"] = annotation.metadata["text"]
+    targets = []
+    if "coords" in annotation.metadata:
+        page_id = annotation.metadata["page_id"]
+        coords = annotation.metadata["coords"]
+        if isinstance(coords, Coords):
+            coords = [coords]
+        targets.extend(make_image_targets(page_id, coords))
+    return WebAnnotation(body=body, target=targets)
 
 
 def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
@@ -348,26 +398,32 @@ def load_metadata():
             metadata_records.append(row)
 
 
+def get_arguments():
+    parser = argparse.ArgumentParser(
+        description="Extract text from all the PageXML in the given directory",
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-i",
+                        "--iiif-mapping-file",
+                        required=True,
+                        help="The path to the file mapping pagexml id to iiif base url",
+                        type=str)
+    parser.add_argument("directory",
+                        help="A directory containing the PageXML files to extract the text from.",
+                        nargs='+',
+                        type=str)
+    return parser.parse_args()
+
+
 def main():
     args = get_arguments()
     if args.directory:
+        init_iiif_base_url_idx(args.iiif_mapping_file)
         init_spacy()
         load_metadata()
         directories = args.directory
         groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
         for key, group in groups:
             process_directory_group(group)
-
-
-def get_arguments():
-    parser = argparse.ArgumentParser(
-        description="Extract text from all the PageXML in the given directory",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("directory",
-                        help="A directory containing the PageXML files to extract the text from.",
-                        nargs='+',
-                        type=str)
-    return parser.parse_args()
 
 
 if __name__ == '__main__':

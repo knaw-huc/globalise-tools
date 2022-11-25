@@ -9,6 +9,7 @@ from pagexml.model.physical_document_model import Coords, PageXMLScan
 @dataclass
 class PXTextRegion:
     id: str
+    page_id: str
     coords: Coords
 
 
@@ -17,6 +18,7 @@ class PXTextRegion:
 class PXTextLine:
     id: str
     text_region_id: str
+    page_id: str
     coords: Coords
 
 
@@ -26,6 +28,7 @@ class PXWord:
     id: str
     line_id: str
     text_region_id: str
+    page_id: str
     text: str
     coords: Coords
 
@@ -112,12 +115,13 @@ def extract_pxwords(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextReg
     text_region_idx = {}
     text_line_idx = {}
     px_words = []
+    page_id = scan_doc.id.replace(".jpg", "")
     for tr in scan_doc.get_text_regions_in_reading_order():
-        text_region_idx[tr.id] = PXTextRegion(tr.id, tr.coords)
+        text_region_idx[tr.id] = PXTextRegion(tr.id, page_id, tr.coords)
         for line in tr.lines:
-            text_line_idx[line.id] = PXTextLine(line.id, tr.id, line.coords)
+            text_line_idx[line.id] = PXTextLine(line.id, tr.id, page_id, line.coords)
             for i, w in enumerate(line.words):
                 if w.text:
                     word_id = w.id if w.id else generate_word_id(line.id, i + 1)
-                    px_words.append(PXWord(word_id, line.id, tr.id, w.text, w.coords))
+                    px_words.append(PXWord(word_id, line.id, tr.id, page_id, w.text, w.coords))
     return px_words, text_region_idx, text_line_idx
