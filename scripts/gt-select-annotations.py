@@ -43,10 +43,9 @@ def show_random_annotation_of_each_type(annotations):
     annotations.sort(key=body_type)
     grouped_by_type = itertools.groupby(annotations, key=body_type)
     for atype, group in grouped_by_type:
-        ic(atype)
+        # ic(atype)
         random_annotations.append(random.choice(list(group)))
-    for l in sorted(random_annotations, key=body_type):
-        print(json.dumps(l, indent=2))
+    print(json.dumps(sorted(random_annotations, key=body_type), indent=2))
 
 
 def body_type(annotation):
