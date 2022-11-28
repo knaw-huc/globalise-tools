@@ -4,8 +4,6 @@ import json
 import os
 import random
 
-from icecream import ic
-
 
 def list_web_annotation_files(directory: str):
     all_files = os.listdir(directory)
@@ -45,6 +43,8 @@ def show_random_annotation_of_each_type(annotations):
     for atype, group in grouped_by_type:
         # ic(atype)
         random_annotations.append(random.choice(list(group)))
+    joined_words = [a for a in annotations if is_joined_word_annotation(a)]
+    random_annotations.append(random.choice(joined_words))
     print(json.dumps(sorted(random_annotations, key=body_type), indent=2))
 
 
@@ -60,9 +60,15 @@ def is_long_word_annotation(a):
     return a["body"]["type"] == "px:Word" and len(a["body"]["text"]) > 5
 
 
+def is_fragment_selector_target(target: dict) -> bool:
+    return target["type"] == "Image" \
+           and "selector" in target \
+           and target["selector"]["type"] == "FragmentSelector"
+
+
 def is_joined_word_annotation(a):
-    return a["body"]["type"] == "px:Word" and len(
-        [t for t in a["target"] if t["type"] == "Image" and "selector" in t]) > 1
+    fragment_selector_targets = [t for t in a["target"] if is_fragment_selector_target(t)]
+    return a["body"]["type"] == "px:Word" and len(fragment_selector_targets) > 1
 
 
 if __name__ == '__main__':
