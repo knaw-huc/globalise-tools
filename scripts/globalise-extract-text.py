@@ -114,6 +114,7 @@ def process_pagexml(path):
             length=total_size,
             metadata={
                 "id": make_page_id(id_prefix, page_id),
+                "page_id": page_id,
                 "n": page_id.split("_")[-1],
                 "file": path,
                 "na_url": gt.na_url(path),
@@ -266,6 +267,7 @@ def make_token_annotations(base_name, tokens, token_offsets):
     sentence_offset = 0
     sentence_length = 0
     sentence_num = 1
+    page_id = ":TODO:"
     for i, pair in enumerate(zip(tokens, token_offsets)):
         (token, offset) = pair
         token_is_sentence_end = offset < 0
@@ -275,7 +277,9 @@ def make_token_annotations(base_name, tokens, token_offsets):
                 offset=sentence_offset,
                 length=sentence_length,
                 metadata={
-                    "id": f"urn:globalise:{base_name}:sentence:{sentence_num}"
+                    "id": f"urn:globalise:{base_name}:sentence:{sentence_num}",
+                    "page_id": page_id
+
                 }
             ))
             sentence_offset += sentence_length
@@ -287,7 +291,8 @@ def make_token_annotations(base_name, tokens, token_offsets):
                 offset=offset,
                 length=token_length,
                 metadata={
-                    "id": f"urn:globalise:{base_name}:token:{i}"
+                    "id": f"urn:globalise:{base_name}:token:{i}",
+                    "page_id": page_id
                 }
             ))
             sentence_length = offset - sentence_offset + token_length
@@ -378,12 +383,20 @@ def text_targets():
 
 def annotation_targets(annotation):
     targets = []
+    page_id = annotation.metadata["page_id"]
     if "coords" in annotation.metadata:
         page_id = annotation.metadata["page_id"]
         coords = annotation.metadata["coords"]
         if isinstance(coords, Coords):
             coords = [coords]
         targets.extend(make_image_targets(page_id, coords))
+    if annotation.type == "px:Page":
+        iiif_base_url = get_iiif_base_url(page_id)
+        iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+        targets.append({
+            "source": iiif_url,
+            "type": "Image"
+        })
     targets.extend(text_targets())
     return targets
 
