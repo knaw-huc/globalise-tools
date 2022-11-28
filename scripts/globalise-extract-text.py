@@ -44,11 +44,11 @@ class WebAnnotation:
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
             "motivation": "classifying",
-            "generated": datetime.today().isoformat(),
-            "generator": {
-                "id": "https://github.com/brambg/globalise-tools",
+            "generated": datetime.today().isoformat(), # use last-modified from pagexml for px: types
+            "generator": { # use creator metadata from pagexml for px: types
+                "id": "https://github.com/rvankoert/loghi-htr",
                 "type": "Software",
-                "name": "globalise-extract-text"
+                "name": "Loghi"
             },
             "body": self.body,
             "target": self.target
