@@ -44,8 +44,8 @@ class WebAnnotation:
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
             "motivation": "classifying",
-            "generated": datetime.today().isoformat(), # use last-modified from pagexml for px: types
-            "generator": { # use creator metadata from pagexml for px: types
+            "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types
+            "generator": {  # use creator metadata from pagexml for px: types
                 "id": "https://github.com/rvankoert/loghi-htr",
                 "type": "Software",
                 "name": "Loghi"
@@ -311,10 +311,11 @@ def get_iiif_base_url(page_id: str) -> str:
 def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
     targets = []
     iiif_base_url = get_iiif_base_url(page_id)
+    iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
     for c in coords:
         xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
         target = {
-            "source": f"{iiif_base_url}/full/max/0/default.jpg",
+            "source": iiif_url,
             "type": "Image",
             "selector": {
                 "type": "FragmentSelector",
@@ -323,22 +324,59 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
             }
         }
         targets.append(target)
+
         target = {
             "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
             "type": "Image"
         }
         targets.append(target)
 
+    svg_target = image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
+    targets.append(svg_target)
+
     return targets
 
 
+def svg_selector(coords_list):
+    path_defs = []
+    height = 0
+    width = 0
+    for coords in coords_list:
+        height = max(height, max([c[1] for c in coords]))
+        width = max(width, max([c[0] for c in coords]))
+        path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+        path_def = 'M' + path_def[1:]
+        path_defs.append(path_def)
+    path = f"""<path d="{' '.join(path_defs)}"/>"""
+    return {'type': "SvgSelector", 'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""}
+
+
+def image_target_wth_svg_selector(iiif_url: str,
+                                  coords_list: List) -> dict:
+    return {'source': iiif_url, 'type': "Image", 'selector': svg_selector(coords_list)}
+
+
 def to_web_annotation(annotation: Annotation) -> WebAnnotation:
+    body = annotation_body(annotation)
+    targets = annotation_targets(annotation)
+    return WebAnnotation(body=body, target=targets)
+
+
+def annotation_body(annotation):
     body = {
         "id": annotation.metadata["id"],
         "type": annotation.type
     }
     if "text" in annotation.metadata:
         body["text"] = annotation.metadata["text"]
+    return body
+
+
+def text_targets():
+    return []
+
+
+def annotation_targets(annotation):
     targets = []
     if "coords" in annotation.metadata:
         page_id = annotation.metadata["page_id"]
@@ -346,7 +384,8 @@ def to_web_annotation(annotation: Annotation) -> WebAnnotation:
         if isinstance(coords, Coords):
             coords = [coords]
         targets.extend(make_image_targets(page_id, coords))
-    return WebAnnotation(body=body, target=targets)
+    targets.extend(text_targets())
+    return targets
 
 
 def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
@@ -400,7 +439,7 @@ def load_metadata():
 
 def get_arguments():
     parser = argparse.ArgumentParser(
-        description="Extract text from all the PageXML in the given directory",
+        description="Extract text and annotations from all the PageXML in the given directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-i",
                         "--iiif-mapping-file",
