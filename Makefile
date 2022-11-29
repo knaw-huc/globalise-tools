@@ -3,7 +3,7 @@ SHELL=/bin/bash
 
 .PHONY: extract-all
 extract-all:
-	poetry run scripts/globalise-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json} out/
+	poetry run scripts/globalise-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,cnll} out/
 
 .PHONY: sample
 sample:

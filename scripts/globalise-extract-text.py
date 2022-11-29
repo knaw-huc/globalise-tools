@@ -200,7 +200,7 @@ def export(base_name: AnyStr,
     with open(file_name, 'w', encoding='utf-8') as f:
         json.dump(tokens, f, indent=2)
 
-    file_name = f"{base_name}-CoNLL_2002.txt"
+    file_name = f"{base_name}.cnll"
     print(f"exporting tokens as CoNLL 2002 to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(as_conll2002(tokens))
@@ -279,7 +279,6 @@ def make_token_annotations(base_name, tokens, token_offsets):
                 metadata={
                     "id": f"urn:globalise:{base_name}:sentence:{sentence_num}",
                     "page_id": page_id
-
                 }
             ))
             sentence_offset += sentence_length
@@ -342,6 +341,25 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
     return targets
 
 
+def canvas_target(canvas_url: str, xywh_list: List[str] = None, coords_list: List[List[List[int]]] = None) -> dict:
+    selectors = []
+    if xywh_list:
+        for xywh in xywh_list:
+            selectors.append({
+                "@context": "http://iiif.io/api/annex/openannotation/context.json",
+                "type": "iiif:ImageApiSelector",
+                "region": xywh
+            })
+    if coords_list:
+        selectors.append(svg_selector(coords_list))
+    return {
+        # '@context': REPUBLIC_CONTEXT,
+        'source': canvas_url,
+        'type': "Canvas",
+        'selector': selectors
+    }
+
+
 def svg_selector(coords_list):
     path_defs = []
     height = 0
@@ -381,6 +399,10 @@ def text_targets():
     return []
 
 
+def to_xywh(coords: Coords):
+    return f"{coords.left},{coords.top},{coords.width},{coords.height}"
+
+
 def annotation_targets(annotation):
     targets = []
     page_id = annotation.metadata["page_id"]
@@ -390,6 +412,10 @@ def annotation_targets(annotation):
         if isinstance(coords, Coords):
             coords = [coords]
         targets.extend(make_image_targets(page_id, coords))
+        canvas_url = f"urn:globalise:canvas:{page_id}"
+        xywh_list = [to_xywh(c) for c in coords]
+        points = [c.points for c in coords]
+        targets.append(canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points))
     if annotation.type == "px:Page":
         iiif_base_url = get_iiif_base_url(page_id)
         iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
@@ -405,7 +431,7 @@ def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
     return [to_web_annotation(a) for a in annotations]
 
 
-def process_directory_group(directory_group: str):
+def process_directory_group(directory_group: List[str]):
     pagexml_files = []
     for directory in directory_group:
         pagexml_files.extend(list_pagexml_files(directory))
@@ -459,6 +485,11 @@ def get_arguments():
                         required=True,
                         help="The path to the file mapping pagexml id to iiif base url",
                         type=str)
+    parser.add_argument("-m",
+                        "--merge-sections",
+                        required=False,
+                        help="Set this to merge sections into one document",
+                        action="store_true")
     parser.add_argument("directory",
                         help="A directory containing the PageXML files to extract the text from.",
                         nargs='+',
@@ -473,9 +504,13 @@ def main():
         init_spacy()
         load_metadata()
         directories = args.directory
-        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
-        for key, group in groups:
-            process_directory_group(group)
+        if args.merge_sections:
+            groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
+            for key, group in groups:
+                process_directory_group(group)
+        else:
+            for d in directories:
+                process_directory_group([d])
 
 
 if __name__ == '__main__':
