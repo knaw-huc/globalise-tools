@@ -57,7 +57,7 @@ def word_length(a):
 
 
 def is_long_word_annotation(a):
-    return a["body"]["type"] == "px:Word" and len(a["body"]["text"]) > 5
+    return a["body"]["type"] == "tt:Word" and len(a["body"]["text"]) > 5
 
 
 def is_fragment_selector_target(target: dict) -> bool:
@@ -68,7 +68,7 @@ def is_fragment_selector_target(target: dict) -> bool:
 
 def is_joined_word_annotation(a):
     fragment_selector_targets = [t for t in a["target"] if is_fragment_selector_target(t)]
-    return a["body"]["type"] == "px:Word" and len(fragment_selector_targets) > 1
+    return a["body"]["type"] == "tt:Word" and len(fragment_selector_targets) > 1
 
 
 if __name__ == '__main__':

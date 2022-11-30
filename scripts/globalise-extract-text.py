@@ -19,7 +19,9 @@ import globalise_tools.tools as gt
 
 spacy_core = "nl_core_news_lg"
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
+ground_truth_csv = "data/globalise-word-joins-MH.csv"
 metadata_records = []
+ground_truth = []
 
 
 @dataclass_json
@@ -39,8 +41,7 @@ class WebAnnotation:
     def wrapped(self):
         anno_uuid = uuid.uuid4()
         return {
-            "@context": ["http://www.w3.org/ns/anno.jsonld",
-                         {"px": "http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15#"}],
+            "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
             "motivation": "classifying",
@@ -90,7 +91,7 @@ def process_pagexml(path):
         stripped = w.text.strip()
         annotations.append(
             Annotation(
-                type="px:Word",
+                type="tt:Word",
                 offset=len(text),
                 length=len(stripped),
                 metadata={
@@ -273,7 +274,7 @@ def make_token_annotations(base_name, tokens, token_offsets):
         token_is_sentence_end = offset < 0
         if token_is_sentence_end:
             annotations.append(Annotation(
-                type="Sentence",
+                type="tt:Sentence",
                 offset=sentence_offset,
                 length=sentence_length,
                 metadata={
@@ -286,7 +287,7 @@ def make_token_annotations(base_name, tokens, token_offsets):
         else:
             token_length = len(token)
             annotations.append(Annotation(
-                type="Token",
+                type="tt:Token",
                 offset=offset,
                 length=token_length,
                 metadata={
@@ -353,7 +354,7 @@ def canvas_target(canvas_url: str, xywh_list: List[str] = None, coords_list: Lis
     if coords_list:
         selectors.append(svg_selector(coords_list))
     return {
-        # '@context': REPUBLIC_CONTEXT,
+        '@context': "https://brambg.github.io/ns/republic.jsonld",
         'source': canvas_url,
         'type': "Canvas",
         'selector': selectors
@@ -387,6 +388,7 @@ def to_web_annotation(annotation: Annotation) -> WebAnnotation:
 
 def annotation_body(annotation):
     body = {
+        "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
         "id": annotation.metadata["id"],
         "type": annotation.type
     }
@@ -476,6 +478,15 @@ def load_metadata():
             metadata_records.append(row)
 
 
+def load_ground_truth():
+    records = []
+    with open(ground_truth_csv) as f:
+        reader = csv.DictReader(f)
+        for row in enumerate(reader):
+            records.append(row)
+    ground_truth.extend([(r['scan'], r['line n'], r['line n+1']) for r in records if r['join?'] != ''])
+
+
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Extract text and annotations from all the PageXML in the given directory",
@@ -503,6 +514,7 @@ def main():
         init_iiif_base_url_idx(args.iiif_mapping_file)
         init_spacy()
         load_metadata()
+        load_ground_truth()
         directories = args.directory
         if args.merge_sections:
             groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
