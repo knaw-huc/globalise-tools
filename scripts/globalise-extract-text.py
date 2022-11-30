@@ -285,29 +285,42 @@ def read_metadata(basename: str) -> Dict[str, str]:
         return relevant[0]
 
 
-def make_token_annotations(base_name, tokens, token_offsets):
+def get_page_id(offset: int, length: int, scan_ranges) -> str:
+    range_start = offset
+    range_end = offset + length
+    overlapping_ranges = [sr for sr in scan_ranges.items()
+                          if sr[1][0] <= range_start < sr[1][1]]
+    if len(overlapping_ranges) == 1:
+        return overlapping_ranges[0][0]
+    else:
+        ic(range_start, range_end, overlapping_ranges)
+        return ":placeholder:"
+
+
+def make_token_annotations(base_name, tokens, token_offsets, scan_ranges):
     annotations = []
     sentence_offset = 0
     sentence_length = 0
     sentence_num = 1
-    page_id = ":TODO:"
     for i, pair in enumerate(zip(tokens, token_offsets)):
         (token, offset) = pair
         token_is_sentence_end = offset < 0
         if token_is_sentence_end:
+            page_id = get_page_id(sentence_offset, sentence_length, scan_ranges)
             annotations.append(
-                sentence_annotation(base_name, page_id, sentence_length, sentence_num, sentence_offset))
+                sentence_annotation(base_name, page_id, sentence_num, sentence_offset, sentence_length))
             sentence_offset += sentence_length
             sentence_num += 1
         else:
             token_length = len(token)
+            page_id = get_page_id(offset, token_length, scan_ranges)
             annotations.append(
-                token_annotation(base_name, i, offset, page_id, token_length))
+                token_annotation(base_name, page_id, i, offset, token_length))
             sentence_length = offset - sentence_offset + token_length
     return annotations
 
 
-def sentence_annotation(base_name, page_id, sentence_length, sentence_num, sentence_offset):
+def sentence_annotation(base_name, page_id, sentence_num, sentence_offset, sentence_length):
     return Annotation(
         type="tt:Sentence",
         id=f"urn:globalise:{base_name}:sentence:{sentence_num}",
@@ -318,7 +331,7 @@ def sentence_annotation(base_name, page_id, sentence_length, sentence_num, sente
     )
 
 
-def token_annotation(base_name, i, offset, page_id, token_length):
+def token_annotation(base_name, page_id, i, offset, token_length):
     return Annotation(
         type="tt:Token",
         id=f"urn:globalise:{base_name}:token:{i}",
@@ -474,18 +487,17 @@ def process_directory_group(directory_group: List[str]):
     all_annotations = []
     start_offset = 0
     for f in pagexml_files:
-        (paragraphs, annotations, par_length) = process_pagexml(f)
+        (paragraphs, page_annotations, par_length) = process_pagexml(f)
         all_pars += paragraphs
-        for annotation in annotations:
+        for annotation in page_annotations:
             annotation.offset += start_offset
             all_annotations.append(annotation)
         start_offset = start_offset + par_length
 
-    scan_ranges = ranges_per_scan(annotations)
-    ic(scan_ranges)
+    scan_ranges = ranges_per_scan(all_annotations)
 
     (tokens, token_offsets) = tokenize(all_pars)
-    token_annotations = make_token_annotations(base_name, tokens, token_offsets)
+    token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
     all_annotations.extend(token_annotations)
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
 
