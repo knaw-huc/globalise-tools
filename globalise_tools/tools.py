@@ -73,29 +73,11 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
             if in_same_text_line(word, next_word):
                 new_word = DisplayWord([word], word.text + " ")
             else:
-                last_char = word.text[-1]
-                first_char = next_word.text[0]
-                joined_text = None
-                if len(word.text) > 1 and len(next_word.text) > 1:
-                    if word.text[-2:] == "„„" and first_char in ["„", ","]:
-                        joined_text = word.text[0:-2] + next_word.text[1:]
-                    elif last_char in ["„", ".", "¬", ",", "="] and first_char in ["„", ","]:
-                        joined_text = word.text[0:-1] + next_word.text[1:]
-                    elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
-                        joined_text = word.text + next_word.text[1:]
-                    elif last_char in ["„", "¬", "="] and first_char.islower():
-                        joined_text = word.text[0:-1] + next_word.text
+                joined_text = join_words_if_required(word, next_word)
                 if joined_text is None:
                     new_word = DisplayWord([word], word.text + " ")
                 else:
-                    if (i + 2) >= px_words_len:
-                        word_separator = ""
-                    else:
-                        word3 = px_words[i + 2]
-                        if in_same_text_region(next_word, word3):
-                            word_separator = " "
-                        else:
-                            word_separator = "\n"
+                    word_separator = determine_word_separator(i, next_word, px_words, px_words_len)
                     new_word = DisplayWord([word, next_word], joined_text + word_separator)
 
         new_words.append(new_word)
@@ -105,6 +87,34 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
         new_word = DisplayWord([last_word], last_word.text)
         new_words.append(new_word)
     return new_words
+
+
+def determine_word_separator(i, next_word, px_words, px_words_len):
+    if (i + 2) >= px_words_len:
+        word_separator = ""
+    else:
+        word3 = px_words[i + 2]
+        if in_same_text_region(next_word, word3):
+            word_separator = " "
+        else:
+            word_separator = "\n"
+    return word_separator
+
+
+def join_words_if_required(word, next_word):
+    last_char = word.text[-1]
+    first_char = next_word.text[0]
+    joined_text = None
+    if len(word.text) > 1 and len(next_word.text) > 1:
+        if word.text[-2:] == "„„" and first_char in ["„", ","]:
+            joined_text = word.text[0:-2] + next_word.text[1:]
+        elif last_char in ["„", ".", "¬", ",", "="] and first_char in ["„", ","]:
+            joined_text = word.text[0:-1] + next_word.text[1:]
+        elif last_char not in ["„", "¬"] and first_char in ["„", ","]:
+            joined_text = word.text + next_word.text[1:]
+        elif last_char in ["„", "¬", "="] and first_char.islower():
+            joined_text = word.text[0:-1] + next_word.text
+    return joined_text
 
 
 def generate_word_id(line_id: str, n: int) -> str:

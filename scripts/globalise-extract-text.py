@@ -18,10 +18,13 @@ from pagexml.model.physical_document_model import PageXMLScan, Coords
 import globalise_tools.tools as gt
 
 spacy_core = "nl_core_news_lg"
+
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
+
 metadata_records = []
 ground_truth = []
+iiif_base_url_idx = {}
 
 
 @dataclass_json
@@ -90,17 +93,7 @@ def process_pagexml(path):
     for w in display_words:
         stripped = w.text.strip()
         annotations.append(
-            Annotation(
-                type="tt:Word",
-                offset=len(text),
-                length=len(stripped),
-                metadata={
-                    "id": make_word_id(id_prefix, w),
-                    "text": stripped,
-                    "page_id": w.px_words[0].page_id,
-                    "coords": [pxw.coords for pxw in w.px_words]
-                }
-            )
+            word_annotation(id_prefix, stripped, text, w)
         )
         text += w.text
 
@@ -109,53 +102,79 @@ def process_pagexml(path):
 
     page_id = to_base_name(path)
     annotations.append(
-        Annotation(
-            type="px:Page",
-            offset=0,
-            length=total_size,
-            metadata={
-                "id": make_page_id(id_prefix, page_id),
-                "page_id": page_id,
-                "n": page_id.split("_")[-1],
-                "file": path,
-                "na_url": gt.na_url(path),
-                "tr_url": gt.tr_url(path)
-            }
-        )
+        page_annotation(id_prefix, page_id, path, total_size)
     )
 
     for text_region in tr_idx.values():
         offset = -1
         length = -1
         annotations.append(
-            Annotation(
-                type="px:TextRegion",
-                offset=offset,
-                length=length,
-                metadata={
-                    "id": make_textregion_id(id_prefix, text_region.id),
-                    "page_id": text_region.page_id,
-                    "coords": text_region.coords
-                }
-            )
+            text_region_annotation(id_prefix, length, offset, text_region)
         )
 
     for text_line in tl_idx.values():
         offset = -1
         length = -1
         annotations.append(
-            Annotation(
-                type="px:TextLine",
-                offset=offset,
-                length=length,
-                metadata={
-                    "id": make_textline_id(id_prefix, text_line.id),
-                    "page_id": text_line.page_id,
-                    "coords": text_line.coords
-                }
-            )
+            text_line_annotation(id_prefix, length, offset, text_line)
         )
     return paragraphs, annotations, total_size
+
+
+def text_line_annotation(id_prefix, length, offset, text_line):
+    return Annotation(
+        type="px:TextLine",
+        offset=offset,
+        length=length,
+        metadata={
+            "id": make_textline_id(id_prefix, text_line.id),
+            "page_id": text_line.page_id,
+            "coords": text_line.coords
+        }
+    )
+
+
+def text_region_annotation(id_prefix, length, offset, text_region):
+    return Annotation(
+        type="px:TextRegion",
+        offset=offset,
+        length=length,
+        metadata={
+            "id": make_textregion_id(id_prefix, text_region.id),
+            "page_id": text_region.page_id,
+            "coords": text_region.coords
+        }
+    )
+
+
+def page_annotation(id_prefix, page_id, path, total_size):
+    return Annotation(
+        type="px:Page",
+        offset=0,
+        length=total_size,
+        metadata={
+            "id": make_page_id(id_prefix, page_id),
+            "page_id": page_id,
+            "n": page_id.split("_")[-1],
+            "file": path,
+            "na_url": gt.na_url(path),
+            "tr_url": gt.tr_url(path)
+        }
+    )
+
+
+def word_annotation(id_prefix, stripped, text, w):
+    return Annotation(
+        type="tt:Word",
+        offset=len(text),
+        length=len(stripped),
+        metadata={
+            "id": make_word_id(id_prefix, w),
+            "text": stripped,
+            "page_id": w.px_words[0].page_id,
+            "coords": [pxw.coords for pxw in w.px_words]
+        }
+    )
 
 
 def make_word_id(prefix: str, w) -> str:
@@ -273,40 +292,40 @@ def make_token_annotations(base_name, tokens, token_offsets):
         (token, offset) = pair
         token_is_sentence_end = offset < 0
         if token_is_sentence_end:
-            annotations.append(Annotation(
-                type="tt:Sentence",
-                offset=sentence_offset,
-                length=sentence_length,
-                metadata={
-                    "id": f"urn:globalise:{base_name}:sentence:{sentence_num}",
-                    "page_id": page_id
-                }
-            ))
+            annotations.append(
+                sentence_annotation(base_name, page_id, sentence_length, sentence_num, sentence_offset))
             sentence_offset += sentence_length
             sentence_num += 1
         else:
             token_length = len(token)
-            annotations.append(Annotation(
-                type="tt:Token",
-                offset=offset,
-                length=token_length,
-                metadata={
-                    "id": f"urn:globalise:{base_name}:token:{i}",
-                    "page_id": page_id
-                }
-            ))
+            annotations.append(
+                token_annotation(base_name, i, offset, page_id, token_length))
             sentence_length = offset - sentence_offset + token_length
     return annotations
 
 
-iiif_base_url_idx = {}
+def sentence_annotation(base_name, page_id, sentence_length, sentence_num, sentence_offset):
+    return Annotation(
+        type="tt:Sentence",
+        offset=sentence_offset,
+        length=sentence_length,
+        metadata={
+            "id": f"urn:globalise:{base_name}:sentence:{sentence_num}",
+            "page_id": page_id
+        }
+    )
 
 
-def init_iiif_base_url_idx(path: str):
-    with open(path) as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
+def token_annotation(base_name, i, offset, page_id, token_length):
+    return Annotation(
+        type="tt:Token",
+        offset=offset,
+        length=token_length,
+        metadata={
+            "id": f"urn:globalise:{base_name}:token:{i}",
+            "page_id": page_id
+        }
+    )
 
 
 def get_iiif_base_url(page_id: str) -> str:
@@ -455,6 +474,7 @@ def process_directory_group(directory_group: List[str]):
     (tokens, token_offsets) = tokenize(all_pars)
     token_annotations = make_token_annotations(base_name, tokens, token_offsets)
     all_annotations.extend(token_annotations)
+    all_annotations.sort(key=lambda a: f"{a.metadata['page_id']} {a.offset:06d} {(1000 - a.length):06d}")
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
     metadata.update({
@@ -466,25 +486,39 @@ def process_directory_group(directory_group: List[str]):
     export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
 
 
+def init_iiif_base_url_idx(path: str):
+    print(f"loading {path}...", end=' ')
+    with open(path) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
+    print()
+
+
 def init_spacy():
     global nlp
     nlp = spacy.load(spacy_core)
 
 
 def load_metadata():
+    print(f"loading {metadata_csv}...", end=' ')
     with open(metadata_csv) as f:
         reader = csv.DictReader(f)
         for i, row in enumerate(reader):
             metadata_records.append(row)
+    print()
 
 
 def load_ground_truth():
+    print(f"loading {ground_truth_csv}...", end=' ')
     records = []
     with open(ground_truth_csv) as f:
         reader = csv.DictReader(f)
-        for row in enumerate(reader):
+        for row in reader:
             records.append(row)
-    ground_truth.extend([(r['scan'], r['line n'], r['line n+1']) for r in records if r['join?'] != ''])
+    joined_lines = [(r['scan'], r['line n'], r['line n+1']) for r in records if r['join?'] != '']
+    ground_truth.extend(joined_lines)
+    print()
 
 
 def get_arguments():
@@ -508,21 +542,24 @@ def get_arguments():
     return parser.parse_args()
 
 
+def process(directories, iiif_mapping_file, merge_sections):
+    init_iiif_base_url_idx(iiif_mapping_file)
+    init_spacy()
+    load_metadata()
+    load_ground_truth()
+    if merge_sections:
+        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
+        for _, group in groups:
+            process_directory_group(group)
+    else:
+        for d in directories:
+            process_directory_group([d])
+
+
 def main():
     args = get_arguments()
     if args.directory:
-        init_iiif_base_url_idx(args.iiif_mapping_file)
-        init_spacy()
-        load_metadata()
-        load_ground_truth()
-        directories = args.directory
-        if args.merge_sections:
-            groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
-            for key, group in groups:
-                process_directory_group(group)
-        else:
-            for d in directories:
-                process_directory_group([d])
+        process(args.directory, args.iiif_mapping_file, args.merge_sections)
 
 
 if __name__ == '__main__':
