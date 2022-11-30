@@ -5,14 +5,15 @@ import itertools
 import json
 import os
 import uuid as uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from json import JSONEncoder
-from typing import List, AnyStr, Dict, Any
+from typing import List, AnyStr, Dict, Any, Tuple
 
 import pagexml.parser as pxp
 import spacy
 from dataclasses_json import dataclass_json
+from icecream import ic
 from pagexml.model.physical_document_model import PageXMLScan, Coords
 
 import globalise_tools.tools as gt
@@ -31,9 +32,11 @@ iiif_base_url_idx = {}
 @dataclass
 class Annotation:
     type: str
-    metadata: Dict[AnyStr, Any]
+    id: str
+    page_id: str
     offset: int
     length: int
+    metadata: Dict[AnyStr, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -87,7 +90,7 @@ def process_pagexml(path):
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
     id_prefix = make_id_prefix(scan_doc)
 
-    px_words, tr_idx, tl_idx = gt.extract_pxwords(scan_doc)
+    px_words, tr_idx, tl_idx = gt.extract_px_elements(scan_doc)
     display_words = gt.to_display_words(px_words)
     text = ''
     for w in display_words:
@@ -124,11 +127,11 @@ def process_pagexml(path):
 def text_line_annotation(id_prefix, length, offset, text_line):
     return Annotation(
         type="px:TextLine",
+        id=make_textline_id(id_prefix, text_line.id),
+        page_id=text_line.page_id,
         offset=offset,
         length=length,
         metadata={
-            "id": make_textline_id(id_prefix, text_line.id),
-            "page_id": text_line.page_id,
             "coords": text_line.coords
         }
     )
@@ -137,11 +140,11 @@ def text_line_annotation(id_prefix, length, offset, text_line):
 def text_region_annotation(id_prefix, length, offset, text_region):
     return Annotation(
         type="px:TextRegion",
+        id=make_textregion_id(id_prefix, text_region.id),
+        page_id=text_region.page_id,
         offset=offset,
         length=length,
         metadata={
-            "id": make_textregion_id(id_prefix, text_region.id),
-            "page_id": text_region.page_id,
             "coords": text_region.coords
         }
     )
@@ -150,11 +153,11 @@ def text_region_annotation(id_prefix, length, offset, text_region):
 def page_annotation(id_prefix, page_id, path, total_size):
     return Annotation(
         type="px:Page",
+        id=make_page_id(id_prefix, page_id),
+        page_id=page_id,
         offset=0,
         length=total_size,
         metadata={
-            "id": make_page_id(id_prefix, page_id),
-            "page_id": page_id,
             "n": page_id.split("_")[-1],
             "file": path,
             "na_url": gt.na_url(path),
@@ -166,12 +169,12 @@ def page_annotation(id_prefix, page_id, path, total_size):
 def word_annotation(id_prefix, stripped, text, w):
     return Annotation(
         type="tt:Word",
+        id=make_word_id(id_prefix, w),
+        page_id=w.px_words[0].page_id,
         offset=len(text),
         length=len(stripped),
         metadata={
-            "id": make_word_id(id_prefix, w),
             "text": stripped,
-            "page_id": w.px_words[0].page_id,
             "coords": [pxw.coords for pxw in w.px_words]
         }
     )
@@ -307,24 +310,22 @@ def make_token_annotations(base_name, tokens, token_offsets):
 def sentence_annotation(base_name, page_id, sentence_length, sentence_num, sentence_offset):
     return Annotation(
         type="tt:Sentence",
+        id=f"urn:globalise:{base_name}:sentence:{sentence_num}",
+        page_id=page_id,
         offset=sentence_offset,
         length=sentence_length,
-        metadata={
-            "id": f"urn:globalise:{base_name}:sentence:{sentence_num}",
-            "page_id": page_id
-        }
+        metadata={}
     )
 
 
 def token_annotation(base_name, i, offset, page_id, token_length):
     return Annotation(
         type="tt:Token",
+        id=f"urn:globalise:{base_name}:token:{i}",
+        page_id=page_id,
         offset=offset,
         length=token_length,
-        metadata={
-            "id": f"urn:globalise:{base_name}:token:{i}",
-            "page_id": page_id
-        }
+        metadata={}
     )
 
 
@@ -361,7 +362,8 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
     return targets
 
 
-def canvas_target(canvas_url: str, xywh_list: List[str] = None, coords_list: List[List[List[int]]] = None) -> dict:
+def canvas_target(canvas_url: str, xywh_list: List[str] = None,
+                  coords_list: List[List[Tuple[int, int]]] = None) -> dict:
     selectors = []
     if xywh_list:
         for xywh in xywh_list:
@@ -408,7 +410,7 @@ def to_web_annotation(annotation: Annotation) -> WebAnnotation:
 def annotation_body(annotation):
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
-        "id": annotation.metadata["id"],
+        "id": annotation.id,
         "type": annotation.type
     }
     if "text" in annotation.metadata:
@@ -426,9 +428,9 @@ def to_xywh(coords: Coords):
 
 def annotation_targets(annotation):
     targets = []
-    page_id = annotation.metadata["page_id"]
+    page_id = annotation.page_id
     if "coords" in annotation.metadata:
-        page_id = annotation.metadata["page_id"]
+        page_id = annotation.page_id
         coords = annotation.metadata["coords"]
         if isinstance(coords, Coords):
             coords = [coords]
@@ -452,6 +454,14 @@ def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
     return [to_web_annotation(a) for a in annotations]
 
 
+def ranges_per_scan(annotations: List[Annotation]) -> Dict[str, Tuple[int, int]]:
+    return {
+        pa.page_id: (pa.offset, pa.offset + pa.length)
+        for pa in annotations
+        if pa.type == "px:Page"
+    }
+
+
 def process_directory_group(directory_group: List[str]):
     pagexml_files = []
     for directory in directory_group:
@@ -471,10 +481,13 @@ def process_directory_group(directory_group: List[str]):
             all_annotations.append(annotation)
         start_offset = start_offset + par_length
 
+    scan_ranges = ranges_per_scan(annotations)
+    ic(scan_ranges)
+
     (tokens, token_offsets) = tokenize(all_pars)
     token_annotations = make_token_annotations(base_name, tokens, token_offsets)
     all_annotations.extend(token_annotations)
-    all_annotations.sort(key=lambda a: f"{a.metadata['page_id']} {a.offset:06d} {(1000 - a.length):06d}")
+    all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
     metadata.update({

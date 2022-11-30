@@ -121,7 +121,7 @@ def generate_word_id(line_id: str, n: int) -> str:
     return f"{line_id}.{n:04d}"
 
 
-def extract_pxwords(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextRegion], Dict[str, PXTextLine]):
+def extract_px_elements(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextRegion], Dict[str, PXTextLine]):
     text_region_idx = {}
     text_line_idx = {}
     px_words = []
