@@ -1,8 +1,12 @@
 #!/usr/bin/env python3
 import argparse
+import csv
+import datetime
+from dataclasses import dataclass
 
+from dataclasses_json import dataclass_json
 from icecream import ic
-from textrepo.client import TextRepoClient
+from textrepo.client import TextRepoClient, DocumentIdentifier
 
 ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_1092_0018",
@@ -90,10 +94,108 @@ ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_7573_0189",
        "NL-HaNA_1.04.02_7573_0190"]
 
+base_names = [
+    "NL-HaNA_1.04.02_1092_0017_0021",
+    "NL-HaNA_1.04.02_1297_0019_0057",
+    "NL-HaNA_1.04.02_1589_0019_0021",
+    "NL-HaNA_1.04.02_1589_0048_0049",
+    "NL-HaNA_1.04.02_1589_0052_0056",
+    "NL-HaNA_1.04.02_1859_0115_0135",
+    "NL-HaNA_1.04.02_7573_0077_0078",
+    "NL-HaNA_1.04.02_7573_0183_0190",
+]
+
+
+@dataclass_json
+@dataclass
+class TRDocument:
+    external_id: str
+    txt_version: str = None
+    segmented_version: str = None
+    conll_version: str = None
+
+
+def create_document(trc: TextRepoClient, document_name: str) -> TRDocument:
+    # purge_existing_document(trc, document_name)
+    tr_doc = TRDocument(document_name)
+    # doc_id = trc.create_document(document_name)
+    # ic(doc_id)
+    trc.find_document_metadata(document_name)
+
+    version_info = add_file(trc, document_name, f"out/{document_name}.txt", "txt")
+    tr_doc.txt_version = version_info.version_id
+
+    version_info = add_file(trc, document_name, f"out/{document_name}-segmented-text.json", "segmented_text")
+    tr_doc.segmented_version = version_info.version_id
+
+    version_info = add_file(trc, document_name, f"out/{document_name}.conll", "conll")
+    tr_doc.conll_version = version_info.version_id
+
+    return tr_doc
+
+
+def purge_existing_document(trc, document_name):
+    try:
+        trc.purge_document(document_name)
+    except:
+        pass
+
+
+def add_file(trc, document_name, file_path, type_name):
+    with open(file_path) as file:
+        version_info = trc.import_version(external_id=document_name,
+                                          type_name=type_name,
+                                          contents=file,
+                                          allow_new_document=True,
+                                          as_latest_version=True
+                                          )
+    return version_info
+
+
+def create_documents(trc: TextRepoClient):
+    tr_docs = []
+    for document_name in base_names:
+        tr_docs.append(create_document(trc, document_name))
+    return tr_docs
+
+
+def store_versions(tr_docs):
+    with open("out/tr-versions.csv", "w") as f:
+        writer = csv.DictWriter(f, ["external_id", "txt_version", "segmented_version", "conll_version"])
+        writer.writeheader()
+        writer.writerows([r.to_dict() for r in tr_docs])
+
+
+def show_document_urls(trc: TextRepoClient):
+    file_types = trc.read_file_types()
+    type_ids = {ft.name: ft.id for ft in file_types}
+    for document_name in base_names:
+        ic(document_name)
+        (links, metadata) = trc.find_document_metadata(document_name)
+        document_path = links['up']['url']
+        document_id = document_path.split("/")[-1]
+        ic(document_id)
+        di = DocumentIdentifier(id=document_id, external_id=document_name, created_at=datetime.datetime.now())
+        conll_file_page = trc.read_document_files(document_identifier=di, type_id=type_ids['conll'])
+        conll_file_ids = [i.id for i in conll_file_page.items]
+        for ci in conll_file_ids:
+            versions = trc.read_file_versions(file_id=ci)
+            version_ids = [v.id for v in versions]
+            for i in versions:
+                pass
+        print()
+
 
 def access_textrepo(base_uri: str, api_key: str):
-    trc = TextRepoClient(base_uri, api_key=api_key)
+    trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
     set_file_types(trc)
+    # check_external_ids(trc)
+    tr_docs = create_documents(trc)
+    store_versions(tr_docs)
+    # show_document_urls(trc)
+
+
+def check_external_ids(trc):
     for external_id in ids:
         try:
             m = trc.find_file_metadata(external_id=external_id, type_name="pagexml")
@@ -125,7 +227,7 @@ def get_arguments():
                         required=True,
                         help="The url to the textrepo instance",
                         type=str)
-    parser.add_argument("-a",
+    parser.add_argument("-k",
                         "--api-key",
                         required=False,
                         help="The API key for authorization",
