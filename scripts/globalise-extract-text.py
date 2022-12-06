@@ -230,7 +230,8 @@ def export(base_name: AnyStr,
            metadata: Dict[AnyStr, Any],
            tokens: List[str],
            token_offsets,
-           web_annotations: List[WebAnnotation]
+           web_annotations: List[WebAnnotation],
+           tokens_with_text_region_endings
            ):
     print(f"{base_name}:")
 
@@ -257,6 +258,11 @@ def export(base_name: AnyStr,
     print(f"exporting tokens as CoNLL 2002 to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(as_conll2002(tokens))
+
+    file_name = f"{base_name}-per-text-region.conll"
+    print(f"exporting tokens with textregion endings as CoNLL 2002 to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        f.writelines(as_conll2002(tokens_with_text_region_endings))
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
@@ -302,6 +308,17 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
         tokens.append("")
         offsets.append(-1)
     return tokens, offsets
+
+
+def tokenize_per_paragraph(all_pars: List[str]) -> List[str]:
+    tokens = []
+    for par in all_pars:
+        doc = nlp(par)
+        for sentence in doc.sents:
+            for token in [t for t in sentence if t.text != "\n"]:
+                tokens.append(token.text)
+        tokens.append("")
+    return tokens
 
 
 def read_metadata(basename: str) -> Dict[str, str]:
@@ -557,6 +574,7 @@ def process_directory_group(directory_group: List[str]):
     scan_ranges = ranges_per_scan(all_annotations)
 
     (tokens, token_offsets) = tokenize(all_pars)
+    tokens_with_textregion_endings = tokenize_per_paragraph(all_pars)
     token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
     all_annotations.extend(token_annotations)
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
@@ -568,7 +586,7 @@ def process_directory_group(directory_group: List[str]):
         "annotations": all_annotations,
     })
     web_annotations = make_web_annotations(all_annotations)
-    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
+    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations, tokens_with_textregion_endings)
 
 
 def init_iiif_base_url_idx(path: str):
