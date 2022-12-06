@@ -1,5 +1,5 @@
 from dataclasses import dataclass
-from typing import List, Dict
+from typing import List
 
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords, PageXMLScan
@@ -11,6 +11,8 @@ class PXTextRegion:
     id: str
     page_id: str
     coords: Coords
+    first_word_id: str
+    last_word_id: str
 
 
 @dataclass_json
@@ -20,6 +22,8 @@ class PXTextLine:
     text_region_id: str
     page_id: str
     coords: Coords
+    first_word_id: str
+    last_word_id: str
 
 
 @dataclass_json
@@ -35,8 +39,19 @@ class PXWord:
 
 @dataclass
 class DisplayWord:
+    id: str
     px_words: List[PXWord]
     text: str
+
+
+class IdDispenser:
+    def __init__(self, prefix: str):
+        self.prefix = prefix
+        self.counter = 0
+
+    def next(self):
+        self.counter += 1
+        return f"{self.prefix}{self.counter}"
 
 
 def na_url(file_path):
@@ -60,7 +75,7 @@ def in_same_text_region(word: PXWord, next_word: PXWord) -> bool:
     return word.text_region_id == next_word.text_region_id
 
 
-def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
+def to_display_words(px_words: List[PXWord], ids: IdDispenser) -> List[DisplayWord]:
     new_words = []
     i = 0
     px_words_len = len(px_words)
@@ -68,23 +83,23 @@ def to_display_words(px_words: List[PXWord]) -> List[DisplayWord]:
         word = px_words[i]
         next_word = px_words[i + 1]
         if not in_same_text_region(word, next_word):
-            new_word = DisplayWord([word], word.text + "\n")
+            new_word = DisplayWord(ids.next(),[word], word.text + "\n")
         else:
             if in_same_text_line(word, next_word):
-                new_word = DisplayWord([word], word.text + " ")
+                new_word = DisplayWord(ids.next(),[word], word.text + " ")
             else:
                 joined_text = join_words_if_required(word, next_word)
                 if joined_text is None:
-                    new_word = DisplayWord([word], word.text + " ")
+                    new_word = DisplayWord(ids.next(),[word], word.text + " ")
                 else:
                     word_separator = determine_word_separator(i, next_word, px_words, px_words_len)
-                    new_word = DisplayWord([word, next_word], joined_text + word_separator)
+                    new_word = DisplayWord(ids.next(),[word, next_word], joined_text + word_separator)
 
         new_words.append(new_word)
         i += len(new_word.px_words)
     if i < px_words_len:
         last_word = px_words[-1]
-        new_word = DisplayWord([last_word], last_word.text)
+        new_word = DisplayWord(ids.next(),[last_word], last_word.text)
         new_words.append(new_word)
     return new_words
 
@@ -121,17 +136,49 @@ def generate_word_id(line_id: str, n: int) -> str:
     return f"{line_id}.{n:04d}"
 
 
-def extract_px_elements(scan_doc: PageXMLScan) -> (List[PXWord], Dict[str, PXTextRegion], Dict[str, PXTextLine]):
-    text_region_idx = {}
-    text_line_idx = {}
+def extract_px_elements(scan_doc: PageXMLScan) -> (List[PXTextRegion], List[PXTextLine], List[PXWord]):
+    text_regions = []
+    text_lines = []
     px_words = []
     page_id = scan_doc.id.replace(".jpg", "")
     for tr in scan_doc.get_text_regions_in_reading_order():
-        text_region_idx[tr.id] = PXTextRegion(tr.id, page_id, tr.coords)
-        for line in tr.lines:
-            text_line_idx[line.id] = PXTextLine(line.id, tr.id, page_id, line.coords)
-            for i, w in enumerate(line.words):
-                if w.text:
-                    word_id = w.id if w.id else generate_word_id(line.id, i + 1)
-                    px_words.append(PXWord(word_id, line.id, tr.id, page_id, w.text, w.coords))
-    return px_words, text_region_idx, text_line_idx
+        collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_regions)
+    return text_regions, text_lines, px_words
+
+
+def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_regions):
+    first_tr_word_index = len(px_words)
+    for line in tr.lines:
+        collect_elements_from_line(line, tr, page_id, px_words, text_lines)
+    last_tr_word_index = len(px_words) - 1
+    first_word_id_in_text_region = px_words[first_tr_word_index].id
+    last_word_id_in_text_region = px_words[last_tr_word_index].id
+    text_regions.append(
+        PXTextRegion(id=tr.id,
+                     page_id=page_id,
+                     coords=tr.coords,
+                     first_word_id=first_word_id_in_text_region,
+                     last_word_id=last_word_id_in_text_region)
+    )
+
+
+def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
+    if line.words:
+        first_line_word_index = len(px_words)
+        for i, w in enumerate(line.words):
+            if w.text:
+                word_id = w.id if w.id else generate_word_id(line.id, i + 1)
+                px_words.append(
+                    PXWord(word_id, line.id, tr.id, page_id, w.text, w.coords)
+                )
+        last_line_word_index = len(px_words) - 1
+        first_word_id_in_line = px_words[first_line_word_index].id
+        last_word_id_in_line = px_words[last_line_word_index].id
+        text_lines.append(
+            PXTextLine(id=line.id,
+                       text_region_id=tr.id,
+                       page_id=page_id,
+                       coords=line.coords,
+                       first_word_id=first_word_id_in_line,
+                       last_word_id=last_word_id_in_line)
+        )

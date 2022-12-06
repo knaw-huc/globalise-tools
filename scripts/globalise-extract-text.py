@@ -22,6 +22,7 @@ spacy_core = "nl_core_news_lg"
 
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
+textrepo_version_csv = "data/textrepo_versions.csv"
 
 metadata_records = []
 ground_truth = []
@@ -36,6 +37,12 @@ class Annotation:
     page_id: str
     offset: int
     length: int
+    anchor_version_id: str = "TODO"
+    begin_anchor: int = -1
+    end_anchor: int = -1
+    txt_version_id: str = "TODO"
+    char_start: int = -1
+    char_end: int = -1
     metadata: Dict[AnyStr, Any] = field(default_factory=dict)
 
 
@@ -85,20 +92,32 @@ def make_id_prefix(scan_doc) -> str:
     return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
 
 
+def index_word_ranges(words: List[gt.DisplayWord], word_range_index) -> Dict[str, Tuple[int, int]]:
+    index = {}
+    for w in words:
+        (range_start, range_end) = word_range_index[w.id]
+        for pw in w.px_words:
+            index[pw.id] = (range_start, range_end)
+    return index
+
+
 def process_pagexml(path):
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
     id_prefix = make_id_prefix(scan_doc)
 
-    px_words, tr_idx, tl_idx = gt.extract_px_elements(scan_doc)
-    display_words = gt.to_display_words(px_words)
+    px_text_regions, px_text_lines, px_words = gt.extract_px_elements(scan_doc)
+    id_dispenser = gt.IdDispenser(id_prefix)
+    display_words = gt.to_display_words(px_words, id_dispenser)
     text = ''
+    display_word_range_idx = {}
     for w in display_words:
         stripped = w.text.strip()
-        annotations.append(
-            word_annotation(id_prefix, stripped, text, w)
-        )
+        wa = word_annotation(id_prefix, stripped, text, w)
+        annotations.append(wa)
+        display_word_range_idx[w.id] = (wa.offset, wa.offset + wa.length)
         text += w.text
+    px_word_range_idx = index_word_ranges(display_words, display_word_range_idx)
 
     paragraphs = [f'{p}\n' for p in text.split("\n")]
     total_size = len("".join(paragraphs))
@@ -108,23 +127,25 @@ def process_pagexml(path):
         page_annotation(id_prefix, page_id, path, total_size)
     )
 
-    for text_region in tr_idx.values():
-        offset = -1
-        length = -1
+    for text_region in px_text_regions:
+        offset = px_word_range_idx[text_region.first_word_id][0]
+        last_word_range = px_word_range_idx[text_region.last_word_id]
+        length = last_word_range[1] - offset
         annotations.append(
-            text_region_annotation(id_prefix, length, offset, text_region)
+            text_region_annotation(text_region, id_prefix, offset, length)
         )
 
-    for text_line in tl_idx.values():
-        offset = -1
-        length = -1
+    for text_line in px_text_lines:
+        offset = px_word_range_idx[text_line.first_word_id][0]
+        last_word_range = px_word_range_idx[text_line.last_word_id]
+        length = last_word_range[1] - offset
         annotations.append(
-            text_line_annotation(id_prefix, length, offset, text_line)
+            text_line_annotation(text_line, id_prefix, offset, length)
         )
     return paragraphs, annotations, total_size
 
 
-def text_line_annotation(id_prefix, length, offset, text_line):
+def text_line_annotation(text_line, id_prefix, offset, length):
     return Annotation(
         type="px:TextLine",
         id=make_textline_id(id_prefix, text_line.id),
@@ -137,7 +158,7 @@ def text_line_annotation(id_prefix, length, offset, text_line):
     )
 
 
-def text_region_annotation(id_prefix, length, offset, text_region):
+def text_region_annotation(text_region, id_prefix, offset, length):
     return Annotation(
         type="px:TextRegion",
         id=make_textregion_id(id_prefix, text_region.id),
@@ -153,7 +174,7 @@ def text_region_annotation(id_prefix, length, offset, text_region):
 def page_annotation(id_prefix, page_id, path, total_size):
     return Annotation(
         type="px:Page",
-        id=make_page_id(id_prefix, page_id),
+        id=make_page_id(id_prefix),
         page_id=page_id,
         offset=0,
         length=total_size,
@@ -188,8 +209,8 @@ def make_textline_id(prefix: str, line_id) -> str:
     return prefix + ":textline:" + line_id
 
 
-def make_page_id(prefix: str, page_id) -> str:
-    return prefix + ":page:" + page_id
+def make_page_id(prefix: str) -> str:
+    return prefix
 
 
 def make_textregion_id(prefix: str, textregion_id) -> str:
@@ -223,7 +244,16 @@ def export(base_name: AnyStr,
     with open(file_name, 'w', encoding='utf-8') as f:
         json.dump(tokens, f, indent=2)
 
-    file_name = f"{base_name}.cnll"
+    file_name = f"{base_name}-segmented-text.json"
+    print(f"exporting token segments to {file_name}")
+    with open(file_name, 'w', encoding='utf-8') as f:
+        segments = [t if t else "\n" for t in tokens]
+        wrapper = {
+            "_ordered_segments": segments
+        }
+        json.dump(wrapper, f, indent=2)
+
+    file_name = f"{base_name}.conll"
     print(f"exporting tokens as CoNLL 2002 to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(as_conll2002(tokens))
@@ -375,6 +405,37 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
     return targets
 
 
+REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
+
+
+def make_text_targets(textrepo_base_url="", annotation: Annotation = None):
+    text_anchor_selector_target = {
+        'source': f"{textrepo_base_url}/rest/versions/{annotation.anchor_version_id}/contents",
+        'type': "Text",
+        "selector": {
+            '@context': REPUBLIC_CONTEXT,
+            "type": "urn:republic:TextAnchorSelector",
+            "start": annotation.begin_anchor,
+            "end": annotation.end_anchor
+        }
+    }
+    cutout_target = {
+        'source': f"{textrepo_base_url}/view/versions/{annotation.anchor_version_id}/segments/"
+                  f"index/{annotation.begin_anchor}/{annotation.end_anchor}",
+        'type': "Text"
+    }
+    fragment_selector_target = {
+        'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
+        'type': "Text",
+        "selector": {
+            "type": "FragmentSelector",
+            "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
+            "value": f"char={annotation.char_start},{annotation.char_end}",
+        }
+    }
+    return [text_anchor_selector_target, cutout_target]
+
+
 def canvas_target(canvas_url: str, xywh_list: List[str] = None,
                   coords_list: List[List[Tuple[int, int]]] = None) -> dict:
     selectors = []
@@ -420,7 +481,7 @@ def to_web_annotation(annotation: Annotation) -> WebAnnotation:
     return WebAnnotation(body=body, target=targets)
 
 
-def annotation_body(annotation):
+def annotation_body(annotation: Annotation):
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
         "id": annotation.id,
@@ -431,15 +492,11 @@ def annotation_body(annotation):
     return body
 
 
-def text_targets():
-    return []
-
-
 def to_xywh(coords: Coords):
     return f"{coords.left},{coords.top},{coords.width},{coords.height}"
 
 
-def annotation_targets(annotation):
+def annotation_targets(annotation: Annotation):
     targets = []
     page_id = annotation.page_id
     if "coords" in annotation.metadata:
@@ -459,7 +516,10 @@ def annotation_targets(annotation):
             "source": iiif_url,
             "type": "Image"
         })
-    targets.extend(text_targets())
+    targets.extend(
+        make_text_targets(textrepo_base_url="https://globalise.tt.di.huc.knaw.nl/textrepo",
+                          annotation=annotation)
+    )
     return targets
 
 
