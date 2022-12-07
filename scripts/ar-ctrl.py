@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+from itertools import zip_longest
 
 from annorepo.client import AnnoRepoClient
 from icecream import ic
@@ -105,6 +106,7 @@ def access_annorepo(base_uri: str, api_key: str):
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
 
+    # container_name = "tmp"
     container_name = "globalise-demo-1"
     make_container(arc, container_name)
     upload_annotations(arc, container_name)
@@ -112,13 +114,21 @@ def access_annorepo(base_uri: str, api_key: str):
     # ic(r)
 
 
+def make_chunks_of_size(chunk_size, our_list):
+    chunked_list = [list(item) for item in list(zip_longest(*[iter(our_list)] * chunk_size, fillvalue=''))]
+    chunked_list[-1] = [x for x in chunked_list[-1] if x]
+    return chunked_list
+
+
 def upload_annotations(arc, container_name):
     for a in wa:
         with open(a) as f:
             annotations = json.load(f)
 
-        r = arc.add_annotations(container_name, annotation_list=annotations)
-        ic(r)
+        chunks = make_chunks_of_size(500, annotations)
+        for annos in chunks:
+            r = arc.add_annotations(container_name, annotation_list=annos)
+            # ic(r)
 
 
 def make_container(arc, container_name):
