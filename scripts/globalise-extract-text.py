@@ -33,12 +33,12 @@ class Annotation:
     page_id: str
     offset: int
     length: int
-    segmented_version_id: str = "TODO"
-    begin_anchor: int = -1
-    end_anchor: int = -1
-    txt_version_id: str = "TODO"
-    char_start: int = -1
-    char_end: int = -1
+    segmented_version_id: str = ""
+    begin_anchor: int = 0
+    end_anchor: int = 0
+    txt_version_id: str = ""
+    char_start: int = 0
+    char_end: int = 0
     metadata: Dict[AnyStr, Any] = field(default_factory=dict)
 
 
@@ -565,32 +565,22 @@ def ranges_per_scan(annotations: List[Annotation]) -> Dict[str, Tuple[int, int]]
 
 
 def process_directory_group(directory_group: List[str]):
-    pagexml_files = []
-    for directory in directory_group:
-        pagexml_files.extend(list_pagexml_files(directory))
-    pagexml_files.sort()
+    pagexml_files = list_pagexml_files_in_group(directory_group)
 
     base_name = create_base_name(pagexml_files)
 
-    all_pars = []
-    all_annotations = []
-    start_offset = 0
-    for f in pagexml_files:
-        (paragraphs, annotations, par_length) = process_pagexml(f)
-        all_pars += paragraphs
-        for annotation in annotations:
-            annotation.offset += start_offset
-            all_annotations.append(annotation)
-        start_offset = start_offset + par_length
-
-    add_tr_versions(all_annotations, base_name)
+    all_annotations, all_pars = process_pagexml_files(pagexml_files)
 
     scan_ranges = ranges_per_scan(all_annotations)
 
     # (tokens, token_offsets) = tokenize(all_pars)
     (tokens, token_offsets) = tokenize_per_paragraph(all_pars)
+
     token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
     all_annotations.extend(token_annotations)
+
+    add_tr_versions(all_annotations, base_name)
+
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
@@ -601,6 +591,28 @@ def process_directory_group(directory_group: List[str]):
     })
     web_annotations = make_web_annotations(all_annotations)
     export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
+
+
+def list_pagexml_files_in_group(directory_group):
+    pagexml_files = []
+    for directory in directory_group:
+        pagexml_files.extend(list_pagexml_files(directory))
+    pagexml_files.sort()
+    return pagexml_files
+
+
+def process_pagexml_files(pagexml_files):
+    all_pars = []
+    all_annotations = []
+    start_offset = 0
+    for f in pagexml_files:
+        (paragraphs, annotations, par_length) = process_pagexml(f)
+        all_pars.append(paragraphs)
+        for annotation in annotations:
+            annotation.offset += start_offset
+            all_annotations.append(annotation)
+        start_offset = start_offset + par_length
+    return all_annotations, all_pars
 
 
 def add_tr_versions(all_annotations, external_id):
