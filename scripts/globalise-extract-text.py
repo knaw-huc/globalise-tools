@@ -153,6 +153,7 @@ def text_line_annotation(text_line, id_prefix, offset, length):
         offset=offset,
         length=length,
         metadata={
+            "text": text_line.text,
             "coords": text_line.coords
         }
     )
@@ -305,8 +306,8 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
         for token in [t for t in sentence if t.text != "\n"]:
             tokens.append(token.text)
             offsets.append(token.idx)
-        tokens.append("")
-        offsets.append(-1)
+        # tokens.append("")
+        # offsets.append(-1)
     return tokens, offsets
 
 

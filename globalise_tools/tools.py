@@ -24,6 +24,7 @@ class PXTextLine:
     coords: Coords
     first_word_id: str
     last_word_id: str
+    text: str
 
 
 @dataclass_json
@@ -83,23 +84,23 @@ def to_display_words(px_words: List[PXWord], ids: IdDispenser) -> List[DisplayWo
         word = px_words[i]
         next_word = px_words[i + 1]
         if not in_same_text_region(word, next_word):
-            new_word = DisplayWord(ids.next(),[word], word.text + "\n")
+            new_word = DisplayWord(ids.next(), [word], word.text + "\n")
         else:
             if in_same_text_line(word, next_word):
-                new_word = DisplayWord(ids.next(),[word], word.text + " ")
+                new_word = DisplayWord(ids.next(), [word], word.text + " ")
             else:
                 joined_text = join_words_if_required(word, next_word)
                 if joined_text is None:
-                    new_word = DisplayWord(ids.next(),[word], word.text + " ")
+                    new_word = DisplayWord(ids.next(), [word], word.text + " ")
                 else:
                     word_separator = determine_word_separator(i, next_word, px_words, px_words_len)
-                    new_word = DisplayWord(ids.next(),[word, next_word], joined_text + word_separator)
+                    new_word = DisplayWord(ids.next(), [word, next_word], joined_text + word_separator)
 
         new_words.append(new_word)
         i += len(new_word.px_words)
     if i < px_words_len:
         last_word = px_words[-1]
-        new_word = DisplayWord(ids.next(),[last_word], last_word.text)
+        new_word = DisplayWord(ids.next(), [last_word], last_word.text)
         new_words.append(new_word)
     return new_words
 
@@ -178,6 +179,7 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
             PXTextLine(id=line.id,
                        text_region_id=tr.id,
                        page_id=page_id,
+                       text=line.text,
                        coords=line.coords,
                        first_word_id=first_word_id_in_line,
                        last_word_id=last_word_id_in_line)
