@@ -114,8 +114,8 @@ def access_annorepo(base_uri: str, api_key: str):
     # ic(r)
 
 
-def make_chunks_of_size(chunk_size, our_list):
-    chunked_list = [list(item) for item in list(zip_longest(*[iter(our_list)] * chunk_size, fillvalue=''))]
+def make_chunks_of_size(chunk_size, big_list):
+    chunked_list = [big_list(item) for item in big_list(zip_longest(*[iter(big_list)] * chunk_size, fillvalue=''))]
     chunked_list[-1] = [x for x in chunked_list[-1] if x]
     return chunked_list
 

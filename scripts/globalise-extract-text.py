@@ -22,11 +22,7 @@ spacy_core = "nl_core_news_lg"
 
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
-textrepo_version_csv = "data/textrepo_versions.csv"
-
-metadata_records = []
-ground_truth = []
-iiif_base_url_idx = {}
+textrepo_version_csv = "data/tr-versions.csv"
 
 
 @dataclass_json
@@ -37,7 +33,7 @@ class Annotation:
     page_id: str
     offset: int
     length: int
-    anchor_version_id: str = "TODO"
+    segmented_version_id: str = "TODO"
     begin_anchor: int = -1
     end_anchor: int = -1
     txt_version_id: str = "TODO"
@@ -69,6 +65,13 @@ class WebAnnotation:
         }
 
 
+@dataclass
+class TRVersions:
+    txt: str
+    segmented: str
+    conll: str
+
+
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, Annotation):
@@ -81,6 +84,12 @@ class AnnotationEncoder(JSONEncoder):
             return obj.to_dict()
         elif isinstance(obj, Coords):
             return obj.points
+
+
+metadata_records = []
+ground_truth = []
+iiif_base_url_idx = {}
+tr_versions: Dict[str, TRVersions] = {}
 
 
 def list_pagexml_files(directory: str):
@@ -231,8 +240,7 @@ def export(base_name: AnyStr,
            metadata: Dict[AnyStr, Any],
            tokens: List[str],
            token_offsets,
-           web_annotations: List[WebAnnotation],
-           tokens_with_text_region_endings
+           web_annotations: List[WebAnnotation]
            ):
     print(f"{base_name}:")
 
@@ -260,10 +268,10 @@ def export(base_name: AnyStr,
     with open(file_name, 'w', encoding='utf-8') as f:
         f.writelines(as_conll2002(tokens))
 
-    file_name = f"{base_name}-per-text-region.conll"
-    print(f"exporting tokens with textregion endings as CoNLL 2002 to {file_name}")
-    with open(file_name, 'w', encoding='utf-8') as f:
-        f.writelines(as_conll2002(tokens_with_text_region_endings))
+    # file_name = f"{base_name}-per-text-region.conll"
+    # print(f"exporting tokens with textregion endings as CoNLL 2002 to {file_name}")
+    # with open(file_name, 'w', encoding='utf-8') as f:
+    #     f.writelines(as_conll2002(tokens_with_text_region_endings))
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
@@ -306,20 +314,23 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
         for token in [t for t in sentence if t.text != "\n"]:
             tokens.append(token.text)
             offsets.append(token.idx)
-        # tokens.append("")
-        # offsets.append(-1)
+        tokens.append("")
+        offsets.append(-1)
     return tokens, offsets
 
 
-def tokenize_per_paragraph(all_pars: List[str]) -> List[str]:
+def tokenize_per_paragraph(all_pars: List[str]) -> (List[str], List[int]):
     tokens = []
+    offsets = []
     for par in all_pars:
         doc = nlp(par)
         for sentence in doc.sents:
             for token in [t for t in sentence if t.text != "\n"]:
                 tokens.append(token.text)
+                offsets.append(token.idx)
         tokens.append("")
-    return tokens
+        offsets.append(-1)
+    return tokens, offsets
 
 
 def read_metadata(basename: str) -> Dict[str, str]:
@@ -428,7 +439,7 @@ REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
 
 def make_text_targets(textrepo_base_url="", annotation: Annotation = None):
     text_anchor_selector_target = {
-        'source': f"{textrepo_base_url}/rest/versions/{annotation.anchor_version_id}/contents",
+        'source': f"{textrepo_base_url}/rest/versions/{annotation.segmented_version_id}/contents",
         'type': "Text",
         "selector": {
             '@context': REPUBLIC_CONTEXT,
@@ -438,7 +449,7 @@ def make_text_targets(textrepo_base_url="", annotation: Annotation = None):
         }
     }
     cutout_target = {
-        'source': f"{textrepo_base_url}/view/versions/{annotation.anchor_version_id}/segments/"
+        'source': f"{textrepo_base_url}/view/versions/{annotation.segmented_version_id}/segments/"
                   f"index/{annotation.begin_anchor}/{annotation.end_anchor}",
         'type': "Text"
     }
@@ -565,17 +576,19 @@ def process_directory_group(directory_group: List[str]):
     all_annotations = []
     start_offset = 0
     for f in pagexml_files:
-        (paragraphs, page_annotations, par_length) = process_pagexml(f)
+        (paragraphs, annotations, par_length) = process_pagexml(f)
         all_pars += paragraphs
-        for annotation in page_annotations:
+        for annotation in annotations:
             annotation.offset += start_offset
             all_annotations.append(annotation)
         start_offset = start_offset + par_length
 
+    add_tr_versions(all_annotations, base_name)
+
     scan_ranges = ranges_per_scan(all_annotations)
 
-    (tokens, token_offsets) = tokenize(all_pars)
-    tokens_with_textregion_endings = tokenize_per_paragraph(all_pars)
+    # (tokens, token_offsets) = tokenize(all_pars)
+    (tokens, token_offsets) = tokenize_per_paragraph(all_pars)
     token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
     all_annotations.extend(token_annotations)
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
@@ -587,7 +600,13 @@ def process_directory_group(directory_group: List[str]):
         "annotations": all_annotations,
     })
     web_annotations = make_web_annotations(all_annotations)
-    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations, tokens_with_textregion_endings)
+    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
+
+
+def add_tr_versions(all_annotations, external_id):
+    for a in all_annotations:
+        a.segmented_version_id = tr_versions[external_id].segmented
+        a.txt_version_id = tr_versions[external_id].txt
 
 
 def init_iiif_base_url_idx(path: str):
@@ -625,6 +644,16 @@ def load_ground_truth():
     print()
 
 
+def load_tr_versions():
+    print(f"loading {textrepo_version_csv}...", end=' ')
+    with open(textrepo_version_csv) as f:
+        reader = csv.DictReader(f)
+        for row in reader:
+            tr_versions[row['external_id']] = TRVersions(txt=row['txt_version'], segmented=row['segmented_version'],
+                                                         conll=row['conll_version'])
+    print()
+
+
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Extract text and annotations from all the PageXML in the given directory",
@@ -651,6 +680,7 @@ def process(directories, iiif_mapping_file, merge_sections):
     init_spacy()
     load_metadata()
     load_ground_truth()
+    load_tr_versions()
     if merge_sections:
         groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
         for _, group in groups:
