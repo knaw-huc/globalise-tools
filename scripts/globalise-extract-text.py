@@ -322,14 +322,16 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
 def tokenize_per_paragraph(all_pars: List[str]) -> (List[str], List[int]):
     tokens = []
     offsets = []
+    text_offset = 0
     for par in all_pars:
         doc = nlp(par)
         for sentence in doc.sents:
             for token in [t for t in sentence if t.text != "\n"]:
                 tokens.append(token.text)
-                offsets.append(token.idx)
+                offsets.append(text_offset + token.idx)
         tokens.append("")
         offsets.append(-1)
+        text_offset += len(par)
     return tokens, offsets
 
 
@@ -358,46 +360,50 @@ def get_page_id(offset: int, length: int, scan_ranges) -> str:
 
 def make_token_annotations(base_name, tokens, token_offsets, scan_ranges):
     annotations = []
-    sentence_offset = 0
-    sentence_length = 0
-    sentence_num = 1
-    for i, pair in enumerate(zip(tokens, token_offsets)):
-        (token, offset) = pair
-        token_is_sentence_end = offset < 0
-        if token_is_sentence_end:
-            page_id = get_page_id(sentence_offset, sentence_length, scan_ranges)
+    par_offset = 0
+    par_length = 0
+    par_num = 1
+    for i, (token, offset) in enumerate(zip(tokens, token_offsets)):
+        # ic(token, offset)
+        token_is_paragraph_end = offset < 0
+        if token_is_paragraph_end:
+            page_id = get_page_id(par_offset, par_length, scan_ranges)
             annotations.append(
-                sentence_annotation(base_name, page_id, sentence_num, sentence_offset, sentence_length))
-            sentence_offset += sentence_length
-            sentence_num += 1
+                paragraph_annotation(base_name, page_id, par_num, par_offset, par_length))
+            par_offset += par_length
+            par_num += 1
         else:
             token_length = len(token)
             page_id = get_page_id(offset, token_length, scan_ranges)
             annotations.append(
-                token_annotation(base_name, page_id, i, offset, token_length))
-            sentence_length = offset - sentence_offset + token_length
+                token_annotation(base_name=base_name, page_id=page_id, token_num=i, offset=offset,
+                                 token_length=token_length, token_text=token))
+            par_length = offset - par_offset + token_length
+        # ic(annotations[-1])
     return annotations
 
 
-def sentence_annotation(base_name, page_id, sentence_num, sentence_offset, sentence_length):
+def paragraph_annotation(base_name, page_id, par_num, par_offset, par_length):
     return Annotation(
-        type="tt:Sentence",
-        id=f"urn:globalise:{base_name}:sentence:{sentence_num}",
+        type="tt:Paragraph",
+        id=f"urn:globalise:{base_name}:paragraph:{par_num}",
         page_id=page_id,
-        offset=sentence_offset,
-        length=sentence_length,
+        offset=par_offset,
+        length=par_length,
         metadata={}
     )
 
 
-def token_annotation(base_name, page_id, i, offset, token_length):
+def token_annotation(base_name, page_id, token_num, offset, token_length, token_text):
     return Annotation(
         type="tt:Token",
-        id=f"urn:globalise:{base_name}:token:{i}",
+        id=f"urn:globalise:{base_name}:token:{token_num}",
         page_id=page_id,
         offset=offset,
         length=token_length,
-        metadata={}
+        metadata={
+            "text": token_text
+        }
     )
 
 
@@ -578,10 +584,14 @@ def process_directory_group(directory_group: List[str]):
 
     token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
     all_annotations.extend(token_annotations)
+    # token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:5]
 
     add_tr_versions(all_annotations, base_name)
 
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
+
+    token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:10]
+    ic(token_selection)
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
     metadata.update({
@@ -607,7 +617,7 @@ def process_pagexml_files(pagexml_files):
     start_offset = 0
     for f in pagexml_files:
         (paragraphs, annotations, par_length) = process_pagexml(f)
-        all_pars.append(paragraphs)
+        all_pars.extend(paragraphs)
         for annotation in annotations:
             annotation.offset += start_offset
             all_annotations.append(annotation)

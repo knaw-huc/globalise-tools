@@ -102,30 +102,34 @@ wa = ["out/NL-HaNA_1.04.02_1092_0017_0021-web-annotations.json",
       "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json"]
 
 
-def access_annorepo(base_uri: str, api_key: str):
+def access_annorepo(base_uri: str, api_key: str, container_name: str):
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
 
     # container_name = "tmp"
-    container_name = "globalise-demo-1"
-    make_container(arc, container_name)
+    # container_name = "globalise-demo-1"
+    if not arc.has_container(container_name):
+        make_container(arc, container_name)
     upload_annotations(arc, container_name)
     # r = arc.delete_container(container_name, eTag)
     # ic(r)
 
 
 def make_chunks_of_size(chunk_size, big_list):
-    chunked_list = [big_list(item) for item in big_list(zip_longest(*[iter(big_list)] * chunk_size, fillvalue=''))]
+    chunked_list = [list(item) for item in list(zip_longest(*[iter(big_list)] * chunk_size, fillvalue=''))]
     chunked_list[-1] = [x for x in chunked_list[-1] if x]
     return chunked_list
 
 
 def upload_annotations(arc, container_name):
+    print(f"uploading annotations to container {container_name}:")
     for a in wa:
+        print(f"reading {a}")
         with open(a) as f:
             annotations = json.load(f)
 
-        chunks = make_chunks_of_size(500, annotations)
+        print(f"uploading {len(annotations)} annotations")
+        chunks = make_chunks_of_size(400, annotations)
         for annos in chunks:
             r = arc.add_annotations(container_name, annotation_list=annos)
             # ic(r)
@@ -145,6 +149,11 @@ def get_arguments():
                         required=True,
                         help="The url to the annorepo instance",
                         type=str)
+    parser.add_argument("-c",
+                        "--container-name",
+                        required=True,
+                        help="The name of the container to upload the annotations to",
+                        type=str)
     parser.add_argument("-k",
                         "--api-key",
                         required=False,
@@ -155,4 +164,4 @@ def get_arguments():
 
 if __name__ == '__main__':
     args = get_arguments()
-    access_annorepo(args.annorepo_url, args.api_key)
+    access_annorepo(args.annorepo_url, args.api_key, args.container_name)
