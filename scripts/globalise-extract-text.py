@@ -566,6 +566,26 @@ def ranges_per_scan(annotations: List[Annotation]) -> Dict[str, Tuple[int, int]]
     }
 
 
+def segment_range(tokens: List[GTToken], char_range_begin: int, char_range_end: int):
+    begin_idx = 0
+    end_idx = 0
+    for i, token in enumerate(tokens):
+        if -1 < token.offset <= char_range_begin:
+            begin_idx = i
+        if -1 < token.offset < char_range_end:
+            end_idx = i
+        elif -1 < token.offset:
+            break
+    return begin_idx, end_idx
+
+
+def add_anchor_range(all_annotations: List[Annotation], tokens: List[GTToken]):
+    for a in all_annotations:
+        char_range_begin = a.offset
+        char_range_end = a.offset + a.length
+        a.begin_anchor, a.end_anchor = segment_range(tokens, char_range_begin, char_range_end)
+
+
 def process_directory_group(directory_group: List[str]):
     pagexml_files = list_pagexml_files_in_group(directory_group)
 
@@ -583,11 +603,12 @@ def process_directory_group(directory_group: List[str]):
     # token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:5]
 
     add_tr_versions(all_annotations, base_name)
+    add_anchor_range(all_annotations, tokens)
 
     all_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
 
-    token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:10]
-    ic(token_selection)
+    # token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:10]
+    # ic(token_selection)
 
     metadata = read_metadata(to_base_name(pagexml_files[0]))
     metadata.update({
