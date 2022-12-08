@@ -72,16 +72,23 @@ class TRVersions:
     conll: str
 
 
+@dataclass_json
+@dataclass
+class GTToken:
+    text: str
+    text_with_ws: str
+    offset: int
+
+
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, Annotation):
+        if isinstance(obj, Annotation) \
+                or isinstance(obj, gt.PXTextRegion) \
+                or isinstance(obj, gt.PXTextLine) \
+                or isinstance(obj, GTToken):
             return obj.to_dict()
-        if isinstance(obj, WebAnnotation):
+        elif isinstance(obj, WebAnnotation):
             return obj.wrapped()
-        elif isinstance(obj, gt.PXTextRegion):
-            return obj.to_dict()
-        elif isinstance(obj, gt.PXTextLine):
-            return obj.to_dict()
         elif isinstance(obj, Coords):
             return obj.points
 
@@ -238,8 +245,7 @@ def as_conll2002(tokens: List[str]) -> List[str]:
 def export(base_name: AnyStr,
            all_text: List[AnyStr],
            metadata: Dict[AnyStr, Any],
-           tokens: List[str],
-           token_offsets,
+           tokens: List[GTToken],
            web_annotations: List[WebAnnotation]
            ):
     print(f"{base_name}:")
@@ -252,12 +258,12 @@ def export(base_name: AnyStr,
     file_name = f"{base_name}-tokens.json"
     print(f"exporting tokens to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
-        json.dump(tokens, f, indent=2)
+        json.dump(tokens, f, indent=2, cls=AnnotationEncoder)
 
     file_name = f"{base_name}-segmented-text.json"
     print(f"exporting token segments to {file_name}")
     with open(file_name, 'w', encoding='utf-8') as f:
-        segments = [t if t else "\n" for t in tokens]
+        segments = [t.text_with_ws if t.text_with_ws else "\n" for t in tokens]
         wrapper = {
             "_ordered_segments": segments
         }
@@ -265,23 +271,14 @@ def export(base_name: AnyStr,
 
     file_name = f"{base_name}.conll"
     print(f"exporting tokens as CoNLL 2002 to {file_name}")
+    token_texts = [t.text for t in tokens]
     with open(file_name, 'w', encoding='utf-8') as f:
-        f.writelines(as_conll2002(tokens))
-
-    # file_name = f"{base_name}-per-text-region.conll"
-    # print(f"exporting tokens with textregion endings as CoNLL 2002 to {file_name}")
-    # with open(file_name, 'w', encoding='utf-8') as f:
-    #     f.writelines(as_conll2002(tokens_with_text_region_endings))
+        f.writelines(as_conll2002(token_texts))
 
     metadata_file_name = f"{base_name}-metadata.json"
     print(f"exporting metadata to {metadata_file_name}")
     with open(metadata_file_name, 'w', encoding='utf-8') as f:
         json.dump(metadata, f, indent=2, cls=AnnotationEncoder)
-
-    file_name = f"{base_name}-token-offsets.json"
-    print(f"exporting token offsets to {file_name}")
-    with open(file_name, 'w', encoding='utf-8') as f:
-        json.dump(token_offsets, f, indent=2, cls=AnnotationEncoder)
 
     file_name = f"{base_name}-web-annotations.json"
     print(f"exporting web annotations to {file_name}")
@@ -319,20 +316,18 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
     return tokens, offsets
 
 
-def tokenize_per_paragraph(all_pars: List[str]) -> (List[str], List[int]):
+def tokenize_per_paragraph(all_pars: List[str]) -> List[GTToken]:
     tokens = []
-    offsets = []
     text_offset = 0
     for par in all_pars:
         doc = nlp(par)
         for sentence in doc.sents:
             for token in [t for t in sentence if t.text != "\n"]:
-                tokens.append(token.text)
-                offsets.append(text_offset + token.idx)
-        tokens.append("")
-        offsets.append(-1)
+                offset = text_offset + token.idx
+                tokens.append(GTToken(token.text, token.text_with_ws, offset))
+        tokens.append(GTToken("", "", -1))
         text_offset += len(par)
-    return tokens, offsets
+    return tokens
 
 
 def read_metadata(basename: str) -> Dict[str, str]:
@@ -358,13 +353,14 @@ def get_page_id(offset: int, length: int, scan_ranges) -> str:
         return ":placeholder:"
 
 
-def make_token_annotations(base_name, tokens, token_offsets, scan_ranges):
+def make_token_annotations(base_name, tokens, scan_ranges):
     annotations = []
     par_offset = 0
     par_length = 0
     par_num = 1
-    for i, (token, offset) in enumerate(zip(tokens, token_offsets)):
-        # ic(token, offset)
+    for i, gp_token in enumerate(tokens):
+        token = gp_token.text
+        offset = gp_token.offset
         token_is_paragraph_end = offset < 0
         if token_is_paragraph_end:
             page_id = get_page_id(par_offset, par_length, scan_ranges)
@@ -580,9 +576,9 @@ def process_directory_group(directory_group: List[str]):
     scan_ranges = ranges_per_scan(all_annotations)
 
     # (tokens, token_offsets) = tokenize(all_pars)
-    (tokens, token_offsets) = tokenize_per_paragraph(all_pars)
+    tokens = tokenize_per_paragraph(all_pars)
 
-    token_annotations = make_token_annotations(base_name, tokens, token_offsets, scan_ranges)
+    token_annotations = make_token_annotations(base_name, tokens, scan_ranges)
     all_annotations.extend(token_annotations)
     # token_selection = [a for a in all_annotations if a.type == 'tt:Token'][:5]
 
@@ -600,7 +596,7 @@ def process_directory_group(directory_group: List[str]):
         "annotations": all_annotations,
     })
     web_annotations = make_web_annotations(all_annotations)
-    export(base_name, all_pars, metadata, tokens, token_offsets, web_annotations)
+    export(base_name, all_pars, metadata, tokens, web_annotations)
 
 
 def list_pagexml_files_in_group(directory_group):
