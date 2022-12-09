@@ -572,7 +572,7 @@ def segment_range(tokens: List[GTToken], char_range_begin: int, char_range_end: 
     for i, token in enumerate(tokens):
         if -1 < token.offset <= char_range_begin:
             begin_idx = i
-        if -1 < token.offset < char_range_end:
+        if -1 < token.offset <= char_range_end:
             end_idx = i
         elif -1 < token.offset:
             break
