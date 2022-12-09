@@ -411,18 +411,15 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
     targets = []
     iiif_base_url = get_iiif_base_url(page_id)
     iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+    selectors = []
     for c in coords:
         xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
-        target = {
-            "source": iiif_url,
-            "type": "Image",
-            "selector": {
-                "type": "FragmentSelector",
-                "conformsTo": "http://www.w3.org/TR/media-frags/",
-                "value": f"xywh={xywh}"
-            }
+        selector = {
+            "type": "FragmentSelector",
+            "conformsTo": "http://www.w3.org/TR/media-frags/",
+            "value": f"xywh={xywh}"
         }
-        targets.append(target)
+        selectors.append(selector)
 
         target = {
             "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
@@ -431,7 +428,13 @@ def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any
         targets.append(target)
 
     svg_target = image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
-    targets.append(svg_target)
+    selectors.append(svg_target['selector'])
+    target = {
+        "source": iiif_url,
+        "type": "Image",
+        "selector": selectors
+    }
+    targets.append(target)
 
     return targets
 
