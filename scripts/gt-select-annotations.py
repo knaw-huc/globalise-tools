@@ -3,6 +3,7 @@ import itertools
 import json
 import os
 import random
+from typing import List, Dict
 
 
 def list_web_annotation_files(directory: str):
@@ -62,13 +63,20 @@ def is_long_word_annotation(a):
 
 def is_fragment_selector_target(target: dict) -> bool:
     return target["type"] == "Image" \
-           and "selector" in target \
-           and target["selector"]["type"] == "FragmentSelector"
+        and "selector" in target \
+        and has_fragment_selector(target["selector"])
+
+
+def has_fragment_selector(selectors: List[Dict[str, str]]) -> bool:
+    fragment_selectors = [s for s in selectors if s["type"] == "FragmentSelector"]
+    return len(fragment_selectors) > 0
 
 
 def is_joined_word_annotation(a):
     fragment_selector_targets = [t for t in a["target"] if is_fragment_selector_target(t)]
-    return a["body"]["type"] == "tt:Word" and len(fragment_selector_targets) > 1
+    return a["body"]["type"] == "tt:Word" \
+        and len(fragment_selector_targets) > 0 \
+        and len(fragment_selector_targets[0]['selector']) > 2
 
 
 if __name__ == '__main__':
