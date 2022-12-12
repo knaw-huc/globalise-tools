@@ -76,7 +76,7 @@ def is_joined_word_annotation(a):
     fragment_selector_targets = [t for t in a["target"] if is_fragment_selector_target(t)]
     return a["body"]["type"] == "tt:Word" \
         and len(fragment_selector_targets) > 0 \
-        and len(fragment_selector_targets[0]['selector']) > 2
+        and len(fragment_selector_targets[0]['selector']) > 2  # one svgselector + at least 2 fragmentselectors
 
 
 if __name__ == '__main__':

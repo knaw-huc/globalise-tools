@@ -100,7 +100,7 @@ def print_paragraphs(file_path: str):
 
     px_words, tr_idx, tl_idx = gt.extract_px_elements(scan_doc)
 
-    display_words = gt.to_display_words(px_words)
+    display_words = gt.to_display_words(px_words,tr_idx)
 
     text = join_words(px_words)
 
