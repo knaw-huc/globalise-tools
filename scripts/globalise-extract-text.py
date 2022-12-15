@@ -176,7 +176,7 @@ def text_line_annotation(text_line, id_prefix, offset, length):
     )
 
 
-def text_region_annotation(text_region, id_prefix, offset, length):
+def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset: int, length: int):
     return Annotation(
         type="px:TextRegion",
         id=make_textregion_id(id_prefix, text_region.id),
@@ -184,7 +184,8 @@ def text_region_annotation(text_region, id_prefix, offset, length):
         offset=offset,
         length=length,
         metadata={
-            "coords": text_region.coords
+            "coords": text_region.coords,
+            "text": text_region.text
         }
     )
 
@@ -359,16 +360,19 @@ def make_token_annotations(base_name, tokens, scan_ranges):
     par_offset = 0
     par_length = 0
     par_num = 1
+    par_text = ""
     for i, gp_token in enumerate(tokens):
         token = gp_token.text
+        par_text += token + " "
         offset = gp_token.offset
         token_is_paragraph_end = offset < 0
         if token_is_paragraph_end:
             page_id = get_page_id(par_offset, par_length, scan_ranges)
             annotations.append(
-                paragraph_annotation(base_name, page_id, par_num, par_offset, par_length))
+                paragraph_annotation(base_name, page_id, par_num, par_offset, par_length, par_text.strip()))
             par_offset += par_length
             par_num += 1
+            par_text = ""
         else:
             token_length = len(token)
             page_id = get_page_id(offset, token_length, scan_ranges)
@@ -380,14 +384,16 @@ def make_token_annotations(base_name, tokens, scan_ranges):
     return annotations
 
 
-def paragraph_annotation(base_name, page_id, par_num, par_offset, par_length):
+def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str):
     return Annotation(
         type="tt:Paragraph",
         id=f"urn:globalise:{base_name}:paragraph:{par_num}",
         page_id=page_id,
         offset=par_offset,
         length=par_length,
-        metadata={}
+        metadata={
+            "text": text
+        }
     )
 
 

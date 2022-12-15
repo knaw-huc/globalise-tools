@@ -13,6 +13,7 @@ class PXTextRegion:
     coords: Coords
     first_word_id: str
     last_word_id: str
+    text: str
 
 
 @dataclass_json
@@ -154,12 +155,14 @@ def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_re
     last_tr_word_index = len(px_words) - 1
     first_word_id_in_text_region = px_words[first_tr_word_index].id
     last_word_id_in_text_region = px_words[last_tr_word_index].id
+    tr_text = tr.text if tr.text else " ".join([w.text for w in px_words[first_tr_word_index:last_tr_word_index]])
     text_regions.append(
         PXTextRegion(id=tr.id,
                      page_id=page_id,
                      coords=tr.coords,
                      first_word_id=first_word_id_in_text_region,
-                     last_word_id=last_word_id_in_text_region)
+                     last_word_id=last_word_id_in_text_region,
+                     text=tr_text)
     )
 
 
