@@ -4,17 +4,17 @@ import csv
 import itertools
 import json
 import os
-import uuid as uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from json import JSONEncoder
-from typing import List, AnyStr, Dict, Any, Tuple
 
 import pagexml.parser as pxp
 import spacy
+import uuid as uuid
 from dataclasses_json import dataclass_json
 from icecream import ic
 from pagexml.model.physical_document_model import PageXMLScan, Coords
+from typing import List, AnyStr, Dict, Any, Tuple
 
 import globalise_tools.tools as gt
 
@@ -397,7 +397,7 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
     )
 
 
-def token_annotation(base_name, page_id, token_num, offset, token_length, token_text):
+def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int):
     return Annotation(
         type="tt:Token",
         id=f"urn:globalise:{base_name}:token:{token_num}",
@@ -405,7 +405,9 @@ def token_annotation(base_name, page_id, token_num, offset, token_length, token_
         offset=offset,
         length=token_length,
         metadata={
-            "text": token_text
+            "text": token_text,
+            "sentence_num": sentence_num,
+            "token_num": token_num
         }
     )
 
