@@ -156,19 +156,6 @@ def web_anno_file_paths(dir: str) -> List[str]:
     return glob.glob(f"{dir}/*.tsv")
 
 
-def make_targets(doc_id: str, word_annotations, sentence_num: int, token_num: int):
-    ic(sentence_num, token_num)
-    return []
-
-
-# def make_targets(doc_id: str, word_annotations, begin_offset: int, end_offset: int):
-#     relevant_annotations = [a for a in word_annotations if
-#                             a["offset"] >= begin_offset and a["offset"] + a["length"] < end_offset]
-#     # word_ranges = [(a["offset"], a["offset"] + a["length"]) for a in word_annotations]
-#     ic(begin_offset, end_offset, relevant_annotations)
-#     return []
-
-
 def as_web_annotation(line: WABodyLine, targets) -> Dict[str, any]:
     class_name = line.col4.split("[")[0]
     body = {
@@ -228,13 +215,13 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
                 parts = wa_decode(line).split('\t')
                 sen_tok_num = parts[0]
                 (sentence_num, token_num) = sen_tok_num.split('-')
-                (begin_offset, end_offset) = parts[1].split('-')
+                (token_range_begin, token_range_end) = parts[1].split('-')
                 wal = WABodyLine(
                     doc_id=doc_id,
                     sentence_num=int(sentence_num),
                     token_num=float(token_num),
-                    begin_offset=int(begin_offset),
-                    end_offset=int(end_offset),
+                    begin_offset=int(token_range_begin),
+                    end_offset=int(token_range_end),
                     token=nth_element(parts, 2),
                     col3=nth_element(parts, 3),
                     col4=nth_element(parts, 4),
@@ -262,21 +249,26 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
         key = f"{il.sentence_num}-{int(il.token_num)}"
         abs_token_num = sentence_token_index[key]
         token_annotation = token_annotations[abs_token_num]
-        begin_offset = token_annotation["offset"]
-        end_offset = begin_offset + token_annotation["length"]
+        token_range_begin = token_annotation["offset"]
+        token_range_end = token_range_begin + token_annotation["length"]
         relevant_word_annotations = [a for a in word_annotations if
-                                     a["offset"] >= begin_offset and a["offset"] + a["length"] <= end_offset]
+                                     word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
+        # if not relevant_word_annotations:
+        #     ic(token_range_begin, token_range_end, il.token)
         targets = []
         for wa in relevant_word_annotations:
             for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
                 targets.extend(wwa["target"])
         web_annotations.append(as_web_annotation(il, targets))
 
-        ic(il, token_annotation, relevant_word_annotations)
-        # print(f"{il.token}\t|\t{token_annotation['metadata']['text']}")
-
-    # web_annotations = [as_web_annotation(l, word_annotations) for l in interesting_lines]
+        # ic(il, token_annotation, relevant_word_annotations)
     return web_annotations
+
+
+def word_annotation_covers_token_range(annotation, token_range_begin, token_range_end):
+    annotation_range_begin = annotation["offset"]
+    annotation_range_end = annotation_range_begin + annotation["length"]
+    return token_range_begin >= annotation_range_begin and token_range_end <= annotation_range_end
 
 
 def nth_element(parts, n):
