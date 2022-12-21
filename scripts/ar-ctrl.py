@@ -99,7 +99,8 @@ wa = ["out/NL-HaNA_1.04.02_1092_0017_0021-web-annotations.json",
       "out/NL-HaNA_1.04.02_1589_0052_0056-web-annotations.json",
       "out/NL-HaNA_1.04.02_1859_0115_0135-web-annotations.json",
       "out/NL-HaNA_1.04.02_7573_0077_0078-web-annotations.json",
-      "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json"]
+      "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json",
+      "entity-annotations.json"]
 
 
 def access_annorepo(base_uri: str, api_key: str, container_name: str):
