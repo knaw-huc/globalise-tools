@@ -1,11 +1,12 @@
 #!/usr/bin/env python3
 import glob
-import uuid
+import json
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Dict
 
+import uuid
 from icecream import ic
+from typing import List, Dict
 
 data_dir = "data/inception_output"
 
@@ -123,6 +124,7 @@ class WAHeadLine(WebAnnoLine):
 
 @dataclass
 class WABodyLine(WebAnnoLine):
+    doc_id: str
     sentence_num: int
     token_num: float
     begin_offset: int
@@ -154,16 +156,30 @@ def web_anno_file_paths(dir: str) -> List[str]:
     return glob.glob(f"{dir}/*.tsv")
 
 
-def as_web_annotation(line: WABodyLine) -> Dict[str, any]:
+def make_targets(doc_id: str, word_annotations, sentence_num: int, token_num: int):
+    ic(sentence_num, token_num)
+    return []
+
+
+# def make_targets(doc_id: str, word_annotations, begin_offset: int, end_offset: int):
+#     relevant_annotations = [a for a in word_annotations if
+#                             a["offset"] >= begin_offset and a["offset"] + a["length"] < end_offset]
+#     # word_ranges = [(a["offset"], a["offset"] + a["length"]) for a in word_annotations]
+#     ic(begin_offset, end_offset, relevant_annotations)
+#     return []
+
+
+def as_web_annotation(line: WABodyLine, targets) -> Dict[str, any]:
     class_name = line.col4.split("[")[0]
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
         "type": "tt:Entity",
         "class_name": class_name,
         "class_description": entities[class_name],
-        "url": line.col3.split("[")[0]
+        "url": line.col3.split("[")[0],
+        "text": line.token
     }
-    target = []
+
     anno_uuid = uuid.uuid4()
     return {
         "@context": "http://www.w3.org/ns/anno.jsonld",
@@ -172,52 +188,107 @@ def as_web_annotation(line: WABodyLine) -> Dict[str, any]:
         "motivation": "tagging",
         "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types
         "body": body,
-        "target": target
+        "target": targets
     }
 
 
+def load_word_and_token_annotations(doc_id):
+    with open(f"out/{doc_id}-metadata.json") as jf:
+        metadata = json.load(jf)
+    # ic(metadata)
+    word_annotations = [a for a in metadata["annotations"] if a["type"] == "tt:Word"]
+    token_annotations = [a for a in metadata["annotations"] if a["type"] == "tt:Token"]
+    # ic(word_annotations)
+    return word_annotations, token_annotations
+
+
+def load_word_web_annotations(doc_id):
+    with open(f"out/{doc_id}-web-annotations.json") as jf:
+        all_annotations = json.load(jf)
+    word_web_annotations = [a for a in all_annotations if a["body"]["type"] == "tt:Word"]
+    return word_web_annotations
+
+
 def extract_annotations(path: str) -> List[Dict[str, any]]:
+    doc_id = path.split('/')[-1].replace('.tsv', '')
+
+    word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
+    word_web_annotations = load_word_web_annotations(doc_id)
+
     lines = []
+    sentence_token_index = {}
+    token_count = 0
     with open(path) as tsv:
-        for l in tsv.readlines():
+        for line_num, l in enumerate(tsv.readlines()):
             line = l.strip()
             if line.startswith("#"):
                 wal = WAHeadLine(contents=line.removeprefix('#'))
                 lines.append(wal)
             elif line:
                 parts = wa_decode(line).split('\t')
-                (sentence_num, token_num) = parts[0].split('-')
+                sen_tok_num = parts[0]
+                (sentence_num, token_num) = sen_tok_num.split('-')
                 (begin_offset, end_offset) = parts[1].split('-')
                 wal = WABodyLine(
+                    doc_id=doc_id,
                     sentence_num=int(sentence_num),
                     token_num=float(token_num),
                     begin_offset=int(begin_offset),
                     end_offset=int(end_offset),
-                    token=parts[2],
-                    col3=parts[3],
-                    col4=parts[4],
-                    col5=parts[5],
-                    col6=parts[6],
-                    col7=parts[7],
-                    col8=parts[8],
-                    col9=parts[9]
+                    token=nth_element(parts, 2),
+                    col3=nth_element(parts, 3),
+                    col4=nth_element(parts, 4),
+                    col5=nth_element(parts, 5),
+                    col6=nth_element(parts, 6),
+                    col7=nth_element(parts, 7),
+                    col8=nth_element(parts, 8),
+                    col9=nth_element(parts, 9)
                 )
                 lines.append(wal)
+                key = f"{wal.sentence_num}-{int(wal.token_num)}"
+                if key not in sentence_token_index:
+                    sentence_token_index[key] = token_count
+                    token_count += 1
             else:
-                ic(line)
+                # ic(line)
+                pass
 
-    ic(lines)
+    # ic(lines)
     interesting_lines = [l for l in lines if type(l) is WABodyLine and "http" in l.col3]
-    ic(interesting_lines)
-    web_annotations = [as_web_annotation(l) for l in interesting_lines]
+    # ic(interesting_lines)
+
+    web_annotations = []
+    for il in interesting_lines:
+        key = f"{il.sentence_num}-{int(il.token_num)}"
+        abs_token_num = sentence_token_index[key]
+        token_annotation = token_annotations[abs_token_num]
+        begin_offset = token_annotation["offset"]
+        end_offset = begin_offset + token_annotation["length"]
+        relevant_word_annotations = [a for a in word_annotations if
+                                     a["offset"] >= begin_offset and a["offset"] + a["length"] <= end_offset]
+        targets = []
+        for wa in relevant_word_annotations:
+            for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
+                targets.extend(wwa["target"])
+        web_annotations.append(as_web_annotation(il, targets))
+
+        ic(il, token_annotation, relevant_word_annotations)
+        # print(f"{il.token}\t|\t{token_annotation['metadata']['text']}")
+
+    # web_annotations = [as_web_annotation(l, word_annotations) for l in interesting_lines]
     return web_annotations
+
+
+def nth_element(parts, n):
+    return parts[n] if n < len(parts) else "_"
 
 
 def main():
     annotations = []
     for p in web_anno_file_paths(data_dir):
+        ic(p)
         annotations.append(extract_annotations(p))
-    ic(annotations)
+    print(json.dumps(annotations, indent=2))
 
 
 if __name__ == '__main__':
