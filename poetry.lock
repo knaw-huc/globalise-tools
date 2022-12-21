@@ -698,7 +698,7 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.10,<3.11"
-content-hash = "ede03fb81ff1fa86a3ea281a526da2739939318f76da9469a4ba359027cb62c1"
+content-hash = "7e9cdb2870f4d3be7a5f954812448e349fc8799259650c5edecc6a299ffcbea7"
 
 [metadata.files]
 annorepo-client = []
