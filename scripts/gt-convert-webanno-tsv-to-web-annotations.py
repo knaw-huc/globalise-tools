@@ -8,6 +8,8 @@ from typing import List, Dict
 
 from icecream import ic
 
+from globalise_tools.webanno_tsv_tools import process_webanno_tsv_file2
+
 data_dir = "data/inception_output"
 
 entities = {"CIV": "Civic/legal mention",
@@ -202,15 +204,21 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
     word_web_annotations = load_word_web_annotations(doc_id)
 
-    lines, sentence_token_index = process_webanno_tsv_file(path, doc_id)
-    # wat_annotations = process_webanno_tsv_file2(path)
-    # ic(wat_annotations)
+    wat_annotations = process_webanno_tsv_file2(path)
+    entity_webanno = [a for a in wat_annotations if
+                      a.layers[0].label == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
+    ic(entity_webanno)
 
+    web_annotations = from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations)
+    return web_annotations
+
+
+def from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations):
+    web_annotations = []
+    lines, sentence_token_index = process_webanno_tsv_file(path, doc_id)
     # ic(lines)
     interesting_lines = [l for l in lines if type(l) is WABodyLine and "http" in l.col3]
     # ic(interesting_lines)
-
-    web_annotations = []
     for il in interesting_lines:
         key = f"{il.sentence_num}-{int(il.token_num)}"
         abs_token_num = sentence_token_index[key]

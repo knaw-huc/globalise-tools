@@ -26,19 +26,37 @@ class WebAnno:
 
 def process_webanno_tsv_file2(path: str):
     doc = webanno_tsv_read_file(path)
-    wat_annotations = []
-    for tokens, g in groupby(doc.annotations, key=lambda a: a.tokens):
-        text = " ".join([t.text for t in tokens])
-        layers = []
-        for layer_label, ag in groupby(g, key=lambda a: a.layer):
-            elements = []
-            sorted_by_label_id = sorted(ag, key=lambda a: a.label_id)
-            for element_id, le_group in groupby(sorted_by_label_id, key=lambda a: a.label_id):
-                fields = {}
-                for a in le_group:
-                    fields[a.field] = a.label
-                elements.append(LayerElement(id=element_id, fields=fields))
-            layers.append(Layer(label=layer_label, elements=elements))
-        wat_annotations.append(WebAnno(tokens=tokens, text=text, layers=layers))
+    return extract_annotations(doc)
 
-    return wat_annotations
+
+def extract_annotations(doc) -> List[WebAnno]:
+    return [to_web_anno(anno_group, tokens)
+            for tokens, anno_group in groupby(doc.annotations, key=lambda a: a.tokens)]
+
+
+def to_web_anno(anno_group, tokens: List[Token]) -> WebAnno:
+    text = " ".join([t.text for t in tokens])
+    layers = extract_layers(anno_group)
+    return WebAnno(tokens=tokens, text=text, layers=layers)
+
+
+def extract_layers(annotations) -> List[Layer]:
+    sorted_by_layer = sorted(annotations, key=lambda a: a.layer)
+    return [to_layer(anno_group, layer_label)
+            for layer_label, anno_group in groupby(sorted_by_layer, key=lambda a: a.layer)]
+
+
+def to_layer(anno_group, layer_label) -> Layer:
+    elements = extract_elements(anno_group)
+    return Layer(label=layer_label, elements=elements)
+
+
+def extract_elements(annotations) -> List[LayerElement]:
+    elements = []
+    sorted_by_label_id = sorted(annotations, key=lambda a: a.label_id)
+    for element_id, annotation_group in groupby(sorted_by_label_id, key=lambda a: a.label_id):
+        fields = {}
+        for a in annotation_group:
+            fields[a.field] = a.label
+        elements.append(LayerElement(id=element_id, fields=fields))
+    return elements
