@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import glob
 import json
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
-
-import uuid
-from icecream import ic
 from typing import List, Dict
+
+from icecream import ic
 
 data_dir = "data/inception_output"
 
@@ -202,43 +202,9 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
     word_web_annotations = load_word_web_annotations(doc_id)
 
-    lines = []
-    sentence_token_index = {}
-    token_count = 0
-    with open(path) as tsv:
-        for line_num, l in enumerate(tsv.readlines()):
-            line = l.strip()
-            if line.startswith("#"):
-                wal = WAHeadLine(contents=line.removeprefix('#'))
-                lines.append(wal)
-            elif line:
-                parts = wa_decode(line).split('\t')
-                sen_tok_num = parts[0]
-                (sentence_num, token_num) = sen_tok_num.split('-')
-                (token_range_begin, token_range_end) = parts[1].split('-')
-                wal = WABodyLine(
-                    doc_id=doc_id,
-                    sentence_num=int(sentence_num),
-                    token_num=float(token_num),
-                    begin_offset=int(token_range_begin),
-                    end_offset=int(token_range_end),
-                    token=nth_element(parts, 2),
-                    col3=nth_element(parts, 3),
-                    col4=nth_element(parts, 4),
-                    col5=nth_element(parts, 5),
-                    col6=nth_element(parts, 6),
-                    col7=nth_element(parts, 7),
-                    col8=nth_element(parts, 8),
-                    col9=nth_element(parts, 9)
-                )
-                lines.append(wal)
-                key = f"{wal.sentence_num}-{int(wal.token_num)}"
-                if key not in sentence_token_index:
-                    sentence_token_index[key] = token_count
-                    token_count += 1
-            else:
-                # ic(line)
-                pass
+    lines, sentence_token_index = process_webanno_tsv_file(path, doc_id)
+    # wat_annotations = process_webanno_tsv_file2(path)
+    # ic(wat_annotations)
 
     # ic(lines)
     interesting_lines = [l for l in lines if type(l) is WABodyLine and "http" in l.col3]
@@ -263,6 +229,47 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
 
         # ic(il, token_annotation, relevant_word_annotations)
     return web_annotations
+
+
+def process_webanno_tsv_file(path: str, doc_id: str):
+    lines = []
+    sentence_token_index = {}
+    token_count = 0
+    with open(path) as tsv:
+        for line_num, l in enumerate(tsv.readlines()):
+            line = l.strip()
+            if line.startswith("#"):
+                wal = WAHeadLine(contents=line.removeprefix('#'))
+                lines.append(wal)
+            elif line:
+                parts = wa_decode(line).split('\t')
+                sen_tok_num = parts[0]
+                (sentence_num, token_num) = sen_tok_num.split('-')
+                (begin_offset, end_offset) = parts[1].split('-')
+                wal = WABodyLine(
+                    doc_id=doc_id,
+                    sentence_num=int(sentence_num),
+                    token_num=float(token_num),
+                    begin_offset=int(begin_offset),
+                    end_offset=int(end_offset),
+                    token=nth_element(parts, 2),
+                    col3=nth_element(parts, 3),
+                    col4=nth_element(parts, 4),
+                    col5=nth_element(parts, 5),
+                    col6=nth_element(parts, 6),
+                    col7=nth_element(parts, 7),
+                    col8=nth_element(parts, 8),
+                    col9=nth_element(parts, 9)
+                )
+                lines.append(wal)
+                key = f"{wal.sentence_num}-{int(wal.token_num)}"
+                if key not in sentence_token_index:
+                    sentence_token_index[key] = token_count
+                    token_count += 1
+            else:
+                # ic(line)
+                pass
+    return lines, sentence_token_index
 
 
 def word_annotation_covers_token_range(annotation, token_range_begin, token_range_end):
