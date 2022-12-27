@@ -19,25 +19,28 @@ class Layer:
 
 @dataclass
 class WebAnno:
-    tokens: List[Token]
+    token_idxs: List[int]
     text: str
     layers: List[Layer]
 
 
-def process_webanno_tsv_file2(path: str):
+def process_webanno_tsv_file2(path: str) -> (List[Token], List[WebAnno]):
     doc = webanno_tsv_read_file(path)
-    return extract_annotations(doc)
+    tokens = doc.tokens
+    token_idx = {token: i for i, token in enumerate(tokens)}
+    return tokens, extract_annotations(doc, token_idx)
 
 
-def extract_annotations(doc) -> List[WebAnno]:
-    return [to_web_anno(anno_group, tokens)
+def extract_annotations(doc, token_idx: Dict[Token, int]) -> List[WebAnno]:
+    return [to_web_anno(anno_group, tokens, token_idx)
             for tokens, anno_group in groupby(doc.annotations, key=lambda a: a.tokens)]
 
 
-def to_web_anno(anno_group, tokens: List[Token]) -> WebAnno:
+def to_web_anno(anno_group, tokens: List[Token], token_idx: Dict[Token, int]) -> WebAnno:
     text = " ".join([t.text for t in tokens])
     layers = extract_layers(anno_group)
-    return WebAnno(tokens=tokens, text=text, layers=layers)
+    token_idxs = [token_idx[t] for t in tokens]
+    return WebAnno(token_idxs=token_idxs, text=text, layers=layers)
 
 
 def extract_layers(annotations) -> List[Layer]:

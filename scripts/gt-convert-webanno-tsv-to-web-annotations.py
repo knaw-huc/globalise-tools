@@ -204,13 +204,67 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
     word_web_annotations = load_word_web_annotations(doc_id)
 
-    wat_annotations = process_webanno_tsv_file2(path)
+    tokens, wat_annotations = process_webanno_tsv_file2(path)
     entity_webanno = [a for a in wat_annotations if
                       a.layers[0].label == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
     ic(entity_webanno)
+    # ic(w3c_annotations)
 
-    web_annotations = from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations)
+    # web_annotations = from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations)
+    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations)
     return web_annotations
+
+
+def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations):
+    w3c_annotations = []
+    for ea in entity_webanno:
+        if len(ea.layers) != 1 or len(ea.layers[0].elements) != 1:
+            raise Exception(f"!unexpected number of layers/elements in {ea}")
+
+        body = make_body(ea)
+        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations)
+
+        anno_uuid = uuid.uuid4()
+        w3c_anno = {
+            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "id": f"urn:globalise:annotation:{anno_uuid}",
+            "type": "Annotation",
+            "motivation": "tagging",
+            "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types
+            "body": body,
+            "target": targets
+        }
+        w3c_annotations.append(w3c_anno)
+    return w3c_annotations
+
+
+def make_targets(ea, token_annotations, word_annotations, word_web_annotations):
+    targets = []
+    for i in ea.token_idxs:
+        token_annotation = token_annotations[i]
+        token_range_begin = token_annotation["offset"]
+        token_range_end = token_range_begin + token_annotation["length"]
+        relevant_word_annotations = [a for a in word_annotations if
+                                     word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
+        for wa in relevant_word_annotations:
+            for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
+                targets.extend(wwa["target"])
+    return targets
+
+
+def make_body(ea):
+    fields = ea.layers[0].elements[0].fields
+    class_name = fields["value"]
+    body = {
+        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "type": "tt:Entity",
+        "class_name": class_name,
+        "class_description": entities[class_name],
+        "text": ea.text
+    }
+    if "identifier" in fields:
+        body["url"] = fields["identifier"]
+    return body
 
 
 def from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations):
