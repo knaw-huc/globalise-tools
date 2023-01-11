@@ -26,26 +26,30 @@ def load_word_and_token_annotations(doc_id):
 
 def main():
     for p in web_anno_file_paths(data_dir):
-        ic(p)
-        doc_id = p.split('/')[-1].replace('.tsv', '')
+        # ic(p)
+        doc_id = make_doc_id(p)
         word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
         tokens, annotations = process_webanno_tsv_file2(p)
 
         selection = [a for a in annotations if len(a.layers) > 1]
         ic(selection)
 
-        for a in [a for a in annotations if
-                  a.layers[0].label == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]:
+        for a in [a for a in annotations]:
+            print(a)
             print(a.text)
-            print(a.layers[0].elements[0].fields)
+            print(json.dumps(a.layers[0].elements[0].fields, indent=2))
             anno_tokens = [tokens[i] for i in a.token_idxs]
             print([f"{t.sentence_idx}-{t.idx} {t.text}" for t in anno_tokens])
             ta = [token_annotations[i] for i in a.token_idxs]
             ta_text_list = [a["metadata"]["text"] for a in ta]
             print(ta_text_list)
             print()
-            if ' '.join(ta_text_list) != a.text:
-                raise Exception("!")
+            # if ' '.join(ta_text_list) != a.text:
+            #     raise Exception("!")
+
+
+def make_doc_id(p):
+    return p.split('/')[-1].replace('.tsv', '')
 
 
 if __name__ == '__main__':

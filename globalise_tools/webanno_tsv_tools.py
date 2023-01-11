@@ -2,6 +2,7 @@ from dataclasses import dataclass
 from itertools import groupby
 from typing import List, Dict, Any
 
+from icecream import ic
 from webanno_tsv import webanno_tsv_read_file, Token
 
 
@@ -24,22 +25,27 @@ class WebAnno:
     layers: List[Layer]
 
 
+def token_identifier(token: Token):
+    return f"{token.sentence_idx}-{token.idx}"
+
+
 def process_webanno_tsv_file2(path: str) -> (List[Token], List[WebAnno]):
     doc = webanno_tsv_read_file(path)
     tokens = doc.tokens
-    token_idx = {token: i for i, token in enumerate(tokens)}
+    ic(tokens)
+    token_idx = {token_identifier(token): i for i, token in enumerate(tokens)}
     return tokens, extract_annotations(doc, token_idx)
 
 
-def extract_annotations(doc, token_idx: Dict[Token, int]) -> List[WebAnno]:
+def extract_annotations(doc, token_idx: Dict[str, int]) -> List[WebAnno]:
     return [to_web_anno(anno_group, tokens, token_idx)
             for tokens, anno_group in groupby(doc.annotations, key=lambda a: a.tokens)]
 
 
-def to_web_anno(anno_group, tokens: List[Token], token_idx: Dict[Token, int]) -> WebAnno:
+def to_web_anno(anno_group, tokens: List[Token], token_idx: Dict[str, int]) -> WebAnno:
     text = " ".join([t.text for t in tokens])
     layers = extract_layers(anno_group)
-    token_idxs = [token_idx[t] for t in tokens]
+    token_idxs = [token_idx[token_identifier(t)] for t in tokens]
     return WebAnno(token_idxs=token_idxs, text=text, layers=layers)
 
 
