@@ -7,12 +7,13 @@ readme = "README.md"
 packages = [{ include = "globalise_tools" }]
 
 [tool.poetry.dependencies]
-python = ">=3.10,<3.11"
+python = ">=3.8,<3.11"
 annorepo-client = { path = "/Users/bram/workspaces/elucidate/annorepo-client", develop = true }
 #annorepo-client = "^0.5.1"
 dataclasses-json = "^0.5.7"
 icecream = "^2.1.3"
 jsondataclass = "^0.3.0"
+loguru = "^0.6.0"
 #pagexml-tools = {path = "/Users/bram/workspaces/pagexml", develop = true}
 pagexml-tools = "^0.2.1"
 spacy = { extras = ["apple"], version = "^3.4.3" }

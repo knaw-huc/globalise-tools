@@ -37,7 +37,9 @@ def main():
         for a in [a for a in annotations]:
             print(a)
             print(a.text)
-            print(json.dumps(a.layers[0].elements[0].fields, indent=2))
+            for l_ in a.layers:
+                for e_ in l_.elements:
+                    print(json.dumps(e_.fields, indent=2))
             anno_tokens = [tokens[i] for i in a.token_idxs]
             print([f"{t.sentence_idx}-{t.idx} {t.text}" for t in anno_tokens])
             ta = [token_annotations[i] for i in a.token_idxs]
