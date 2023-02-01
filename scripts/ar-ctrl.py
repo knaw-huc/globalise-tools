@@ -92,15 +92,16 @@ ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_7573_0189",
        "NL-HaNA_1.04.02_7573_0190"]
 
-wa = ["out/NL-HaNA_1.04.02_1092_0017_0021-web-annotations.json",
-      "out/NL-HaNA_1.04.02_1297_0019_0057-web-annotations.json",
-      "out/NL-HaNA_1.04.02_1589_0019_0021-web-annotations.json",
-      "out/NL-HaNA_1.04.02_1589_0048_0049-web-annotations.json",
-      "out/NL-HaNA_1.04.02_1589_0052_0056-web-annotations.json",
-      "out/NL-HaNA_1.04.02_1859_0115_0135-web-annotations.json",
-      "out/NL-HaNA_1.04.02_7573_0077_0078-web-annotations.json",
-      "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json",
-      "entity-annotations.json"]
+wa = [
+    "out/NL-HaNA_1.04.02_1092_0017_0021-web-annotations.json",
+    "out/NL-HaNA_1.04.02_1297_0019_0057-web-annotations.json",
+    "out/NL-HaNA_1.04.02_1589_0019_0021-web-annotations.json",
+    "out/NL-HaNA_1.04.02_1589_0048_0049-web-annotations.json",
+    "out/NL-HaNA_1.04.02_1589_0052_0056-web-annotations.json",
+    "out/NL-HaNA_1.04.02_1859_0115_0135-web-annotations.json",
+    "out/NL-HaNA_1.04.02_7573_0077_0078-web-annotations.json",
+    "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json",
+    "entity-annotations.json"]
 
 
 def access_annorepo(base_uri: str, api_key: str, container_name: str):
@@ -130,7 +131,7 @@ def upload_annotations(arc, container_name):
             annotations = json.load(f)
 
         print(f"uploading {len(annotations)} annotations")
-        chunks = make_chunks_of_size(400, annotations)
+        chunks = make_chunks_of_size(200, annotations)
         for annos in chunks:
             r = arc.add_annotations(container_name, annotation_list=annos)
             # ic(r)
