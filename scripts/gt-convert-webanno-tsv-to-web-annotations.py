@@ -7,6 +7,7 @@ from datetime import datetime
 from typing import List, Dict
 
 from icecream import ic
+from loguru import logger
 
 from globalise_tools.webanno_tsv_tools import process_webanno_tsv_file2
 
@@ -219,7 +220,9 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_a
     w3c_annotations = []
     for ea in entity_webanno:
         if len(ea.layers) != 1 or len(ea.layers[0].elements) != 1:
-            raise Exception(f"!unexpected number of layers/elements in {ea}")
+            ic(ea)
+            continue
+            # raise Exception(f"!unexpected number of layers/elements in {ea}")
 
         body = make_body(ea)
         targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations)
@@ -254,10 +257,15 @@ def make_targets(ea, token_annotations, word_annotations, word_web_annotations):
 
 def make_body(ea):
     fields = ea.layers[0].elements[0].fields
+    if "value" not in fields:
+        ic(ea)
+        return {}
     class_name = fields["value"]
+    e_uuid = uuid.uuid4()
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
         "type": "tt:Entity",
+        "id": f"urn:globalise:entity:{e_uuid}",
         "class_name": class_name,
         "class_description": entities[class_name],
         "text": ea.text
@@ -344,11 +352,12 @@ def nth_element(parts, n):
     return parts[n] if n < len(parts) else "_"
 
 
+@logger.catch
 def main():
     annotations = []
     for p in web_anno_file_paths(data_dir):
         ic(p)
-        annotations.append(extract_annotations(p))
+        annotations.extend(extract_annotations(p))
     print(json.dumps(annotations, indent=2))
 
 
