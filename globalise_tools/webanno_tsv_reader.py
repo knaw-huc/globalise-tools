@@ -2,9 +2,7 @@ import itertools
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Any, Tuple, Sequence
-
-from icecream import ic
+from typing import List, Dict, Tuple, Sequence
 
 # Strings that need to be escaped with a single backslash according to Webanno Appendix B
 RESERVED_STRS = ['\\', '[', ']', '|', '_', '->', ';', '\t', '\n', '*']
@@ -23,6 +21,7 @@ PREFIX_RELATION_LAYER = "#T_RL="
 PREFIX_TEXT = "#Text="
 PREFIX_SENTENCE_ID = "#Sentence.id="
 SPAN_LAYER_DEF_RE = re.compile(r'^#T_SP=([^|]+)\|(.*)$')
+LINK_FEATURE_NAME = "linked_anno_refs"
 
 
 @dataclass
@@ -62,12 +61,20 @@ class Token:
     text: str
 
 
+@dataclass
+class AnnotationLink:
+    label: str
+    annotation_id: str
+
+
 @dataclass(eq=False)  # Annotations are compared/hashed base on object identity
 class Annotation:
+    id: str
     tokens: Sequence[Token]
     layer: str
     features: Dict[str, str]
     label_id: int = NO_LABEL_ID
+    linked_annotations: list[AnnotationLink] = field(default_factory=list)
 
     @property
     def start(self):
@@ -93,6 +100,22 @@ class Document:
     sentences: List[Sentence] = field(default_factory=list)
     tokens: List[Token] = field(default_factory=list)
     annotations: List[Annotation] = field(default_factory=list)
+    _annotation_idx: Dict[str, Annotation] = field(default_factory=dict)
+
+    def get_annotation_by_id(self, annotation_id: str) -> Annotation:
+        annotation_idx = self.__annotation_idx()
+        return annotation_idx[annotation_id]
+
+    def __annotation_idx(self):
+        if not (self._annotation_idx and len(self._annotation_idx) == len(self.annotations)):
+            self._annotation_idx = {a.id: a for a in self.annotations}
+        return self._annotation_idx
+
+
+@dataclass
+class ParseContext:
+    layer_field_names: List[Tuple[str, str]] = field(default_factory=list)
+    multi_token_annotations: Dict[str, Annotation] = field(default_factory=dict)
 
 
 def read_webanno_tsv(path: str) -> Document:
@@ -109,7 +132,7 @@ def read_webanno_tsv(path: str) -> Document:
     # layer_defs = _read_span_layer_names(lines)
     # ic(layer_defs)
 
-    context = {}
+    context = ParseContext()
 
     for i, line in enumerate(lines):
         line = _unescape(line.strip())
@@ -129,6 +152,7 @@ def read_webanno_tsv(path: str) -> Document:
             pass  # skip empty lines
         else:
             raise Exception(f"unexpected line at {i + 1} : {line}")
+    _process_slot_features(doc)
     return doc
 
 
@@ -151,44 +175,45 @@ def _unescape(text: str) -> str:
     return text
 
 
-def _handle_annotation_line(line: str, doc: Document, context: Dict[str, Any]):
-    if "layer_field_names" not in context:
-        context["layer_field_names"] = _layer_field_names(doc)
-    if "multi_token_annotations" not in context:
-        context["multi_token_annotations"] = {}
-
+def _handle_annotation_line(line: str, doc: Document, context: ParseContext):
+    if not context.layer_field_names:
+        context.layer_field_names = _layer_field_names(doc)
     token, raw_feature_values = _parse_line(line)
     raw_feature_value = defaultdict(dict)
     for i, rfv in enumerate(raw_feature_values):
-        if rfv not in ["_", "*"]:
-            layer_name, field_name = context["layer_field_names"][i]
+        if rfv not in ["_"]:
+            layer_name, field_name = context.layer_field_names[i]
             raw_feature_value[layer_name][field_name] = rfv
     if len(raw_feature_value) > 0:
-        ic(raw_feature_value)
+        # ic(raw_feature_value)
         for layer_name, feature_dict in raw_feature_value.items():
             split_feature_values = _split_dict(feature_dict)
-            ic(split_feature_values)
+            # ic(split_feature_values)
             for d in split_feature_values:
                 features = {}
-                _id = NO_LABEL_ID
+                label_id = NO_LABEL_ID
                 for key, val in d.items():
-                    label, _id = _read_label_and_id(val)
+                    label, label_id = _read_label_and_id(val, key == LINK_FEATURE_NAME)
                     if label:
                         features[key] = label
-                annotation_id = f"{layer_name}/{_id}"
-                annotation_is_multi_token = _id != NO_LABEL_ID
-                if annotation_is_multi_token and annotation_id in context["multi_token_annotations"]:
-                    annotation = context["multi_token_annotations"][annotation_id]
+                multi_token_key = f"{layer_name}/{label_id}"
+                annotation_is_multi_token = label_id != NO_LABEL_ID
+                if annotation_is_multi_token and multi_token_key in context.multi_token_annotations:
+                    annotation = context.multi_token_annotations[multi_token_key]
                     annotation.tokens.append(token)
                 else:
+                    annotation_id = f"{token.sentence_num}-{token.token_num}"
+                    if annotation_is_multi_token:
+                        annotation_id += f"[{label_id}]"
                     annotation = Annotation(
+                        id=annotation_id,
                         tokens=[token],
                         layer=layer_name,
                         features=features,
-                        label_id=_id
+                        label_id=label_id
                     )
                     if annotation_is_multi_token:
-                        context["multi_token_annotations"][annotation_id] = annotation
+                        context.multi_token_annotations[multi_token_key] = annotation
                     doc.annotations.append(annotation)
     doc.tokens.append(token)
 
@@ -249,7 +274,7 @@ def _layer_field_names(doc):
                 layer_field_names.append((_layer.name, _feature.name))
             elif isinstance(_feature, SlotFeature):
                 layer_field_names.append((_layer.name, _feature.name))
-                layer_field_names.append((_layer.name, "linked_anno_refs"))
+                layer_field_names.append((_layer.name, LINK_FEATURE_NAME))
             else:
                 raise Exception(f"unexpected feature type: {_feature}")
     return layer_field_names
@@ -261,7 +286,7 @@ def _split_dict(d: dict[str, str]) -> List[Dict[str, str]]:
     return [{k: v[i] for k, v in zip(d.keys(), values)} for i in range(max_parts)]
 
 
-def _read_label_and_id(feature_value: str) -> Tuple[str, int]:
+def _read_label_and_id(feature_value: str, is_slot_feature: bool) -> Tuple[str, int]:
     """
     Reads a Webanno TSV field value, returning a label and an id.
     Returns an empty label for placeholder values '_', '*'
@@ -276,7 +301,39 @@ def _read_label_and_id(feature_value: str) -> Tuple[str, int]:
         return '' if FIELD_EMPTY_RE.match(s) else _unescape(s)
 
     match = FIELD_WITH_ID_RE.match(feature_value)
-    if match:
+    if match and not is_slot_feature:
         return handle_label(match.group(1)), int(match.group(2))
     else:
         return handle_label(feature_value), NO_LABEL_ID
+
+
+def _is_slot_feature(f):
+    return isinstance(f, SlotFeature)
+
+
+def _has_slot_feature(layer: Layer):
+    return any([_is_slot_feature(f) for f in layer.features])
+
+
+def _process_slot_features(doc: Document):
+    layers_with_slot_features = [_layer.name for _layer in doc.layers if _has_slot_feature(_layer)]
+    layer_idx = {_layer.name: _layer for _layer in doc.layers}
+    annotations_with_slot_features = [a for a in doc.annotations
+                                      if a.layer in layers_with_slot_features]
+    slot_features_per_layer = {
+        _layer_name: [_feature for _feature in layer_idx[_layer_name].features
+                      if _is_slot_feature(_feature)]
+        for _layer_name in layers_with_slot_features}
+    for a in annotations_with_slot_features:
+        slot_features = slot_features_per_layer[a.layer]
+        if len(slot_features) > 1:
+            raise Exception(f">1 SlotFeature in {a}")
+        if LINK_FEATURE_NAME in a.features:
+            linked_anno_refs = a.features[LINK_FEATURE_NAME].split(";")
+            name = slot_features[0].name
+            link_labels = a.features[name].split(";")
+
+            for label, annotation_id in zip(link_labels, linked_anno_refs):
+                a.linked_annotations.append(AnnotationLink(label, annotation_id))
+            a.features.pop(LINK_FEATURE_NAME)
+            a.features.pop(name)
