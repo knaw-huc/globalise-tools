@@ -129,9 +129,6 @@ def read_webanno_tsv(path: str) -> Document:
 
     doc.sentences = [Sentence(idx=i + 1, text=text) for i, text in enumerate(_filter_sentences(lines))]
 
-    # layer_defs = _read_span_layer_names(lines)
-    # ic(layer_defs)
-
     context = ParseContext()
 
     for i, line in enumerate(lines):
