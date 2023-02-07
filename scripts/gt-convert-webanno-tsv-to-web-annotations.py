@@ -8,7 +8,7 @@ from typing import List, Dict
 from icecream import ic
 from loguru import logger
 
-from globalise_tools.webanno_tsv_tools import process_webanno_tsv_file2
+from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token
 
 data_dir = "data/inception_output"
 
@@ -133,14 +133,19 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
     word_web_annotations = load_word_web_annotations(doc_id)
 
-    tokens, wat_annotations = process_webanno_tsv_file2(path)
-    entity_webanno = [a for a in wat_annotations if
-                      a.layers[0].label == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
-    ic(entity_webanno)
-    # ic(w3c_annotations)
+    doc = read_webanno_tsv(path)
 
-    # web_annotations = from_wat_lines(doc_id, path, token_annotations, word_annotations, word_web_annotations)
-    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations)
+    tokens = doc.tokens
+    wat_annotations = doc.annotations
+
+    whole_tokens = [t for t in tokens if "." not in t.token_num]
+    token_idx = {token_id(t): i for i, t in enumerate(whole_tokens)}
+
+    entity_webanno = [a for a in wat_annotations if
+                      a.layer == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
+    ic(entity_webanno)
+
+    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx)
     return web_annotations
 
 
@@ -161,16 +166,15 @@ def load_word_web_annotations(doc_id):
     return word_web_annotations
 
 
-def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations):
+def token_id(token: Token) -> str:
+    return f"{token.sentence_num}-{token.token_num}"
+
+
+def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx):
     w3c_annotations = []
     for ea in entity_webanno:
-        if len(ea.layers) != 1 or len(ea.layers[0].elements) != 1:
-            ic(ea)
-            continue
-            # raise Exception(f"!unexpected number of layers/elements in {ea}")
-
         body = make_body(ea)
-        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations)
+        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations, token_idx)
 
         anno_uuid = uuid.uuid4()
         w3c_anno = {
@@ -186,8 +190,8 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_a
     return w3c_annotations
 
 
-def make_body(ea):
-    fields = ea.layers[0].elements[0].fields
+def make_body(ea: Annotation):
+    fields = ea.features
     if "value" not in fields:
         ic(ea)
         return {}
@@ -206,9 +210,10 @@ def make_body(ea):
     return body
 
 
-def make_targets(ea, token_annotations, word_annotations, word_web_annotations):
+def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, word_web_annotations, token_idx):
     targets = []
-    for i in ea.token_idxs:
+    for t in entity_annotation.tokens:
+        i = token_idx[token_id(t).split('.')[0]]
         token_annotation = token_annotations[i]
         token_range_begin = token_annotation["offset"]
         token_range_end = token_range_begin + token_annotation["length"]
