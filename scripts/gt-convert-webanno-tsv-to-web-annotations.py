@@ -3,6 +3,7 @@ import glob
 import json
 import uuid
 from datetime import datetime
+from itertools import groupby
 from typing import List, Dict
 
 from icecream import ic
@@ -222,7 +223,18 @@ def make_targets(entity_annotation: Annotation, token_annotations, word_annotati
         for wa in relevant_word_annotations:
             for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
                 targets.extend(wwa["target"])
-    return targets
+    return simplified(targets)
+    # return targets
+
+
+def simplified(targets: List[Dict]) -> List[Dict]:
+    _simplified = []
+    json_set = set(json.dumps(d) for d in targets)
+    deduplicated = [json.loads(j) for j in json_set]
+    ordered_targets = sorted(deduplicated, key=lambda t: t["type"])
+    for key, group in groupby(ordered_targets, key=lambda t: t["type"]):
+        _simplified.extend(group)
+    return _simplified
 
 
 def word_annotation_covers_token_range(annotation, token_range_begin, token_range_end):
