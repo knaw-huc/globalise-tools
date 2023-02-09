@@ -13,12 +13,17 @@ sample:
 install-spacy-model:
 	poetry run python -m spacy download nl_core_news_lg
 
+.PHONY: web-annotations
+web-annotations:
+	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
 	@echo
 	@echo "Please use \`make <target>', where <target> is one of:"
 	@echo "  extract-all           to extract text and annotations from all document directories"
+	@echo "  web-annotations       to generate the web-annotations"
 	@echo "  sample                to extract a sample of web annotations where every type is represented"
 	@echo "  install-spacy-model   to load the 'nl_core_news_lg' language model used by spacy"
 	@echo

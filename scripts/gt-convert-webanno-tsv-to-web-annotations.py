@@ -3,7 +3,6 @@ import glob
 import json
 import uuid
 from datetime import datetime
-from itertools import groupby
 from typing import List, Dict
 
 from loguru import logger
@@ -230,27 +229,42 @@ def make_targets(entity_annotation: Annotation, token_annotations, word_annotati
             [a for a in word_annotations
              if word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
         )
-    for wa in (annotation_from_dict(d) for d in relevant_word_annotation_dicts):
+    deduplicated = deduplicate(relevant_word_annotation_dicts)
+    anno_set = [annotation_from_dict(d) for d in deduplicated]
+    if len(anno_set) > 1:
+        for a in anno_set:
+            logger.info(a)
+        logger.info("")
+    for wa in anno_set:
         t = webannotation_factory.annotation_targets(wa)
         targets.extend(t)
-    # return simplified(targets)
     return targets
 
 
-def annotation_from_dict(wa):
+def deduplicate(dicts: dict) -> List[dict]:
+    done = set()
+    anno_list = []
+    for d in sorted(dicts, key=lambda _dict: _dict["id"]):
+        if d["id"] not in done:
+            done.add(d["id"])
+            anno_list.append(d)
+    return anno_list
+
+
+def annotation_from_dict(wa: dict) -> gt.Annotation:
     a = gt.Annotation.from_dict(wa)
     a.metadata["coords"] = [Coords(points) for points in (a.metadata["coords"])]
     return a
 
 
-def simplified(targets: List[Dict]) -> List[Dict]:
-    _simplified = []
-    json_set = set(json.dumps(d) for d in targets)
-    deduplicated = [json.loads(j) for j in json_set]
-    ordered_targets = sorted(deduplicated, key=lambda t: t["type"])
-    for key, group in groupby(ordered_targets, key=lambda t: t["type"]):
-        _simplified.extend(group)
-    return _simplified
+# def simplified(targets: List[Dict]) -> List[Dict]:
+#     _simplified = []
+#     json_set = set(json.dumps(d) for d in targets)
+#     deduplicated = [json.loads(j) for j in json_set]
+#     ordered_targets = sorted(deduplicated, key=lambda t: t["type"])
+#     for key, group in groupby(ordered_targets, key=lambda t: t["type"]):
+#         _simplified.extend(group)
+#     return _simplified
 
 
 def word_annotation_covers_token_range(annotation, token_range_begin, token_range_end):

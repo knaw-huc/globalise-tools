@@ -62,7 +62,7 @@ class Annotation:
     txt_version_id: str = ""
     char_start: int = 0
     char_end: int = 0
-    metadata: dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
 
 
 class IdDispenser:
