@@ -49,7 +49,7 @@ class DisplayWord:
 
 
 @dataclass_json
-@dataclass
+@dataclass(eq=True, frozen=True)
 class Annotation:
     type: str
     id: str
@@ -223,7 +223,6 @@ class WebAnnotationFactory:
             page_id = annotation.page_id
             coords = annotation.metadata["coords"]
             if isinstance(coords, Coords):
-                logger.info("yes")
                 coords = [coords]
             targets.extend(self._make_image_targets(page_id, coords))
             canvas_url = f"urn:globalise:canvas:{page_id}"

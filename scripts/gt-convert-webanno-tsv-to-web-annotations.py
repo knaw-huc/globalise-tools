@@ -6,7 +6,6 @@ from datetime import datetime
 from itertools import groupby
 from typing import List, Dict
 
-from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import Coords
 
@@ -123,7 +122,7 @@ def main(iiif_mapping_file: str):
 
     annotations = []
     for p in web_anno_file_paths(data_dir):
-        logger.info(p)
+        logger.info(f"parsing {p}...")
         annotations.extend(extract_annotations(p, webannotation_factory))
     print(json.dumps(annotations, indent=2))
 
@@ -148,7 +147,7 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
 
     entity_webanno = [a for a in wat_annotations if
                       a.layer == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
-    ic(entity_webanno)
+    # ic(entity_webanno)
 
     web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx,
                                    webannotation_factory)
@@ -181,7 +180,7 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_a
     w3c_annotations = []
     for ea in entity_webanno:
         body = make_body(ea)
-        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations, token_idx,
+        targets = make_targets(ea, token_annotations, word_annotations, token_idx,
                                webannotation_factory)
 
         anno_uuid = uuid.uuid4()
@@ -201,7 +200,7 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_a
 def make_body(ea: Annotation):
     fields = ea.features
     if "value" not in fields:
-        logger.warning(f"no value in {ea}")
+        logger.warning(f"no 'value' feature in {ea}")
         return {}
     class_name = fields["value"]
     e_uuid = uuid.uuid4()
@@ -218,27 +217,30 @@ def make_body(ea: Annotation):
     return body
 
 
-def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, word_web_annotations, token_idx,
+def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, token_idx,
                  webannotation_factory: gt.WebAnnotationFactory):
     targets = []
-    relevant_word_annotations = []
+    relevant_word_annotation_dicts = []
     for t in entity_annotation.tokens:
         i = token_idx[token_id(t).split('.')[0]]
         token_annotation = token_annotations[i]
         token_range_begin = token_annotation["offset"]
         token_range_end = token_range_begin + token_annotation["length"]
-        relevant_word_annotations.extend([a for a in word_annotations if
-                                          word_annotation_covers_token_range(a, token_range_begin, token_range_end)])
-    for wa in relevant_word_annotations:
-        a = gt.Annotation.from_dict(wa)
-        a.metadata["coords"] = [Coords(points) for points in (a.metadata["coords"])]
-        ic(a)
-        t = webannotation_factory.annotation_targets(a)
-        ic(t)
-        for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
-            targets.extend(wwa["target"])
-    return simplified(targets)
-    # return targets
+        relevant_word_annotation_dicts.extend(
+            [a for a in word_annotations
+             if word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
+        )
+    for wa in (annotation_from_dict(d) for d in relevant_word_annotation_dicts):
+        t = webannotation_factory.annotation_targets(wa)
+        targets.extend(t)
+    # return simplified(targets)
+    return targets
+
+
+def annotation_from_dict(wa):
+    a = gt.Annotation.from_dict(wa)
+    a.metadata["coords"] = [Coords(points) for points in (a.metadata["coords"])]
+    return a
 
 
 def simplified(targets: List[Dict]) -> List[Dict]:
