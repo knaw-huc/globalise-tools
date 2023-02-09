@@ -229,13 +229,8 @@ def make_targets(entity_annotation: Annotation, token_annotations, word_annotati
             [a for a in word_annotations
              if word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
         )
-    deduplicated = deduplicate(relevant_word_annotation_dicts)
-    anno_set = [annotation_from_dict(d) for d in deduplicated]
-    if len(anno_set) > 1:
-        for a in anno_set:
-            logger.info(a)
-        logger.info("")
-    for wa in anno_set:
+    ordered_dicts = deduplicate(relevant_word_annotation_dicts)
+    for wa in [annotation_from_dict(d) for d in ordered_dicts]:
         t = webannotation_factory.annotation_targets(wa)
         targets.extend(t)
     return targets
