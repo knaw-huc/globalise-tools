@@ -4,17 +4,18 @@ import csv
 import itertools
 import json
 import os
-from dataclasses import dataclass, field
+import uuid as uuid
+from dataclasses import dataclass
 from datetime import datetime
 from json import JSONEncoder
+from typing import List, AnyStr, Dict, Any, Tuple
 
 import pagexml.parser as pxp
 import spacy
-import uuid as uuid
 from dataclasses_json import dataclass_json
 from icecream import ic
+from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan, Coords
-from typing import List, AnyStr, Dict, Any, Tuple
 
 import globalise_tools.tools as gt
 
@@ -23,23 +24,6 @@ spacy_core = "nl_core_news_lg"
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
 textrepo_version_csv = "data/tr-versions.csv"
-
-
-@dataclass_json
-@dataclass
-class Annotation:
-    type: str
-    id: str
-    page_id: str
-    offset: int
-    length: int
-    segmented_version_id: str = ""
-    begin_anchor: int = 0
-    end_anchor: int = 0
-    txt_version_id: str = ""
-    char_start: int = 0
-    char_end: int = 0
-    metadata: Dict[AnyStr, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -82,7 +66,7 @@ class GTToken:
 
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
-        if isinstance(obj, Annotation) \
+        if isinstance(obj, gt.Annotation) \
                 or isinstance(obj, gt.PXTextRegion) \
                 or isinstance(obj, gt.PXTextLine) \
                 or isinstance(obj, GTToken):
@@ -95,7 +79,6 @@ class AnnotationEncoder(JSONEncoder):
 
 metadata_records = []
 ground_truth = []
-iiif_base_url_idx = {}
 tr_versions: Dict[str, TRVersions] = {}
 nlp = None
 
@@ -163,7 +146,7 @@ def process_pagexml(path):
 
 
 def text_line_annotation(text_line, id_prefix, offset, length):
-    return Annotation(
+    return gt.Annotation(
         type="px:TextLine",
         id=make_textline_id(id_prefix, text_line.id),
         page_id=text_line.page_id,
@@ -177,7 +160,7 @@ def text_line_annotation(text_line, id_prefix, offset, length):
 
 
 def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset: int, length: int):
-    return Annotation(
+    return gt.Annotation(
         type="px:TextRegion",
         id=make_textregion_id(id_prefix, text_region.id),
         page_id=text_region.page_id,
@@ -191,7 +174,7 @@ def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset:
 
 
 def page_annotation(id_prefix, page_id, path, total_size):
-    return Annotation(
+    return gt.Annotation(
         type="px:Page",
         id=make_page_id(id_prefix),
         page_id=page_id,
@@ -207,7 +190,7 @@ def page_annotation(id_prefix, page_id, path, total_size):
 
 
 def word_annotation(id_prefix, stripped, text, w):
-    return Annotation(
+    return gt.Annotation(
         type="tt:Word",
         id=make_word_id(id_prefix, w),
         page_id=w.px_words[0].page_id,
@@ -385,7 +368,7 @@ def make_token_annotations(base_name, tokens, scan_ranges):
 
 
 def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str):
-    return Annotation(
+    return gt.Annotation(
         type="tt:Paragraph",
         id=f"urn:globalise:{base_name}:paragraph:{par_num}",
         page_id=page_id,
@@ -398,7 +381,7 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
 
 
 def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int):
-    return Annotation(
+    return gt.Annotation(
         type="tt:Token",
         id=f"urn:globalise:{base_name}:token:{token_num}",
         page_id=page_id,
@@ -412,119 +395,18 @@ def token_annotation(base_name, page_id, token_num, offset, token_length, token_
     )
 
 
-def get_iiif_base_url(page_id: str) -> str:
-    return iiif_base_url_idx[page_id]
+def make_web_annotations(annotations: List[gt.Annotation], webannotation_factory: gt.WebAnnotationFactory) \
+        -> List[WebAnnotation]:
+    return [to_web_annotation(a, webannotation_factory) for a in annotations]
 
 
-def make_image_targets(page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
-    targets = []
-    iiif_base_url = get_iiif_base_url(page_id)
-    iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
-    selectors = []
-    for c in coords:
-        xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
-        selector = {
-            "type": "FragmentSelector",
-            "conformsTo": "http://www.w3.org/TR/media-frags/",
-            "value": f"xywh={xywh}"
-        }
-        selectors.append(selector)
-
-        target = {
-            "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
-            "type": "Image"
-        }
-        targets.append(target)
-
-    svg_target = image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
-    selectors.append(svg_target['selector'])
-    target = {
-        "source": iiif_url,
-        "type": "Image",
-        "selector": selectors
-    }
-    targets.append(target)
-
-    return targets
-
-
-REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
-
-
-def make_text_targets(textrepo_base_url="", annotation: Annotation = None):
-    text_anchor_selector_target = {
-        'source': f"{textrepo_base_url}/rest/versions/{annotation.segmented_version_id}/contents",
-        'type': "Text",
-        "selector": {
-            '@context': REPUBLIC_CONTEXT,
-            "type": "urn:republic:TextAnchorSelector",
-            "start": annotation.begin_anchor,
-            "end": annotation.end_anchor
-        }
-    }
-    cutout_target = {
-        'source': f"{textrepo_base_url}/view/versions/{annotation.segmented_version_id}/segments/"
-                  f"index/{annotation.begin_anchor}/{annotation.end_anchor}",
-        'type': "Text"
-    }
-    fragment_selector_target = {
-        'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
-        'type': "Text",
-        "selector": {
-            "type": "FragmentSelector",
-            "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
-            "value": f"char={annotation.char_start},{annotation.char_end}",
-        }
-    }
-    return [text_anchor_selector_target, cutout_target]
-
-
-def canvas_target(canvas_url: str, xywh_list: List[str] = None,
-                  coords_list: List[List[Tuple[int, int]]] = None) -> dict:
-    selectors = []
-    if xywh_list:
-        for xywh in xywh_list:
-            selectors.append({
-                "@context": "http://iiif.io/api/annex/openannotation/context.json",
-                "type": "iiif:ImageApiSelector",
-                "region": xywh
-            })
-    if coords_list:
-        selectors.append(svg_selector(coords_list))
-    return {
-        '@context': "https://brambg.github.io/ns/republic.jsonld",
-        'source': canvas_url,
-        'type': "Canvas",
-        'selector': selectors
-    }
-
-
-def svg_selector(coords_list):
-    path_defs = []
-    height = 0
-    width = 0
-    for coords in coords_list:
-        height = max(height, max([c[1] for c in coords]))
-        width = max(width, max([c[0] for c in coords]))
-        path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
-        path_def = 'M' + path_def[1:]
-        path_defs.append(path_def)
-    path = f"""<path d="{' '.join(path_defs)}"/>"""
-    return {'type': "SvgSelector", 'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""}
-
-
-def image_target_wth_svg_selector(iiif_url: str,
-                                  coords_list: List) -> dict:
-    return {'source': iiif_url, 'type': "Image", 'selector': svg_selector(coords_list)}
-
-
-def to_web_annotation(annotation: Annotation) -> WebAnnotation:
+def to_web_annotation(annotation: gt.Annotation, webannotation_factory: gt.WebAnnotationFactory) -> WebAnnotation:
     body = annotation_body(annotation)
-    targets = annotation_targets(annotation)
+    targets = webannotation_factory.annotation_targets(annotation)
     return WebAnnotation(body=body, target=targets)
 
 
-def annotation_body(annotation: Annotation):
+def annotation_body(annotation: gt.Annotation):
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
         "id": annotation.id,
@@ -535,42 +417,7 @@ def annotation_body(annotation: Annotation):
     return body
 
 
-def to_xywh(coords: Coords):
-    return f"{coords.left},{coords.top},{coords.width},{coords.height}"
-
-
-def annotation_targets(annotation: Annotation):
-    targets = []
-    page_id = annotation.page_id
-    if "coords" in annotation.metadata:
-        page_id = annotation.page_id
-        coords = annotation.metadata["coords"]
-        if isinstance(coords, Coords):
-            coords = [coords]
-        targets.extend(make_image_targets(page_id, coords))
-        canvas_url = f"urn:globalise:canvas:{page_id}"
-        xywh_list = [to_xywh(c) for c in coords]
-        points = [c.points for c in coords]
-        targets.append(canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points))
-    if annotation.type == "px:Page":
-        iiif_base_url = get_iiif_base_url(page_id)
-        iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
-        targets.append({
-            "source": iiif_url,
-            "type": "Image"
-        })
-    targets.extend(
-        make_text_targets(textrepo_base_url="https://globalise.tt.di.huc.knaw.nl/textrepo",
-                          annotation=annotation)
-    )
-    return targets
-
-
-def make_web_annotations(annotations: List[Annotation]) -> List[WebAnnotation]:
-    return [to_web_annotation(a) for a in annotations]
-
-
-def ranges_per_scan(annotations: List[Annotation]) -> Dict[str, Tuple[int, int]]:
+def ranges_per_scan(annotations: List[gt.Annotation]) -> Dict[str, Tuple[int, int]]:
     return {
         pa.page_id: (pa.offset, pa.offset + pa.length)
         for pa in annotations
@@ -591,14 +438,14 @@ def segment_range(tokens: List[GTToken], char_range_begin: int, char_range_end: 
     return begin_idx, end_idx
 
 
-def add_anchor_range(all_annotations: List[Annotation], tokens: List[GTToken]):
+def add_anchor_range(all_annotations: List[gt.Annotation], tokens: List[GTToken]):
     for a in all_annotations:
         char_range_begin = a.offset
         char_range_end = a.offset + a.length
         a.begin_anchor, a.end_anchor = segment_range(tokens, char_range_begin, char_range_end)
 
 
-def process_directory_group(directory_group: List[str]):
+def process_directory_group(directory_group: List[str], webannotation_factory: gt.WebAnnotationFactory):
     pagexml_files = list_pagexml_files_in_group(directory_group)
 
     base_name = create_base_name(pagexml_files)
@@ -628,7 +475,7 @@ def process_directory_group(directory_group: List[str]):
         "tanap_jaar": 1684,
         "annotations": all_annotations,
     })
-    web_annotations = make_web_annotations(all_annotations)
+    web_annotations = make_web_annotations(all_annotations, webannotation_factory)
     export(base_name, all_pars, metadata, tokens, web_annotations)
 
 
@@ -658,15 +505,6 @@ def add_tr_versions(all_annotations, external_id):
     for a in all_annotations:
         a.segmented_version_id = tr_versions[external_id].segmented
         a.txt_version_id = tr_versions[external_id].txt
-
-
-def init_iiif_base_url_idx(path: str):
-    print(f"loading {path}...", end=' ')
-    with open(path) as f:
-        reader = csv.DictReader(f)
-        for row in reader:
-            iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
-    print()
 
 
 def init_spacy():
@@ -727,20 +565,24 @@ def get_arguments():
 
 
 def process(directories, iiif_mapping_file, merge_sections):
-    init_iiif_base_url_idx(iiif_mapping_file)
+    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
     init_spacy()
     load_metadata()
     load_ground_truth()
     load_tr_versions()
     if merge_sections:
-        groups = itertools.groupby(directories, lambda d: d.rstrip('/').split('/')[-1].split('_')[0])
+        def group_id(path):
+            return path.rstrip('/').split('/')[-1].split('_')[0]
+
+        groups = itertools.groupby(directories, group_id)
         for _, group in groups:
-            process_directory_group(group)
+            process_directory_group(group, webannotation_factory)
     else:
         for d in directories:
-            process_directory_group([d])
+            process_directory_group([d], webannotation_factory)
 
 
+@logger.catch
 def main():
     args = get_arguments()
     if args.directory:

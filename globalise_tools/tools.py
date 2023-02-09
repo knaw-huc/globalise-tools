@@ -1,7 +1,9 @@
-from dataclasses import dataclass
-from typing import List
+import csv
+from dataclasses import dataclass, field
+from typing import List, Any, Tuple, Dict
 
 from dataclasses_json import dataclass_json
+from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan
 
 
@@ -44,6 +46,23 @@ class DisplayWord:
     id: str
     px_words: List[PXWord]
     text: str
+
+
+@dataclass_json
+@dataclass
+class Annotation:
+    type: str
+    id: str
+    page_id: str
+    offset: int
+    length: int
+    segmented_version_id: str = ""
+    begin_anchor: int = 0
+    end_anchor: int = 0
+    txt_version_id: str = ""
+    char_start: int = 0
+    char_end: int = 0
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class IdDispenser:
@@ -187,3 +206,157 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
                        first_word_id=first_word_id_in_line,
                        last_word_id=last_word_id_in_line)
         )
+
+
+class WebAnnotationFactory:
+    REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
+
+    def __init__(self, iiif_mapping_file: str):
+        self.iiif_base_url_idx = {}
+        self._init_iiif_base_url_idx(iiif_mapping_file)
+
+    @logger.catch
+    def annotation_targets(self, annotation: Annotation):
+        targets = []
+        page_id = annotation.page_id
+        if "coords" in annotation.metadata:
+            page_id = annotation.page_id
+            coords = annotation.metadata["coords"]
+            if isinstance(coords, Coords):
+                logger.info("yes")
+                coords = [coords]
+            targets.extend(self._make_image_targets(page_id, coords))
+            canvas_url = f"urn:globalise:canvas:{page_id}"
+            xywh_list = [self._to_xywh(c) for c in coords]
+            points = [c.points for c in coords]
+            canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
+            targets.append(canvas_target)
+        if annotation.type == "px:Page":
+            iiif_base_url = self._get_iiif_base_url(page_id)
+            iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+            targets.append({
+                "source": iiif_url,
+                "type": "Image"
+            })
+        targets.extend(
+            self._make_text_targets(textrepo_base_url="https://globalise.tt.di.huc.knaw.nl/textrepo",
+                                    annotation=annotation)
+        )
+        return targets
+
+    @staticmethod
+    def _to_xywh(coords: Coords):
+        return f"{coords.left},{coords.top},{coords.width},{coords.height}"
+
+    def _init_iiif_base_url_idx(self, path: str):
+        logger.info(f"loading {path}...")
+        with open(path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                self.iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
+        logger.info("... done")
+
+    def _make_image_targets(self, page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
+        targets = []
+        iiif_base_url = self._get_iiif_base_url(page_id)
+        iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+        selectors = []
+        for c in coords:
+            xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
+            selector = {
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh={xywh}"
+            }
+            selectors.append(selector)
+
+            target = {
+                "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
+                "type": "Image"
+            }
+            targets.append(target)
+
+        svg_target = self._image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
+        selectors.append(svg_target['selector'])
+        target = {
+            "source": iiif_url,
+            "type": "Image",
+            "selector": selectors
+        }
+        targets.append(target)
+
+        return targets
+
+    def _get_iiif_base_url(self, page_id: str) -> str:
+        return self.iiif_base_url_idx[page_id]
+
+    def _make_text_targets(self, textrepo_base_url="", annotation: Annotation = None):
+        text_anchor_selector_target = {
+            'source': f"{textrepo_base_url}/rest/versions/{annotation.segmented_version_id}/contents",
+            'type': "Text",
+            "selector": {
+                '@context': self.REPUBLIC_CONTEXT,
+                "type": "urn:republic:TextAnchorSelector",
+                "start": annotation.begin_anchor,
+                "end": annotation.end_anchor
+            }
+        }
+        cutout_target = {
+            'source': f"{textrepo_base_url}/view/versions/{annotation.segmented_version_id}/segments/"
+                      f"index/{annotation.begin_anchor}/{annotation.end_anchor}",
+            'type': "Text"
+        }
+        fragment_selector_target = {
+            'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
+            'type': "Text",
+            "selector": {
+                "type": "FragmentSelector",
+                "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
+                "value": f"char={annotation.char_start},{annotation.char_end}",
+            }
+        }
+        return [text_anchor_selector_target, cutout_target]
+
+    def _canvas_target(self, canvas_url: str, xywh_list: List[str] = None,
+                       coords_list: List[List[Tuple[int, int]]] = None) -> dict:
+        selectors = []
+        if xywh_list:
+            for xywh in xywh_list:
+                selectors.append({
+                    "@context": "http://iiif.io/api/annex/openannotation/context.json",
+                    "type": "iiif:ImageApiSelector",
+                    "region": xywh
+                })
+        if coords_list:
+            selectors.append(self._svg_selector(coords_list))
+        return {
+            '@context': "https://brambg.github.io/ns/republic.jsonld",
+            'source': canvas_url,
+            'type': "Canvas",
+            'selector': selectors
+        }
+
+    def _image_target_wth_svg_selector(self, iiif_url: str,
+                                       coords_list: List) -> dict:
+        return {
+            'source': iiif_url,
+            'type': "Image",
+            'selector': self._svg_selector(coords_list)
+        }
+
+    @staticmethod
+    def _svg_selector(coords_list):
+        path_defs = []
+        height = 0
+        width = 0
+        for coords in coords_list:
+            height = max(height, max([c[1] for c in coords]))
+            width = max(width, max([c[0] for c in coords]))
+            path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+            path_def = 'M' + path_def[1:]
+            path_defs.append(path_def)
+        path = f"""<path d="{' '.join(path_defs)}"/>"""
+        return {
+            'type': "SvgSelector",
+            'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""
+        }

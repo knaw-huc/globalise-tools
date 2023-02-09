@@ -8,7 +8,9 @@ from typing import List, Dict
 
 from icecream import ic
 from loguru import logger
+from pagexml.model.physical_document_model import Coords
 
+import globalise_tools.tools as gt
 from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token
 
 data_dir = "data/inception_output"
@@ -116,11 +118,13 @@ event_arguments = ["Agent",
 
 
 @logger.catch
-def main():
+def main(iiif_mapping_file: str):
+    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
+
     annotations = []
     for p in web_anno_file_paths(data_dir):
-        ic(p)
-        annotations.extend(extract_annotations(p))
+        logger.info(p)
+        annotations.extend(extract_annotations(p, webannotation_factory))
     print(json.dumps(annotations, indent=2))
 
 
@@ -128,7 +132,7 @@ def web_anno_file_paths(directory: str) -> List[str]:
     return glob.glob(f"{directory}/*.tsv")
 
 
-def extract_annotations(path: str) -> List[Dict[str, any]]:
+def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactory) -> List[Dict[str, any]]:
     doc_id = path.split('/')[-1].replace('.tsv', '')
 
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
@@ -146,7 +150,8 @@ def extract_annotations(path: str) -> List[Dict[str, any]]:
                       a.layer == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
     ic(entity_webanno)
 
-    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx)
+    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx,
+                                   webannotation_factory)
     return web_annotations
 
 
@@ -171,11 +176,13 @@ def token_id(token: Token) -> str:
     return f"{token.sentence_num}-{token.token_num}"
 
 
-def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx):
+def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx,
+                 webannotation_factory: gt.WebAnnotationFactory):
     w3c_annotations = []
     for ea in entity_webanno:
         body = make_body(ea)
-        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations, token_idx)
+        targets = make_targets(ea, token_annotations, word_annotations, word_web_annotations, token_idx,
+                               webannotation_factory)
 
         anno_uuid = uuid.uuid4()
         w3c_anno = {
@@ -194,7 +201,7 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_a
 def make_body(ea: Annotation):
     fields = ea.features
     if "value" not in fields:
-        ic(ea)
+        logger.warning(f"no value in {ea}")
         return {}
     class_name = fields["value"]
     e_uuid = uuid.uuid4()
@@ -211,18 +218,25 @@ def make_body(ea: Annotation):
     return body
 
 
-def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, word_web_annotations, token_idx):
+def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, word_web_annotations, token_idx,
+                 webannotation_factory: gt.WebAnnotationFactory):
     targets = []
+    relevant_word_annotations = []
     for t in entity_annotation.tokens:
         i = token_idx[token_id(t).split('.')[0]]
         token_annotation = token_annotations[i]
         token_range_begin = token_annotation["offset"]
         token_range_end = token_range_begin + token_annotation["length"]
-        relevant_word_annotations = [a for a in word_annotations if
-                                     word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
-        for wa in relevant_word_annotations:
-            for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
-                targets.extend(wwa["target"])
+        relevant_word_annotations.extend([a for a in word_annotations if
+                                          word_annotation_covers_token_range(a, token_range_begin, token_range_end)])
+    for wa in relevant_word_annotations:
+        a = gt.Annotation.from_dict(wa)
+        a.metadata["coords"] = [Coords(points) for points in (a.metadata["coords"])]
+        ic(a)
+        t = webannotation_factory.annotation_targets(a)
+        ic(t)
+        for wwa in [a for a in word_web_annotations if a["body"]["id"] == wa["id"]]:
+            targets.extend(wwa["target"])
     return simplified(targets)
     # return targets
 
@@ -244,4 +258,4 @@ def word_annotation_covers_token_range(annotation, token_range_begin, token_rang
 
 
 if __name__ == '__main__':
-    main()
+    main('data/iiif-url-mapping.csv')
