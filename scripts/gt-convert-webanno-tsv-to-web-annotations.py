@@ -134,7 +134,7 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     doc_id = path.split('/')[-1].replace('.tsv', '')
 
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
-    word_web_annotations = load_word_web_annotations(doc_id)
+    # word_web_annotations = load_word_web_annotations(doc_id)
 
     doc = read_webanno_tsv(path)
 
@@ -148,7 +148,7 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
                       a.layer == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
     # ic(entity_webanno)
 
-    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx,
+    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, token_idx,
                                    webannotation_factory)
     return web_annotations
 
@@ -174,7 +174,7 @@ def token_id(token: Token) -> str:
     return f"{token.sentence_num}-{token.token_num}"
 
 
-def from_webanno(entity_webanno, token_annotations, word_annotations, word_web_annotations, token_idx,
+def from_webanno(entity_webanno, token_annotations, word_annotations, token_idx,
                  webannotation_factory: gt.WebAnnotationFactory):
     w3c_annotations = []
     for ea in entity_webanno:
@@ -236,7 +236,7 @@ def make_targets(entity_annotation: Annotation, token_annotations, word_annotati
     return targets
 
 
-def deduplicate(dicts: dict) -> List[dict]:
+def deduplicate(dicts: List[dict]) -> List[dict]:
     done = set()
     anno_list = []
     for d in sorted(dicts, key=lambda _dict: _dict["id"]):
@@ -247,9 +247,10 @@ def deduplicate(dicts: dict) -> List[dict]:
 
 
 def annotation_from_dict(wa: dict) -> gt.Annotation:
-    a = gt.Annotation.from_dict(wa)
-    a.metadata["coords"] = [Coords(points) for points in (a.metadata["coords"])]
-    return a
+    anno = gt.Annotation.from_dict(wa)
+    # convert Coords manually
+    anno.metadata["coords"] = [Coords(points) for points in (anno.metadata["coords"])]
+    return anno
 
 
 # def simplified(targets: List[Dict]) -> List[Dict]:
