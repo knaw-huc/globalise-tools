@@ -108,6 +108,7 @@ def print_table(rows, table, layer_feature_count):
     header_row = ["id", "char-range", "token"] + ([""] * (row_size - 3))
     rows.insert(0, header_row)
     table.add_rows(rows)
+    table.border_format = "grey70"
     table.column_format = column_format
     print(table.draw())
 
