@@ -105,7 +105,7 @@ def display_webanno_tsv(file: str):
 def print_table(rows, table, layer_feature_count):
     column_format = init_column_format(layer_feature_count)
     row_size = len(rows[0])
-    header_row = [""] * row_size
+    header_row = ["id", "char-range", "token"] + ([""] * (row_size - 3))
     rows.insert(0, header_row)
     table.add_rows(rows)
     table.column_format = column_format
