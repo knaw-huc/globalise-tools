@@ -189,19 +189,23 @@ def write_to_xlsx(xlsx, data):
     workbook.close()
 
 
-@logger.catch
-def main():
-    lines_per_file = [as_file_lines(file) for file in files]
-    file_lines = list(chain(*lines_per_file))
-    data = to_rows(file_lines)
-
+def print_as_table(data):
     table = tabulate.tabulate(
         data,
         tablefmt='github',
         headers=headers,
         colalign=["left", "right", "right", "left", "center", "center", "center", "center"]
     )
-    # print(table)
+    print(table)
+
+
+@logger.catch
+def main():
+    lines_per_file = [as_file_lines(file) for file in files]
+    file_lines = list(chain(*lines_per_file))
+    data = to_rows(file_lines)
+
+    # print_as_table(data)
 
     write_to_csv('out.csv', data)
     write_to_xlsx('globalise-word-joins.xlsx', data)
