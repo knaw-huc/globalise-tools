@@ -5,6 +5,7 @@ import os
 from pathlib import Path
 
 import requests
+from loguru import logger
 from tqdm import tqdm
 
 
@@ -20,6 +21,7 @@ def print_failed_urls(failed_urls):
             print(f)
 
 
+@logger.catch
 def download_mets(data_dir: str):
     mets_csv = f'{data_dir}/NL-HaNA_1.04.02_mets.csv'
     print(f"reading {mets_csv}...")
@@ -50,6 +52,7 @@ def download_mets(data_dir: str):
     print_failed_urls(failed_urls)
 
 
+@logger.catch
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Download METS files",

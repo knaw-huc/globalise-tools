@@ -1,7 +1,10 @@
 #!/usr/bin/env python3
 import argparse
 
+from loguru import logger
 
+
+@logger.catch
 def main():
     parser = argparse.ArgumentParser(
         description="Print text range defined by offset and length from given text file",

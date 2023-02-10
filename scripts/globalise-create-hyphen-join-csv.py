@@ -4,6 +4,7 @@ from itertools import chain
 
 import tabulate
 import xlsxwriter
+from loguru import logger
 from pagexml.parser import parse_pagexml_file
 
 from globalise_tools.tools import na_url
@@ -188,6 +189,7 @@ def write_to_xlsx(xlsx, data):
     workbook.close()
 
 
+@logger.catch
 def main():
     lines_per_file = [as_file_lines(file) for file in files]
     file_lines = list(chain(*lines_per_file))

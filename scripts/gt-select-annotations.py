@@ -5,12 +5,15 @@ import os
 import random
 from typing import List, Dict
 
+from loguru import logger
+
 
 def list_web_annotation_files(directory: str):
     all_files = os.listdir(directory)
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith("-web-annotations.json")])
 
 
+@logger.catch
 def main():
     files = list_web_annotation_files("out")
     annotations = []

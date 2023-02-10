@@ -5,6 +5,7 @@ from itertools import zip_longest
 
 from annorepo.client import AnnoRepoClient
 from icecream import ic
+from loguru import logger
 
 ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_1092_0018",
@@ -104,6 +105,7 @@ wa = [
     "entity-annotations.json"]
 
 
+@logger.catch
 def access_annorepo(base_uri: str, api_key: str, container_name: str):
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
@@ -142,6 +144,7 @@ def make_container(arc, container_name):
     ic(eTag, location, json_content)
 
 
+@logger.catch
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Access an annorepo instance",

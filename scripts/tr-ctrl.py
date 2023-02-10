@@ -6,6 +6,7 @@ from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
 from icecream import ic
+from loguru import logger
 from textrepo.client import TextRepoClient, DocumentIdentifier
 
 ids = ["NL-HaNA_1.04.02_1092_0017",
@@ -115,6 +116,16 @@ class TRDocument:
     conll_version: str = None
 
 
+@logger.catch
+def access_textrepo(base_uri: str, api_key: str):
+    trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
+    set_file_types(trc)
+    # check_external_ids(trc)
+    tr_docs = create_documents(trc)
+    store_versions(tr_docs)
+    # show_document_urls(trc)
+
+
 def create_document(trc: TextRepoClient, document_name: str) -> TRDocument:
     # purge_existing_document(trc, document_name)
     tr_doc = TRDocument(document_name)
@@ -186,15 +197,6 @@ def show_document_urls(trc: TextRepoClient):
         print()
 
 
-def access_textrepo(base_uri: str, api_key: str):
-    trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
-    set_file_types(trc)
-    # check_external_ids(trc)
-    tr_docs = create_documents(trc)
-    store_versions(tr_docs)
-    # show_document_urls(trc)
-
-
 def check_external_ids(trc):
     for external_id in ids:
         try:
@@ -218,6 +220,7 @@ def has_file_type(trc, type_name):
     return type_name in {ft.name for ft in file_types}
 
 
+@logger.catch
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Access a textrepo instance",

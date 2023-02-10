@@ -5,19 +5,12 @@ from collections import defaultdict
 from typing import List
 
 import spacy
+from loguru import logger
 
 file = "/Users/bram/workspaces/globalise/globalise-tools/data/globalise-word-joins-MH.csv"
 
 
-def tokenize(nlp, text: str) -> List[str]:
-    tokens = []
-    doc = nlp(text)
-    for sentence in doc.sents:
-        for token in [t for t in sentence if t.text != "\n"]:
-            tokens.append(token.text)
-    return tokens
-
-
+@logger.catch
 def main():
     with open(file) as f:
         reader = csv.DictReader(f)
@@ -34,6 +27,15 @@ def main():
     print(json.dumps(paragraph_line_markers_per_pagexml, indent=2))
 
 
+def tokenize(nlp, text: str) -> List[str]:
+    tokens = []
+    doc = nlp(text)
+    for sentence in doc.sents:
+        for token in [t for t in sentence if t.text != "\n"]:
+            tokens.append(token.text)
+    return tokens
+
+
 def extract_tokenized_paragraph_markers(np_records):
     spacy_core = "nl_core_news_lg"
     nlp = spacy.load(spacy_core)
@@ -47,4 +49,5 @@ def extract_tokenized_paragraph_markers(np_records):
     print(json.dumps(paragraph_markers, indent=2))
 
 
-main()
+if __name__ == '__main__':
+    main()

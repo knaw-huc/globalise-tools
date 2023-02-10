@@ -7,6 +7,7 @@ from pathlib import Path
 from typing import List
 from xml.etree.ElementTree import Element
 
+from loguru import logger
 from tqdm import tqdm
 
 
@@ -75,6 +76,7 @@ def print_missing_files(missing_files):
             print(f)
 
 
+@logger.catch
 def map_pagexml_to_iiif_url(data_dir: str):
     mets_csv = f"{data_dir}/NL-HaNA_1.04.02_mets.csv"
     mapping_csv = f"{data_dir}/iiif-url-mapping.csv"
@@ -102,6 +104,7 @@ def map_pagexml_to_iiif_url(data_dir: str):
     print_missing_files(missing_files)
 
 
+@logger.catch
 def get_arguments():
     parser = argparse.ArgumentParser(
         description="Create a csv file mapping a pagexml base name to a IIIF base url",
