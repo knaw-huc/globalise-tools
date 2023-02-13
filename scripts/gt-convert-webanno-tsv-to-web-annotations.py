@@ -9,11 +9,11 @@ from loguru import logger
 from pagexml.model.physical_document_model import Coords
 
 import globalise_tools.tools as gt
-from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token
+from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token, AnnotationLink, Document
 
-data_dir = "data/inception_output"
+DATA_DIR = "data/inception_output"
 
-entities = {"CIV": "Civic/legal mention",
+ENTITIES = {"CIV": "Civic/legal mention",
             "CMTY": "Commodity",
             "CMTY_QUAL": "Commodity qualifier, if appears to be relevant for subclassification of commodity",
             "DOC": "Document",
@@ -37,7 +37,7 @@ entities = {"CIV": "Civic/legal mention",
             "TIME_REL": "Time relation marker",
             "UNFREE": "Slaves en related terms"}
 
-event_predicates = {
+EVENT_PREDICATES = {
     "AlteringARelationship": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EndingARelationship",
     "Arriving": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Arriving",
     "Attacking": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Attacking",
@@ -102,7 +102,7 @@ event_predicates = {
     "Voyage": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Voyage",
     "War": "https://github.com/globalise-huygens/nlp-event-detection/wiki#War"}
 
-event_arguments = ["Agent",
+EVENT_ARGUMENTS = ["Agent",
                    "AgentPatient",
                    "Miscellaneous",
                    "Benefactive",
@@ -114,16 +114,23 @@ event_arguments = ["Agent",
                    "Target",
                    "Time"]
 
+NAMED_ENTITY_LAYER_NAME = "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"
+EVENT_LAYER_NAME = "webanno.custom.SemPredGLOB"
+
 
 @logger.catch
-def main(iiif_mapping_file: str):
+def main(iiif_mapping_file: str, data_dir: str):
     webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
+    annotations = create_web_annotations(webannotation_factory, data_dir)
+    print(json.dumps(annotations, indent=2))
 
+
+def create_web_annotations(webannotation_factory: gt.WebAnnotationFactory, data_dir: str):
     annotations = []
     for p in web_anno_file_paths(data_dir):
         logger.info(f"parsing {p}...")
         annotations.extend(extract_annotations(p, webannotation_factory))
-    print(json.dumps(annotations, indent=2))
+    return annotations
 
 
 def web_anno_file_paths(directory: str) -> List[str]:
@@ -134,9 +141,10 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     doc_id = path.split('/')[-1].replace('.tsv', '')
 
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
-    # word_web_annotations = load_word_web_annotations(doc_id)
 
     doc = read_webanno_tsv(path)
+    # for a in doc.annotations:
+    #     ic(a)
 
     tokens = doc.tokens
     wat_annotations = doc.annotations
@@ -144,12 +152,25 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     whole_tokens = [t for t in tokens if "." not in t.token_num]
     token_idx = {token_id(t): i for i, t in enumerate(whole_tokens)}
 
-    entity_webanno = [a for a in wat_annotations if
-                      a.layer == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
+    event_anno_list = [a for a in wat_annotations
+                       if a.layer == EVENT_LAYER_NAME]
+    web_annotations = convert_event_annotations(
+        annotations=event_anno_list,
+        token_annotations=token_annotations,
+        word_annotations=word_annotations,
+        token_idx=token_idx,
+        webannotation_factory=webannotation_factory,
+        doc=doc
+    )
+
+    entity_webanno_list = [a for a in wat_annotations if
+                           a.layer == NAMED_ENTITY_LAYER_NAME]
     # ic(entity_webanno)
 
-    web_annotations = from_webanno(entity_webanno, token_annotations, word_annotations, token_idx,
+    web_annotations.extend(
+        convert_entity_annotations(entity_webanno_list, token_annotations, word_annotations, token_idx,
                                    webannotation_factory)
+    )
     return web_annotations
 
 
@@ -174,12 +195,101 @@ def token_id(token: Token) -> str:
     return f"{token.sentence_num}-{token.token_num}"
 
 
-def from_webanno(entity_webanno, token_annotations, word_annotations, token_idx,
-                 webannotation_factory: gt.WebAnnotationFactory):
+def convert_event_annotations(annotations, token_annotations, word_annotations, token_idx,
+                              webannotation_factory: gt.WebAnnotationFactory, doc: Document):
     w3c_annotations = []
-    for ea in entity_webanno:
-        body = make_body(ea)
-        targets = make_targets(ea, token_annotations, word_annotations, token_idx,
+    for anno in annotations:
+        body_id = f"urn:globalise:event:{uuid.uuid4()}"
+        argument_source = {}
+        for annotation_link in anno.linked_annotations:
+            event_argument_anno = make_event_argument_annotation(
+                al=annotation_link,
+                linked_annotation=doc.get_annotation_by_id(annotation_link.annotation_id),
+                token_annotations=token_annotations,
+                word_annotations=word_annotations,
+                token_idx=token_idx,
+                webannotation_factory=webannotation_factory,
+                event_body_id=body_id)
+            w3c_annotations.append(event_argument_anno)
+            argument_source[annotation_link.annotation_id] = event_argument_anno["body"]["id"]
+        body = make_event_body(anno, argument_source, body_id)
+        targets = make_targets(anno, token_annotations, word_annotations, token_idx,
+                               webannotation_factory)
+
+        w3c_anno = {
+            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "type": "Annotation",
+            "motivation": "linking",
+            "generated": datetime.today().isoformat(),
+            "body": body,
+            "target": targets
+        }
+        w3c_annotations.append(w3c_anno)
+    return w3c_annotations
+
+
+def make_event_argument_annotation(al: AnnotationLink,
+                                   linked_annotation: Annotation,
+                                   token_annotations,
+                                   word_annotations,
+                                   token_idx,
+                                   webannotation_factory,
+                                   event_body_id: str):
+    anno = linked_annotation
+    body = {
+        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "type": "tt:EventArgument",
+        "id": f"urn:globalise:even_argument:{uuid.uuid4()}",
+        "text": anno.text,
+        "role": al.label,
+        "event": event_body_id
+    }
+    targets = make_targets(anno, token_annotations, word_annotations, token_idx,
+                           webannotation_factory)
+    w3c_anno = {
+        "@context": "http://www.w3.org/ns/anno.jsonld",
+        "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+        "type": "Annotation",
+        "motivation": "tagging",
+        "generated": datetime.today().isoformat(),
+        "body": body,
+        "target": targets
+    }
+    return w3c_anno
+
+
+def make_event_body(anno: Annotation, argument_source: Dict[str, str], body_id: str) -> Dict[str, any]:
+    fields = anno.features
+    body = {
+        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "type": "tt:Event",
+        "id": body_id,
+        "text": anno.text
+    }
+    if "category" in fields:
+        body["category"] = fields["category"]
+    if "relationtype" in fields:
+        body["relationType"] = fields["relationtype"]
+    if anno.linked_annotations:
+        arguments = []
+        for al in anno.linked_annotations:
+            arguments.append(
+                {
+                    "role": al.label,
+                    "source": argument_source[al.annotation_id]
+                }
+            )
+        body["arguments"] = arguments
+    return body
+
+
+def convert_entity_annotations(annotations, token_annotations, word_annotations, token_idx,
+                               webannotation_factory: gt.WebAnnotationFactory):
+    w3c_annotations = []
+    for anno in annotations:
+        body = make_entity_body(anno)
+        targets = make_targets(anno, token_annotations, word_annotations, token_idx,
                                webannotation_factory)
 
         anno_uuid = uuid.uuid4()
@@ -196,10 +306,10 @@ def from_webanno(entity_webanno, token_annotations, word_annotations, token_idx,
     return w3c_annotations
 
 
-def make_body(ea: Annotation):
-    fields = ea.features
+def make_entity_body(anno: Annotation):
+    fields = anno.features
     if "value" not in fields:
-        logger.warning(f"no 'value' feature in {ea}")
+        logger.warning(f"no 'value' feature in {anno}")
         return {}
     class_name = fields["value"]
     e_uuid = uuid.uuid4()
@@ -208,19 +318,19 @@ def make_body(ea: Annotation):
         "type": "tt:Entity",
         "id": f"urn:globalise:entity:{e_uuid}",
         "class_name": class_name,
-        "class_description": entities[class_name],
-        "text": ea.text
+        "class_description": ENTITIES[class_name],
+        "text": anno.text
     }
     if "identifier" in fields:
         body["url"] = fields["identifier"]
     return body
 
 
-def make_targets(entity_annotation: Annotation, token_annotations, word_annotations, token_idx,
+def make_targets(annotation: Annotation, token_annotations, word_annotations, token_idx,
                  webannotation_factory: gt.WebAnnotationFactory):
     targets = []
     relevant_word_annotation_dicts = []
-    for t in entity_annotation.tokens:
+    for t in annotation.tokens:
         i = token_idx[token_id(t).split('.')[0]]
         token_annotation = token_annotations[i]
         token_range_begin = token_annotation["offset"]
@@ -263,11 +373,13 @@ def annotation_from_dict(wa: dict) -> gt.Annotation:
 #     return _simplified
 
 
-def word_annotation_covers_token_range(annotation, token_range_begin, token_range_end):
+def word_annotation_covers_token_range(annotation: dict[str, any],
+                                       token_range_begin: int,
+                                       token_range_end: int) -> bool:
     annotation_range_begin = annotation["offset"]
     annotation_range_end = annotation_range_begin + annotation["length"]
     return token_range_begin >= annotation_range_begin and token_range_end <= annotation_range_end
 
 
 if __name__ == '__main__':
-    main('data/iiif-url-mapping.csv')
+    main('data/iiif-url-mapping.csv', DATA_DIR)
