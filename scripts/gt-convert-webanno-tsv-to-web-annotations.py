@@ -2,6 +2,7 @@
 import glob
 import json
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
 from typing import List, Dict
 
@@ -118,6 +119,13 @@ NAMED_ENTITY_LAYER_NAME = "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntit
 EVENT_LAYER_NAME = "webanno.custom.SemPredGLOB"
 
 
+@dataclass
+class TokenContext:
+    token_annotations: List[Dict[str, any]]
+    word_annotations: List[Dict[str, any]]
+    token_idx: Dict[str, any]
+
+
 @logger.catch
 def main(iiif_mapping_file: str, data_dir: str):
     webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
@@ -143,8 +151,6 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
 
     doc = read_webanno_tsv(path)
-    # for a in doc.annotations:
-    #     ic(a)
 
     tokens = doc.tokens
     wat_annotations = doc.annotations
@@ -152,13 +158,14 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     whole_tokens = [t for t in tokens if "." not in t.token_num]
     token_idx = {token_id(t): i for i, t in enumerate(whole_tokens)}
 
+    token_context = TokenContext(token_annotations=token_annotations, word_annotations=word_annotations,
+                                 token_idx=token_idx)
+
     event_anno_list = [a for a in wat_annotations
                        if a.layer == EVENT_LAYER_NAME]
     web_annotations = convert_event_annotations(
         annotations=event_anno_list,
-        token_annotations=token_annotations,
-        word_annotations=word_annotations,
-        token_idx=token_idx,
+        token_context=token_context,
         webannotation_factory=webannotation_factory,
         doc=doc
     )
@@ -168,7 +175,7 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     # ic(entity_webanno)
 
     web_annotations.extend(
-        convert_entity_annotations(entity_webanno_list, token_annotations, word_annotations, token_idx,
+        convert_entity_annotations(entity_webanno_list, token_context,
                                    webannotation_factory)
     )
     return web_annotations
@@ -195,7 +202,7 @@ def token_id(token: Token) -> str:
     return f"{token.sentence_num}-{token.token_num}"
 
 
-def convert_event_annotations(annotations, token_annotations, word_annotations, token_idx,
+def convert_event_annotations(annotations, token_context: TokenContext,
                               webannotation_factory: gt.WebAnnotationFactory, doc: Document):
     w3c_annotations = []
     for anno in annotations:
@@ -205,16 +212,13 @@ def convert_event_annotations(annotations, token_annotations, word_annotations, 
             event_argument_anno = make_event_argument_annotation(
                 al=annotation_link,
                 linked_annotation=doc.get_annotation_by_id(annotation_link.annotation_id),
-                token_annotations=token_annotations,
-                word_annotations=word_annotations,
-                token_idx=token_idx,
+                token_context=token_context,
                 webannotation_factory=webannotation_factory,
                 event_body_id=body_id)
             w3c_annotations.append(event_argument_anno)
             argument_source[annotation_link.annotation_id] = event_argument_anno["body"]["id"]
         body = make_event_body(anno, argument_source, body_id)
-        targets = make_targets(anno, token_annotations, word_annotations, token_idx,
-                               webannotation_factory)
+        targets = make_targets(anno, token_context, webannotation_factory)
 
         w3c_anno = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
@@ -231,9 +235,7 @@ def convert_event_annotations(annotations, token_annotations, word_annotations, 
 
 def make_event_argument_annotation(al: AnnotationLink,
                                    linked_annotation: Annotation,
-                                   token_annotations,
-                                   word_annotations,
-                                   token_idx,
+                                   token_context: TokenContext,
                                    webannotation_factory,
                                    event_body_id: str):
     anno = linked_annotation
@@ -245,8 +247,7 @@ def make_event_argument_annotation(al: AnnotationLink,
         "role": al.label,
         "event": event_body_id
     }
-    targets = make_targets(anno, token_annotations, word_annotations, token_idx,
-                           webannotation_factory)
+    targets = make_targets(anno, token_context, webannotation_factory)
     w3c_anno = {
         "@context": "http://www.w3.org/ns/anno.jsonld",
         "id": f"urn:globalise:annotation:{uuid.uuid4()}",
@@ -284,13 +285,12 @@ def make_event_body(anno: Annotation, argument_source: Dict[str, str], body_id: 
     return body
 
 
-def convert_entity_annotations(annotations, token_annotations, word_annotations, token_idx,
+def convert_entity_annotations(annotations, token_context: TokenContext,
                                webannotation_factory: gt.WebAnnotationFactory):
     w3c_annotations = []
     for anno in annotations:
         body = make_entity_body(anno)
-        targets = make_targets(anno, token_annotations, word_annotations, token_idx,
-                               webannotation_factory)
+        targets = make_targets(anno, token_context, webannotation_factory)
 
         anno_uuid = uuid.uuid4()
         w3c_anno = {
@@ -326,17 +326,17 @@ def make_entity_body(anno: Annotation):
     return body
 
 
-def make_targets(annotation: Annotation, token_annotations, word_annotations, token_idx,
+def make_targets(annotation: Annotation, token_context: TokenContext,
                  webannotation_factory: gt.WebAnnotationFactory):
     targets = []
     relevant_word_annotation_dicts = []
     for t in annotation.tokens:
-        i = token_idx[token_id(t).split('.')[0]]
-        token_annotation = token_annotations[i]
+        i = token_context.token_idx[token_id(t).split('.')[0]]
+        token_annotation = token_context.token_annotations[i]
         token_range_begin = token_annotation["offset"]
         token_range_end = token_range_begin + token_annotation["length"]
         relevant_word_annotation_dicts.extend(
-            [a for a in word_annotations
+            [a for a in token_context.word_annotations
              if word_annotation_covers_token_range(a, token_range_begin, token_range_end)]
         )
     ordered_dicts = deduplicate(relevant_word_annotation_dicts)
