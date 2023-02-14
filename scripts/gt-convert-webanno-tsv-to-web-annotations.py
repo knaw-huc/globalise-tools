@@ -242,7 +242,7 @@ def make_event_argument_annotation(al: AnnotationLink,
     body = {
         "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
         "type": "tt:EventArgument",
-        "id": f"urn:globalise:even_argument:{uuid.uuid4()}",
+        "id": f"urn:globalise:event_argument:{uuid.uuid4()}",
         "text": anno.text,
         "role": al.label,
         "event": event_body_id
