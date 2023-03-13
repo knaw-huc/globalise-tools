@@ -219,13 +219,12 @@ class WebAnnotationFactory:
     def annotation_targets(self, annotation: Annotation):
         targets = []
         page_id = annotation.page_id
+        canvas_url = f"urn:globalise:canvas:{page_id}"
         if "coords" in annotation.metadata:
-            page_id = annotation.page_id
             coords = annotation.metadata["coords"]
             if isinstance(coords, Coords):
                 coords = [coords]
             targets.extend(self._make_image_targets(page_id, coords))
-            canvas_url = f"urn:globalise:canvas:{page_id}"
             xywh_list = [self._to_xywh(c) for c in coords]
             points = [c.points for c in coords]
             canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
@@ -233,10 +232,17 @@ class WebAnnotationFactory:
         if annotation.type == "px:Page":
             iiif_base_url = self._get_iiif_base_url(page_id)
             iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
-            targets.append({
-                "source": iiif_url,
-                "type": "Image"
-            })
+            targets.extend([
+                {
+                    "source": iiif_url,
+                    "type": "Image"
+                },
+                {
+                    '@context': "https://brambg.github.io/ns/republic.jsonld",
+                    'source': canvas_url,
+                    'type': "Canvas",
+                }
+            ])
         targets.extend(
             self._make_text_targets(textrepo_base_url="https://globalise.tt.di.huc.knaw.nl/textrepo",
                                     annotation=annotation)
