@@ -24,6 +24,7 @@ spacy_core = "nl_core_news_lg"
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
 textrepo_version_csv = "data/tr-versions.csv"
+PAGE_TYPE = "px:Page"
 
 
 @dataclass
@@ -101,7 +102,7 @@ def index_word_ranges(words: List[gt.DisplayWord], word_range_index) -> Dict[str
     return index
 
 
-def process_pagexml(path):
+def process_pagexml(path: str, document_id: str):
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
     id_prefix = make_id_prefix(scan_doc)
@@ -124,7 +125,7 @@ def process_pagexml(path):
 
     page_id = to_base_name(path)
     annotations.append(
-        page_annotation(id_prefix, page_id, path, total_size)
+        page_annotation(id_prefix, page_id, path, total_size, document_id)
     )
 
     for text_region in px_text_regions:
@@ -145,21 +146,24 @@ def process_pagexml(path):
     return paragraphs, annotations, total_size
 
 
-def text_line_annotation(text_line, id_prefix, offset, length):
+def page_annotation(id_prefix: str, page_id: str, path: str, total_size: int, document_id: str) -> gt.Annotation:
     return gt.Annotation(
-        type="px:TextLine",
-        id=make_textline_id(id_prefix, text_line.id),
-        page_id=text_line.page_id,
-        offset=offset,
-        length=length,
+        type=PAGE_TYPE,
+        id=make_page_id(id_prefix),
+        page_id=page_id,
+        offset=0,
+        length=total_size,
         metadata={
-            "text": text_line.text,
-            "coords": text_line.coords
+            "document": document_id,
+            "n": page_id.split("_")[-1],
+            "file": path,
+            "na_url": gt.na_url(path),
+            "tr_url": gt.tr_url(path)
         }
     )
 
 
-def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset: int, length: int):
+def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset: int, length: int) -> gt.Annotation:
     return gt.Annotation(
         type="px:TextRegion",
         id=make_textregion_id(id_prefix, text_region.id),
@@ -173,23 +177,21 @@ def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset:
     )
 
 
-def page_annotation(id_prefix, page_id, path, total_size):
+def text_line_annotation(text_line, id_prefix, offset, length) -> gt.Annotation:
     return gt.Annotation(
-        type="px:Page",
-        id=make_page_id(id_prefix),
-        page_id=page_id,
-        offset=0,
-        length=total_size,
+        type="px:TextLine",
+        id=make_textline_id(id_prefix, text_line.id),
+        page_id=text_line.page_id,
+        offset=offset,
+        length=length,
         metadata={
-            "n": page_id.split("_")[-1],
-            "file": path,
-            "na_url": gt.na_url(path),
-            "tr_url": gt.tr_url(path)
+            "text": text_line.text,
+            "coords": text_line.coords
         }
     )
 
 
-def word_annotation(id_prefix, stripped, text, w):
+def word_annotation(id_prefix, stripped, text, w) -> gt.Annotation:
     return gt.Annotation(
         type="tt:Word",
         id=make_word_id(id_prefix, w),
@@ -361,7 +363,7 @@ def make_token_annotations(base_name, tokens, scan_ranges):
             page_id = get_page_id(offset, token_length, scan_ranges)
             annotations.append(
                 token_annotation(base_name=base_name, page_id=page_id, token_num=i, offset=offset,
-                                 token_length=token_length, token_text=token))
+                                 token_length=token_length, token_text=token, sentence_num=par_num))
             par_length = offset - par_offset + token_length
         # ic(annotations[-1])
     return annotations
@@ -414,6 +416,11 @@ def annotation_body(annotation: gt.Annotation):
     }
     if "text" in annotation.metadata:
         body["text"] = annotation.metadata["text"]
+    if annotation.type == PAGE_TYPE:
+        body["metadata"] = {
+            "document": annotation.metadata["document"],
+            "opening": int(annotation.metadata["n"]),
+        }
     return body
 
 
@@ -421,7 +428,7 @@ def ranges_per_scan(annotations: List[gt.Annotation]) -> Dict[str, Tuple[int, in
     return {
         pa.page_id: (pa.offset, pa.offset + pa.length)
         for pa in annotations
-        if pa.type == "px:Page"
+        if pa.type == PAGE_TYPE
     }
 
 
@@ -445,12 +452,17 @@ def add_anchor_range(all_annotations: List[gt.Annotation], tokens: List[GTToken]
         a.begin_anchor, a.end_anchor = segment_range(tokens, char_range_begin, char_range_end)
 
 
-def process_directory_group(directory_group: List[str], webannotation_factory: gt.WebAnnotationFactory):
+def doc_annotation(base_name: str):
+    pass
+
+
+def process_directory_group(document_id: str, directory_group: List[str],
+                            webannotation_factory: gt.WebAnnotationFactory):
     pagexml_files = list_pagexml_files_in_group(directory_group)
 
     base_name = create_base_name(pagexml_files)
 
-    all_annotations, all_pars = process_pagexml_files(pagexml_files)
+    all_annotations, all_pars = process_pagexml_files(pagexml_files, document_id)
 
     scan_ranges = ranges_per_scan(all_annotations)
 
@@ -476,7 +488,30 @@ def process_directory_group(directory_group: List[str], webannotation_factory: g
         "annotations": all_annotations,
     })
     web_annotations = make_web_annotations(all_annotations, webannotation_factory)
+    add_document_web_annotation(all_annotations, base_name, document_id, web_annotations, webannotation_factory)
     export(base_name, all_pars, metadata, tokens, web_annotations)
+
+
+def add_document_web_annotation(all_annotations, base_name, document_id, web_annotations, webannotation_factory):
+    manifest_id = document_id.split('_')[0]
+    manifest_url = f"urn:globalise:manifest:{manifest_id}"
+    textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
+    segmented_version_id = tr_versions[base_name].segmented
+    end_anchor = max([a.end_anchor for a in all_annotations])
+    web_annotations.append(WebAnnotation(
+        body={
+            "id": f"urn:globalise:document:{document_id}",
+            "type": "Document",
+            "metadata": {
+                "manifest": manifest_url
+            }
+        },
+        target=[webannotation_factory.text_anchor_selector_target(textrepo_base_url=textrepo_base_url,
+                                                                  segmented_version_id=segmented_version_id,
+                                                                  begin_anchor=0, end_anchor=end_anchor),
+                gt.cutout_target(textrepo_base_url=textrepo_base_url, segmented_version_id=segmented_version_id,
+                                 begin_anchor=0, end_anchor=end_anchor)]
+    ))
 
 
 def list_pagexml_files_in_group(directory_group):
@@ -487,12 +522,12 @@ def list_pagexml_files_in_group(directory_group):
     return pagexml_files
 
 
-def process_pagexml_files(pagexml_files):
+def process_pagexml_files(pagexml_files: List[str], document_id: str):
     all_pars = []
     all_annotations = []
     start_offset = 0
     for f in pagexml_files:
-        (paragraphs, annotations, par_length) = process_pagexml(f)
+        (paragraphs, annotations, par_length) = process_pagexml(f, document_id)
         all_pars.extend(paragraphs)
         for annotation in annotations:
             annotation.offset += start_offset
@@ -575,11 +610,12 @@ def process(directories, iiif_mapping_file, merge_sections):
             return path.rstrip('/').split('/')[-1].split('_')[0]
 
         groups = itertools.groupby(directories, group_id)
-        for _, group in groups:
-            process_directory_group(group, webannotation_factory)
+        for group_id, group in groups:
+            process_directory_group(group_id, group, webannotation_factory)
     else:
         for d in directories:
-            process_directory_group([d], webannotation_factory)
+            group_id = d.split('/')[-1]
+            process_directory_group(group_id, [d], webannotation_factory)
 
 
 @logger.catch

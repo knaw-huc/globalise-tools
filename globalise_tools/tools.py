@@ -49,7 +49,7 @@ class DisplayWord:
 
 
 @dataclass_json
-@dataclass(eq=True, frozen=True)
+@dataclass(eq=True)
 class Annotation:
     type: str
     id: str
@@ -208,6 +208,17 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
         )
 
 
+def cutout_target(textrepo_base_url: str,
+                  segmented_version_id: str,
+                  begin_anchor: str,
+                  end_anchor: str) -> Dict[str, str]:
+    return {
+        'source': f"{textrepo_base_url}/view/versions/{segmented_version_id}/segments/"
+                  f"index/{begin_anchor}/{end_anchor}",
+        'type': "Text"
+    }
+
+
 class WebAnnotationFactory:
     REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
 
@@ -295,32 +306,37 @@ class WebAnnotationFactory:
     def _get_iiif_base_url(self, page_id: str) -> str:
         return self.iiif_base_url_idx[page_id]
 
-    def _make_text_targets(self, textrepo_base_url="", annotation: Annotation = None):
-        text_anchor_selector_target = {
-            'source': f"{textrepo_base_url}/rest/versions/{annotation.segmented_version_id}/contents",
+    def _make_text_targets(self, textrepo_base_url, annotation: Annotation):
+        _text_anchor_selector_target = self.text_anchor_selector_target(textrepo_base_url,
+                                                                        annotation.segmented_version_id,
+                                                                        annotation.begin_anchor, annotation.end_anchor)
+        _cutout_target = cutout_target(textrepo_base_url,
+                                       annotation.segmented_version_id,
+                                       annotation.begin_anchor,
+                                       annotation.end_anchor)
+        # fragment_selector_target = {
+        #     'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
+        #     'type': "Text",
+        #     "selector": {
+        #         "type": "FragmentSelector",
+        #         "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
+        #         "value": f"char={annotation.char_start},{annotation.char_end}",
+        #     }
+        # }
+        return [_text_anchor_selector_target, _cutout_target]
+
+    def text_anchor_selector_target(self, textrepo_base_url: str, segmented_version_id: str, begin_anchor: int,
+                                    end_anchor: int) -> Dict[str, Any]:
+        return {
+            'source': f"{textrepo_base_url}/rest/versions/{segmented_version_id}/contents",
             'type': "Text",
             "selector": {
                 '@context': self.REPUBLIC_CONTEXT,
                 "type": "urn:republic:TextAnchorSelector",
-                "start": annotation.begin_anchor,
-                "end": annotation.end_anchor
+                "start": begin_anchor,
+                "end": end_anchor
             }
         }
-        cutout_target = {
-            'source': f"{textrepo_base_url}/view/versions/{annotation.segmented_version_id}/segments/"
-                      f"index/{annotation.begin_anchor}/{annotation.end_anchor}",
-            'type': "Text"
-        }
-        fragment_selector_target = {
-            'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
-            'type': "Text",
-            "selector": {
-                "type": "FragmentSelector",
-                "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
-                "value": f"char={annotation.char_start},{annotation.char_end}",
-            }
-        }
-        return [text_anchor_selector_target, cutout_target]
 
     def _canvas_target(self, canvas_url: str, xywh_list: List[str] = None,
                        coords_list: List[List[Tuple[int, int]]] = None) -> dict:
