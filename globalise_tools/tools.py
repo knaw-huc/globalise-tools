@@ -210,8 +210,8 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
 
 def cutout_target(textrepo_base_url: str,
                   segmented_version_id: str,
-                  begin_anchor: str,
-                  end_anchor: str) -> Dict[str, str]:
+                  begin_anchor: int,
+                  end_anchor: int) -> Dict[str, str]:
     return {
         'source': f"{textrepo_base_url}/view/versions/{segmented_version_id}/segments/"
                   f"index/{begin_anchor}/{end_anchor}",
