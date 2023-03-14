@@ -94,6 +94,7 @@ ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_7573_0190"]
 
 wa = [
+    "out/entity-annotations.json",
     "out/NL-HaNA_1.04.02_1092_0017_0021-web-annotations.json",
     "out/NL-HaNA_1.04.02_1297_0019_0057-web-annotations.json",
     "out/NL-HaNA_1.04.02_1589_0019_0021-web-annotations.json",
@@ -102,7 +103,7 @@ wa = [
     "out/NL-HaNA_1.04.02_1859_0115_0135-web-annotations.json",
     "out/NL-HaNA_1.04.02_7573_0077_0078-web-annotations.json",
     "out/NL-HaNA_1.04.02_7573_0183_0190-web-annotations.json",
-    "entity-annotations.json"]
+]
 
 
 @logger.catch
@@ -135,6 +136,7 @@ def upload_annotations(arc, container_name):
         print(f"uploading {len(annotations)} annotations")
         chunks = make_chunks_of_size(200, annotations)
         for annos in chunks:
+            # ic(annos)
             r = arc.add_annotations(container_name, annotation_list=annos)
             # ic(r)
 

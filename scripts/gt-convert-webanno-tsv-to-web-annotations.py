@@ -174,10 +174,13 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
                            a.layer == NAMED_ENTITY_LAYER_NAME]
     # ic(entity_webanno)
 
-    web_annotations.extend(
-        convert_entity_annotations(entity_webanno_list, token_context,
-                                   webannotation_factory)
-    )
+    # web_annotations.extend(
+    #     convert_entity_annotations(entity_webanno_list, token_context,
+    #                                webannotation_factory)
+    # )
+    web_annotations = convert_entity_annotations(entity_webanno_list, token_context,
+                                                 webannotation_factory)
+
     return web_annotations
 
 

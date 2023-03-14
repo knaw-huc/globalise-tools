@@ -19,6 +19,7 @@ web-annotations:
 
 .PHONY: install
 install:
+	poetry update
 	poetry install
 
 .PHONY: help
