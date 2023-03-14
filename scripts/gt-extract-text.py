@@ -494,7 +494,7 @@ def process_directory_group(document_id: str, directory_group: List[str],
 
 def add_document_web_annotation(all_annotations, base_name, document_id, web_annotations, webannotation_factory):
     manifest_id = document_id.split('_')[0]
-    manifest_url = f"urn:globalise:manifest:{manifest_id}"
+    manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
     textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
     segmented_version_id = tr_versions[base_name].segmented
     end_anchor = max([a.end_anchor for a in all_annotations])
@@ -503,6 +503,7 @@ def add_document_web_annotation(all_annotations, base_name, document_id, web_ann
             "id": f"urn:globalise:document:{document_id}",
             "type": "Document",
             "metadata": {
+                "document": document_id,
                 "manifest": manifest_url
             }
         },
