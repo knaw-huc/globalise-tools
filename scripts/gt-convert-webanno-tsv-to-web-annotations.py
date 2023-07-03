@@ -293,19 +293,20 @@ def convert_entity_annotations(annotations, token_context: TokenContext,
     w3c_annotations = []
     for anno in annotations:
         body = make_entity_body(anno)
-        targets = make_targets(anno, token_context, webannotation_factory)
+        if body:
+            targets = make_targets(anno, token_context, webannotation_factory)
 
-        anno_uuid = uuid.uuid4()
-        w3c_anno = {
-            "@context": "http://www.w3.org/ns/anno.jsonld",
-            "id": f"urn:globalise:annotation:{anno_uuid}",
-            "type": "Annotation",
-            "motivation": "tagging",
-            "generated": datetime.today().isoformat(),  # TODO: use last-modified from pagexml for px: types
-            "body": body,
-            "target": targets
-        }
-        w3c_annotations.append(w3c_anno)
+            anno_uuid = uuid.uuid4()
+            w3c_anno = {
+                "@context": "http://www.w3.org/ns/anno.jsonld",
+                "id": f"urn:globalise:annotation:{anno_uuid}",
+                "type": "Annotation",
+                "motivation": "tagging",
+                "generated": datetime.today().isoformat(),  # TODO: use last-modified from pagexml for px: types
+                "body": body,
+                "target": targets
+            }
+            w3c_annotations.append(w3c_anno)
     return w3c_annotations
 
 
