@@ -1,15 +1,15 @@
 #!/usr/bin/env python3
 import argparse
+from typing import Tuple, List
 
 import spacy
 from cassis import *
 from icecream import ic
 from loguru import logger
+from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
 
 typesystem_xml = 'data/typesystem.xml'
-cas_xmi = "out/test-cas.xmi"
-
 spacy_core = "nl_core_news_lg"
 logger.info(f"loading {spacy_core}")
 nlp = spacy.load(spacy_core)
@@ -26,18 +26,21 @@ def get_arguments():
     return parser.parse_args()
 
 
+def is_paragraph(text_region: PageXMLTextRegion) -> bool:
+    return text_region.type[-1] == "paragraph"
+
+
+def output_path(page_xml_path: str) -> str:
+    base = page_xml_path.split("/")[-1].replace(".xml", "")
+    return f"out/{base}.xmi"
+
+
 @logger.catch
 def convert(page_xml_path: str):
+    logger.info(f"<= {page_xml_path}")
     scan_doc = parse_pagexml_file(page_xml_path)
-    lines = []
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        # ic(tr)
-        if tr.type[-1] == "paragraph":
-            for line in tr.lines:
-                lines.append(line.text)
-            lines.append("\n")
 
-    text = " ".join(lines)
+    text, paragraph_ranges = extract_paragraph_text(scan_doc)
 
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
@@ -47,9 +50,9 @@ def convert(page_xml_path: str):
     cas.sofa_string = text
     cas.sofa_mime = "text/plain"
 
-    ic([t for t in cas.typesystem.get_types()])
     SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
     TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
+    ParagraphAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
     doc = nlp(text)
     for sentence in doc.sents:
         cas.add(SentenceAnnotation(begin=sentence.start_char, end=sentence.end_char))
@@ -58,10 +61,29 @@ def convert(page_xml_path: str):
             end = token.idx + len(token.text)
             cas.add(TokenAnnotation(begin=begin, end=end))
 
-    # print_annotations(cas)
+    for pr in paragraph_ranges:
+        ic(pr)
+        cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1]))
 
+    print_annotations(cas)
+
+    cas_xmi = output_path(page_xml_path)
     logger.info(f"=> {cas_xmi}")
     cas.to_xmi(cas_xmi, pretty_print=True)
+
+
+def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
+    paragraph_ranges = []
+    offset = 0
+    text = ""
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        if is_paragraph(tr):
+            for line in tr.lines:
+                text += f"{line.text}\n"
+            text_len = len(text)
+            paragraph_ranges.append((offset, text_len))
+            offset = text_len
+    return text, paragraph_ranges
 
 
 def print_annotations(cas):
