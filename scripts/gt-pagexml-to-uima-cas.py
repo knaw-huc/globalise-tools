@@ -62,7 +62,6 @@ def convert(page_xml_path: str):
             cas.add(TokenAnnotation(begin=begin, end=end))
 
     for pr in paragraph_ranges:
-        ic(pr)
         cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1]))
 
     print_annotations(cas)
@@ -72,14 +71,32 @@ def convert(page_xml_path: str):
     cas.to_xmi(cas_xmi, pretty_print=True)
 
 
+def paragraph_text(lines: List[str]) -> str:
+    break_char = "„"
+    ic(lines)
+    for i in range(0, len(lines) - 1):
+        line0 = lines[i]
+        line1 = lines[i + 1]
+        if line0.endswith(break_char):
+            lines[i] = line0.rstrip(break_char)
+            lines[i + 1] = line1.lstrip(break_char)
+        else:
+            lines[i] = f"{line0} "
+    ic(lines)
+    return "".join(lines) + "\n"
+
+
 def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
     paragraph_ranges = []
     offset = 0
     text = ""
     for tr in scan_doc.get_text_regions_in_reading_order():
         if is_paragraph(tr):
+            lines = []
             for line in tr.lines:
-                text += f"{line.text}\n"
+                if line.text:
+                    lines.append(line.text)
+            text += paragraph_text(lines)
             text_len = len(text)
             paragraph_ranges.append((offset, text_len))
             offset = text_len
