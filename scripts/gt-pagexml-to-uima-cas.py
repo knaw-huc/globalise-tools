@@ -42,38 +42,41 @@ def convert(page_xml_path: str):
 
     text, paragraph_ranges = extract_paragraph_text(scan_doc)
 
-    logger.info(f"<= {typesystem_xml}")
-    with open(typesystem_xml, 'rb') as f:
-        typesystem = load_typesystem(f)
+    if not text:
+        logger.warning(f"no paragraph text found in {page_xml_path}")
+    else:
+        logger.info(f"<= {typesystem_xml}")
+        with open(typesystem_xml, 'rb') as f:
+            typesystem = load_typesystem(f)
 
-    cas = Cas(typesystem=typesystem)
-    cas.sofa_string = text
-    cas.sofa_mime = "text/plain"
+        cas = Cas(typesystem=typesystem)
+        cas.sofa_string = text
+        cas.sofa_mime = "text/plain"
 
-    SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
-    TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
-    ParagraphAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
-    doc = nlp(text)
-    for sentence in doc.sents:
-        cas.add(SentenceAnnotation(begin=sentence.start_char, end=sentence.end_char))
-        for token in [t for t in sentence if t.text != "\n"]:
-            begin = token.idx
-            end = token.idx + len(token.text)
-            cas.add(TokenAnnotation(begin=begin, end=end))
+        SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
+        TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
+        ParagraphAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
+        doc = nlp(text)
+        for sentence in doc.sents:
+            cas.add(SentenceAnnotation(begin=sentence.start_char, end=sentence.end_char))
+            for token in [t for t in sentence if t.text != "\n"]:
+                begin = token.idx
+                end = token.idx + len(token.text)
+                cas.add(TokenAnnotation(begin=begin, end=end))
 
-    for pr in paragraph_ranges:
-        cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1]))
+        for pr in paragraph_ranges:
+            cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1]))
 
-    print_annotations(cas)
+        # print_annotations(cas)
 
-    cas_xmi = output_path(page_xml_path)
-    logger.info(f"=> {cas_xmi}")
-    cas.to_xmi(cas_xmi, pretty_print=True)
+        cas_xmi = output_path(page_xml_path)
+        logger.info(f"=> {cas_xmi}")
+        cas.to_xmi(cas_xmi, pretty_print=True)
 
 
 def paragraph_text(lines: List[str]) -> str:
     break_char = "„"
-    ic(lines)
+    # ic(lines)
     for i in range(0, len(lines) - 1):
         line0 = lines[i]
         line1 = lines[i + 1]
@@ -82,7 +85,7 @@ def paragraph_text(lines: List[str]) -> str:
             lines[i + 1] = line1.lstrip(break_char)
         else:
             lines[i] = f"{line0} "
-    ic(lines)
+    # ic(lines)
     return "".join(lines) + "\n"
 
 
