@@ -10,7 +10,7 @@ packages = [{ include = "globalise_tools" }]
 python = ">=3.8,<3.11"
 
 #annorepo-client = "^0.5.1"
-annorepo-client = { path = "/Users/bram/workspaces/elucidate/annorepo-client", develop = true }
+annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
 
 #textrepo-client = "^0.5.1"
 textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
