@@ -132,3 +132,6 @@ data/
 out/
 scripts/*.xlsx
 scripts/*.csv
+
+outputs/
+conf/
