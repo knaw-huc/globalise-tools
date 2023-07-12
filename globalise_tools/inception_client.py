@@ -5,6 +5,8 @@ import requests
 from dataclasses_json import dataclass_json
 from loguru import logger
 
+PROJECTS_PATH = "/api/aero/v1/projects"
+
 
 class InceptionClient:
 
@@ -21,15 +23,15 @@ class InceptionClient:
         self.cookie = cookie
 
     def get_projects(self):
-        path = "/api/aero/v1/projects"
+        path = f"{PROJECTS_PATH}"
         return self.__get(path)
 
     def get_project(self, project_id: int):
-        path = f"/api/aero/v1/projects/{project_id}"
+        path = f"{PROJECTS_PATH}/{project_id}"
         return self.__get(path)
 
     def create_project(self, name: str, title: str = None):
-        path = f"/api/aero/v1/projects"
+        path = f"{PROJECTS_PATH}"
         params = {
             'name': name,
             'creator': self.user
@@ -39,19 +41,19 @@ class InceptionClient:
         return self.__post(path, params)
 
     def get_project_user_permissions(self, project_id: int, user_id: str):
-        path = f"/api/aero/v1/projects/{project_id}/permissions/{user_id}"
+        path = f"{PROJECTS_PATH}/{project_id}/permissions/{user_id}"
         return self.__get(path)
 
     def get_project_documents(self, project_id: int):
-        path = f"/api/aero/v1/projects/{project_id}/documents"
+        path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
 
     def get_document_curation(self, project_id: int, document_id: str):
-        path = f"/api/aero/v1/projects/{project_id}/documents/{document_id}/curation"
+        path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/curation"
         return self.__get(path)
 
     def get_document_annotations(self, project_id: int, document_id: str):
-        path = f"/api/aero/v1/projects/{project_id}/documents/{document_id}/annotations"
+        path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/annotations"
         return self.__get(path)
 
     def __get(self, path: str):

@@ -4,8 +4,6 @@ import hydra
 from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
-from pycaprio import Pycaprio
-from pycaprio.mappings import InceptionFormat
 
 from globalise_tools.inception_client import InceptionClient, Project, Document, Annotation
 
@@ -45,20 +43,6 @@ def list_all(client: InceptionClient):
             for annotation in annotations:
                 ic(annotation)
                 print(f"\t\t{annotation.user} | {annotation.state} | {annotation.timestamp}")
-
-
-def pycaprio_main():
-    # client = Pycaprio("https://text-annotation.huc.knaw.nl", authentication=("remote-user", "password"))
-    client = Pycaprio("http://localhost:8088", authentication=("api-user", "i-use-api"))
-
-    # List projects
-    projects = client.api.projects()
-
-    # Export all projects in XMI format
-    for project in projects:
-        zip_content = client.api.export_project(project, project_format=InceptionFormat.UIMA_CAS_XMI_XML_1_0)
-        with open(f"{project.project_name}.zip", 'wb') as zip_file:
-            zip_file.write(zip_content)
 
 
 if __name__ == '__main__':
