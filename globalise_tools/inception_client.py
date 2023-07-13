@@ -1,3 +1,4 @@
+import re
 from dataclasses import dataclass
 from typing import Dict, Any, List
 
@@ -52,8 +53,10 @@ class InceptionClient:
 
     def create_project_document(self, project_id: int, data: Any, name: str, format: str, state: str = None):
         path = f"{PROJECTS_PATH}/{project_id}/documents"
+        rx = '[' + re.escape(''.join('\x00!"#$%&\'*+/:<=>?@\\`{|}')) + ']'
+        acceptable_name = re.sub(rx, '', name)[:200].strip()
         params = {
-            'name': name,
+            'name': acceptable_name,
             'format': format
         }
         if state:
@@ -102,7 +105,7 @@ class InceptionClient:
             # ic(self.user, self.password)
             response = requests.post(url=url, auth=(self.user, self.password), params=params, files={'content': data})
         json = response.json()
-        ic(response,json)
+        ic(response, json)
         return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
 
 

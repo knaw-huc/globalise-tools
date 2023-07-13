@@ -216,7 +216,8 @@ def main(cfg: DictConfig) -> None:
         links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
         version_identifier = trc.create_version(file_locator.id, xmi)
         links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
-        response = inc.create_project_document(project_id=project_id, data=xmi, name=dm.external_id,
+        name = f'{dm.external_id} - {dm.title}'
+        response = inc.create_project_document(project_id=project_id, data=xmi, name=name,
                                                format=InceptionFormat.TEXT)
         idoc_id = response.body['id']
         links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
