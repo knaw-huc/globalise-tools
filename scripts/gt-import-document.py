@@ -205,16 +205,23 @@ def main(cfg: DictConfig) -> None:
     trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     file_type = get_xmi_file_type(trc)
     inc, project_id = init_inception_client(cfg)
-    results['textrepo_document_urls'] = []
+    results['textrepo_links'] = {}
     for dm in metadata:
+        links = {}
         document_identifier = create_tr_document(dm, trc)
-        results['textrepo_document_urls'].append(f"{trc.base_uri}/rest/documents/{document_identifier.id}")
+        links['tr_document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
+        links['tr_metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
         xmi = generate_xmi(dm.pagexml_ids)
         file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
+        links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
         version_identifier = trc.create_version(file_locator.id, xmi)
-        inc.create_project_document(project_id=project_id, data=xmi, name=dm.external_id,
-                                    format=InceptionFormat.TEXT)
+        links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
+        response = inc.create_project_document(project_id=project_id, data=xmi, name=dm.external_id,
+                                               format=InceptionFormat.TEXT)
+        idoc_id = response.body['id']
+        links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
         # format = InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+        results['textrepo_links'][dm.external_id] = links
     store_results()
 
 
@@ -234,7 +241,7 @@ def init_inception_client(cfg) -> (InceptionClient, int):
         client = InceptionClient(base_uri=base, authorization=authorization, cookie=cfg.inception.cookie)
     else:
         client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
-    result = client.create_project(name='test-project2')
+    result = client.create_project(name=cfg.inception.project_name)
     ic(result)
     return client, result.body['id']
 
