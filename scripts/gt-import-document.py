@@ -198,6 +198,15 @@ def store_results():
         json.dump(results, fp=f)
 
 
+def cut_off(string: str, max_len: int) -> str:
+    max_len = max(max_len, 3)
+    l = len(string)
+    if l <= max_len:
+        return string
+    else:
+        return f"{string[:(max_len - 3)]}..."
+
+
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
@@ -216,7 +225,7 @@ def main(cfg: DictConfig) -> None:
         links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
         version_identifier = trc.create_version(file_locator.id, xmi)
         links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
-        name = f'{dm.external_id} - {dm.title}'
+        name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
         response = inc.create_project_document(project_id=project_id, data=xmi, name=name,
                                                format=InceptionFormat.TEXT)
         idoc_id = response.body['id']
@@ -226,7 +235,7 @@ def main(cfg: DictConfig) -> None:
     store_results()
 
 
-def read_document_selection(cfg):
+def read_document_selection(cfg) -> List[DocumentMetadata]:
     logger.info(f"<= {cfg.selection_file}")
     with open(cfg.selection_file) as f:
         reader = csv.DictReader(f)
