@@ -1,9 +1,11 @@
 from dataclasses import dataclass
-from typing import Dict
+from typing import Dict, Any, List
 
 import requests
 from dataclasses_json import dataclass_json
+from icecream import ic
 from loguru import logger
+from requests import Response
 
 PROJECTS_PATH = "/api/aero/v1/projects"
 
@@ -38,7 +40,7 @@ class InceptionClient:
         }
         if title:
             params['title'] = title
-        return self.__post(path, params)
+        return self.__post(path, params=params)
 
     def get_project_user_permissions(self, project_id: int, user_id: str):
         path = f"{PROJECTS_PATH}/{project_id}/permissions/{user_id}"
@@ -47,6 +49,16 @@ class InceptionClient:
     def get_project_documents(self, project_id: int):
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
+
+    def create_project_document(self, project_id: int, data: Any, name: str, format: str, state: str = None):
+        path = f"{PROJECTS_PATH}/{project_id}/documents"
+        params = {
+            'name': name,
+            'format': format
+        }
+        if state:
+            params['state'] = state
+        return self.__post(path, params=params, data=data)
 
     def get_document_curation(self, project_id: int, document_id: str):
         path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/curation"
@@ -72,22 +84,26 @@ class InceptionClient:
             # ic(self.user, self.password)
             return requests.get(url, auth=(self.user, self.password))
 
-    def __post(self, path: str, params: Dict):
+    def __post(self, path: str, params: Dict, data: Any = None):
         url = self.base_uri + path
         logger.info(f"POST {url}")
         if self.authorization:
             # ic(self.authorization, self.cookie)
-            return requests.post(
+            response = requests.post(
                 url=url,
                 headers={
-                    "authorization": self.authorization,
-                    "cookie": self.cookie
+                    "authorization": self.authorization
                 },
-                params=params
+                params=params,
+                cookies=[self.cookie],
+                files={'content': data}
             )
         else:
             # ic(self.user, self.password)
-            return requests.post(url=url, auth=(self.user, self.password), params=params)
+            response = requests.post(url=url, auth=(self.user, self.password), params=params, files={'content': data})
+        json = response.json()
+        ic(response,json)
+        return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
 
 
 @dataclass_json
@@ -119,3 +135,10 @@ class Annotation:
 class Message:
     level: str
     message: str
+
+
+@dataclass
+class InceptionAPIResponse:
+    response: Response
+    body: Any
+    messages: List[Message]

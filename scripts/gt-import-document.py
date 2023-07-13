@@ -1,50 +1,24 @@
 #!/usr/bin/env python3
-import argparse
+import csv
+import json
+from dataclasses import dataclass, field
 from typing import Tuple, List
 
+import hydra
 from cassis import *
+from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
+from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
+from pycaprio.core.mappings import InceptionFormat
 from textrepo.client import TextRepoClient
+
+from globalise_tools.inception_client import InceptionClient
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
-
-
-@logger.catch
-def get_arguments():
-    parser = argparse.ArgumentParser(
-        description="Convert the PageXML belonging to the given document and page range to UIMA CAS,"
-                    " and import this into INCEpTION",
-        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("-d",
-                        "--document_id",
-                        help="The Document ID (NL-HaNA*)",
-                        required=True,
-                        type=str)
-    parser.add_argument("-f",
-                        "--first-page",
-                        help="The first page of the document.",
-                        required=True,
-                        type=int)
-    parser.add_argument("-l",
-                        "--last-page",
-                        help="The last page of the document.",
-                        required=True,
-                        type=int)
-    parser.add_argument("-t",
-                        "--textrepo-base-uri",
-                        help="The base URL of the TextRepo server to get the PageXML from.",
-                        required=True,
-                        type=str)
-    parser.add_argument("-k",
-                        "--api-key",
-                        help="The api-key to use for the TextRepo server.",
-                        required=True,
-                        type=str)
-    return parser.parse_args()
 
 
 def is_paragraph(text_region: PageXMLTextRegion) -> bool:
@@ -170,12 +144,136 @@ def import_document(document_id: str, first_page: int, last_page: int, base_uri:
         print()
 
 
+@dataclass_json
+@dataclass
+class DocumentMetadata:
+    document_id: str
+    title: str
+    year_creation_or_dispatch: str
+    inventory_number: str
+    folio_or_page: str
+    folio_or_page_range: str
+    scan_range: str
+    scan_start: str
+    scan_end: str
+    no_of_scans: int
+    no_of_pages: int
+    GM_id: str
+    remarks: str
+    first_scan_nr: int = field(init=False)
+    last_scan_nr: int = field(init=False)
+    hana_nr: str = field(init=False)
+    external_id: str = field(init=False)
+    pagexml_ids: List[str] = field(init=False)
+
+    def __post_init__(self):
+        self.no_of_pages = int(self.no_of_pages)
+        self.no_of_scans = int(self.no_of_scans)
+        (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
+        self.hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
+        self.external_id = self._external_id()
+        self.pagexml_ids = self._pagexml_ids()
+
+    def _scan_nr_range(self) -> (int, int):
+        (first_str, last_str) = self.scan_range.split('-')
+        first = int(first_str)
+        last = int(last_str)
+        return first, last
+
+    def _external_id(self) -> str:
+        return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+
+    def _pagexml_ids(self) -> List[str]:
+        return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr)]
+
+
+def generate_xmi(pagexml_ids: List[str]) -> str:
+    return "just a test"
+
+
+def store_results():
+    path = "out/results.json"
+    logger.info(f"=> {path}")
+    with open(path, 'w') as f:
+        json.dump(results, fp=f)
+
+
+@hydra.main(version_base=None)
+@logger.catch
+def main(cfg: DictConfig) -> None:
+    metadata = read_document_selection(cfg)
+    trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    file_type = get_xmi_file_type(trc)
+    inc, project_id = init_inception_client(cfg)
+    results['textrepo_document_urls'] = []
+    for dm in metadata:
+        document_identifier = create_tr_document(dm, trc)
+        results['textrepo_document_urls'].append(f"{trc.base_uri}/rest/documents/{document_identifier.id}")
+        xmi = generate_xmi(dm.pagexml_ids)
+        file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
+        version_identifier = trc.create_version(file_locator.id, xmi)
+        inc.create_project_document(project_id=project_id, data=xmi, name=dm.external_id,
+                                    format=InceptionFormat.TEXT)
+        # format = InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+    store_results()
+
+
+def read_document_selection(cfg):
+    logger.info(f"<= {cfg.selection_file}")
+    with open(cfg.selection_file) as f:
+        reader = csv.DictReader(f)
+        metadata = [DocumentMetadata.from_dict(row) for row in reader]
+    return metadata
+
+
+def init_inception_client(cfg) -> (InceptionClient, int):
+    inception_cfg = cfg.inception
+    authorization = inception_cfg.get('authorization', None)
+    base = cfg.inception.base_uri
+    if authorization:
+        client = InceptionClient(base_uri=base, authorization=authorization, cookie=cfg.inception.cookie)
+    else:
+        client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
+    result = client.create_project(name='test-project2')
+    ic(result)
+    return client, result.body['id']
+
+
+def get_xmi_file_type(client: TextRepoClient):
+    file_type_name = 'xmi'
+    if client.has_file_type_with_name(file_type_name):
+        file_type = client.find_file_type(file_type_name)
+    else:
+        file_type = client.create_file_type('xmi', 'application/vnd.xmi+xml')
+    return file_type
+
+
+def create_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
+    try:
+        client.purge_document(external_id=metadata.external_id)
+    except:
+        pass
+    document_identifier = client.create_document(external_id=metadata.external_id)
+    document_id = document_identifier.id
+    client.set_document_metadata(document_id=document_id, key='title', value=metadata.title)
+    client.set_document_metadata(document_id=document_id, key='year_creation_or_dispatch',
+                                 value=metadata.year_creation_or_dispatch)
+    client.set_document_metadata(document_id=document_id, key='inventory_number',
+                                 value=metadata.inventory_number)
+    client.set_document_metadata(document_id=document_id, key='folio_or_page', value=metadata.folio_or_page)
+    client.set_document_metadata(document_id=document_id, key='folio_or_page_range',
+                                 value=metadata.folio_or_page_range)
+    client.set_document_metadata(document_id=document_id, key='scan_range', value=metadata.scan_range)
+    client.set_document_metadata(document_id=document_id, key='scan_start', value=metadata.scan_start)
+    client.set_document_metadata(document_id=document_id, key='scan_end', value=metadata.scan_end)
+    client.set_document_metadata(document_id=document_id, key='no_of_scans', value=str(metadata.no_of_scans))
+    client.set_document_metadata(document_id=document_id, key='no_of_pages', value=str(metadata.no_of_pages))
+    client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
+    client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
+    return document_identifier
+
+
+results = {}
+
 if __name__ == '__main__':
-    args = get_arguments()
-    if args.document_id:
-        # logger.info(f"loading {spacy_core}")
-        # nlp = spacy.load(spacy_core)
-        import_document(
-            args.document_id, args.first_page, args.last_page,
-            args.textrepo_base_uri, args.api_key
-        )
+    main()

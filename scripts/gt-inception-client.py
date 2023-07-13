@@ -25,6 +25,12 @@ def main(cfg: DictConfig) -> None:
 def create_project(client: InceptionClient):
     response = client.create_project(name="my-project", title="a test project")
     ic(response.json())
+    response = client.create_project_document(project_id=4,
+                                              data="Lorem ipsum dolor bla bla bla.",
+                                              name="test-doc",
+                                              format='text')
+    ic(response)
+    ic(response.json())
 
 
 def list_all(client: InceptionClient):
