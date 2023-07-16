@@ -2,15 +2,17 @@
 import csv
 import json
 from dataclasses import dataclass, field
-from typing import Tuple, List
+from typing import Tuple, List, Dict, Any
 
 import hydra
+import spacy
 from cassis import *
+from cassis.typesystem import TYPE_NAME_STRING
 from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLTextRegion
+from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
 from pycaprio.core.mappings import InceptionFormat
 from textrepo.client import TextRepoClient
@@ -19,129 +21,6 @@ from globalise_tools.inception_client import InceptionClient
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
-
-
-def is_paragraph(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "paragraph"
-
-
-def output_path(page_xml_path: str) -> str:
-    base = page_xml_path.split("/")[-1].replace(".xml", "")
-    return f"out/{base}.xmi"
-
-
-@logger.catch
-def convert(page_xml_path: str):
-    logger.info(f"<= {page_xml_path}")
-    scan_doc = parse_pagexml_file(page_xml_path)
-
-    text, paragraph_ranges = extract_paragraph_text(scan_doc)
-
-    if not text:
-        logger.warning(f"no paragraph text found in {page_xml_path}")
-    else:
-        logger.info(f"<= {typesystem_xml}")
-        with open(typesystem_xml, 'rb') as f:
-            typesystem = load_typesystem(f)
-
-        cas = Cas(typesystem=typesystem)
-        cas.sofa_string = text
-        cas.sofa_mime = "text/plain"
-
-        SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
-        TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
-        ParagraphAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
-        doc = nlp(text)
-        for sentence in doc.sents:
-            cas.add(SentenceAnnotation(begin=sentence.start_char, end=sentence.end_char))
-            for token in [t for t in sentence if t.text != "\n"]:
-                begin = token.idx
-                end = token.idx + len(token.text)
-                cas.add(TokenAnnotation(begin=begin, end=end))
-
-        for pr in paragraph_ranges:
-            cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1]))
-
-        # print_annotations(cas)
-
-        cas_xmi = output_path(page_xml_path)
-        logger.info(f"=> {cas_xmi}")
-        cas.to_xmi(cas_xmi, pretty_print=True)
-
-
-def paragraph_text(lines: List[str]) -> str:
-    break_char = "„"
-    # ic(lines)
-    for i in range(0, len(lines) - 1):
-        line0 = lines[i]
-        line1 = lines[i + 1]
-        if line0.endswith(break_char):
-            lines[i] = line0.rstrip(break_char)
-            lines[i + 1] = line1.lstrip(break_char)
-        else:
-            lines[i] = f"{line0} "
-    # ic(lines)
-    return "".join(lines) + "\n"
-
-
-def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
-    paragraph_ranges = []
-    offset = 0
-    text = ""
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        if is_paragraph(tr):
-            lines = []
-            for line in tr.lines:
-                if line.text:
-                    lines.append(line.text)
-            text += paragraph_text(lines)
-            text_len = len(text)
-            paragraph_ranges.append((offset, text_len))
-            offset = text_len
-    return text, paragraph_ranges
-
-
-def print_annotations(cas):
-    for a in cas.views[0].get_all_annotations():
-        print(a)
-        print(f"'{a.get_covered_text()}'")
-        print()
-
-
-def join_words(px_words):
-    text = ""
-    last_text_region = None
-    last_line = None
-    for w in px_words:
-        if w.text_region_id == last_text_region:
-            if w.line_id != last_line:
-                text += "|\n"
-            text += " "
-        else:
-            text += "\n\n"
-        text += w.text
-        last_text_region = w.text_region_id
-        last_line = w.line_id
-    return text.strip()
-
-
-@logger.catch
-def import_document(document_id: str, first_page: int, last_page: int, base_uri: str, api_key: str):
-    ic(document_id, first_page, last_page)
-    trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
-    for p in range(first_page, last_page):
-        external_id = f"{document_id}_{p:04d}"
-        pagexml = trc.find_latest_file_contents(external_id, "pagexml")
-        out_file = f"out/{external_id}.xml"
-        logger.info(f"=> {out_file}")
-        with open(out_file, "wb") as f:
-            f.write(pagexml)
-        meta = trc.find_document_metadata(external_id)[1]
-        scan_url = meta['scan_url']
-        iiif_url = f"{scan_url}/full/max/0/default.jpg"
-        print(f"{external_id} :")
-        print(f"\t{iiif_url}")
-        print()
 
 
 @dataclass_json
@@ -187,11 +66,195 @@ class DocumentMetadata:
         return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr)]
 
 
-def generate_xmi(pagexml_ids: List[str]) -> str:
-    return "just a test"
+@hydra.main(version_base=None)
+@logger.catch
+def main(cfg: DictConfig) -> None:
+    metadata = read_document_selection(cfg)
+    logger.info(f"loading {spacy_core}")
+    nlp = spacy.load(spacy_core)
+
+    trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    file_type = get_xmi_file_type(trc)
+    inc, project_id = init_inception_client(cfg)
+    results = {'textrepo_links': {}}
+    for dm in metadata:
+        links = {}
+        document_identifier = create_tr_document(dm, trc)
+        links['tr_document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
+        links['tr_metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
+        xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp, pagexml_ids=dm.pagexml_ids,
+                                results=results)
+        file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
+        links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
+        with open(xmi_path) as file:
+            version_identifier = trc.create_version(file_locator.id, file)
+        links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
+        name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
+        response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
+                                               format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+        idoc_id = response.body['id']
+        links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
+        results['textrepo_links'][dm.external_id] = links
+    store_results(results)
 
 
-def store_results():
+def is_paragraph(text_region: PageXMLTextRegion) -> bool:
+    return text_region.type[-1] == "paragraph"
+
+
+def is_magrginalium(text_region: PageXMLTextRegion) -> bool:
+    return text_region.type[-1] == "marginalia"
+
+
+def joined_text(lines: List[str]) -> str:
+    break_char = "„"
+    # ic(lines)
+    for i in range(0, len(lines) - 1):
+        line0 = lines[i]
+        line1 = lines[i + 1]
+        if line0.endswith(break_char):
+            lines[i] = line0.rstrip(break_char)
+            lines[i + 1] = line1.lstrip(break_char)
+        else:
+            lines[i] = f"{line0} "
+    # ic(lines)
+    return "".join(lines) + "\n"
+
+
+def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> Tuple[str, List[Tuple[int, int]], List[Coords]]:
+    paragraph_ranges = []
+    paragraph_coords = []
+    text = ""
+    offset = start_offset
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        if is_paragraph(tr) or is_magrginalium(tr):
+            lines = []
+            for line in tr.lines:
+                if line.text:
+                    lines.append(line.text)
+            text += joined_text(lines)
+            text_len = len(text)
+            paragraph_ranges.append((offset, start_offset + text_len))
+            offset = start_offset + text_len
+            paragraph_coords.append(tr.coords)
+    return text, paragraph_ranges, paragraph_coords
+
+
+def print_annotations(cas):
+    for a in cas.views[0].get_all_annotations():
+        print(a)
+        print(f"'{a.get_covered_text()}'")
+        print()
+
+
+def join_words(px_words):
+    text = ""
+    last_text_region = None
+    last_line = None
+    for w in px_words:
+        if w.text_region_id == last_text_region:
+            if w.line_id != last_line:
+                text += "|\n"
+            text += " "
+        else:
+            text += "\n\n"
+        text += w.text
+        last_text_region = w.text_region_id
+        last_line = w.line_id
+    return text.strip()
+
+
+def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml_ids: List[str],
+                 results: Dict[str, Any]) -> str:
+    logger.info(f"<= {typesystem_xml}")
+    with open(typesystem_xml, 'rb') as f:
+        typesystem = load_typesystem(f)
+
+    cas = Cas(typesystem=typesystem)
+    cas.sofa_string = ""
+    cas.sofa_mime = "text/plain"
+
+    MarginaliaAnnotation = typesystem.create_type("pagexml.Marginalia")
+    typesystem.create_feature(domainType=MarginaliaAnnotation, name="url", rangeType=TYPE_NAME_STRING)
+
+    ParagraphAnnotation = typesystem.create_type("webanno.custom.Paragraph")
+    typesystem.create_feature(domainType=ParagraphAnnotation, name="type", rangeType=TYPE_NAME_STRING)
+    typesystem.create_feature(domainType=ParagraphAnnotation, name="iiif_url", rangeType=TYPE_NAME_STRING)
+
+    SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
+    TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
+    # ParagraphAnnotation = cas.typesystem.get_type(
+    #     "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
+    page_links = {}
+    typesystem_path = "out/typesystem.xml"
+    logger.info(f"=> {typesystem_path}")
+    typesystem.to_xml(typesystem_path)
+
+    typesystem.to_xml()
+
+    for external_id in pagexml_ids:
+        links = {}
+        page_xml_path = download_page_xml(external_id, textrepo_client)
+
+        iiif_url = get_iiif_url(external_id, textrepo_client)
+        logger.info(f"iiif_url={iiif_url}")
+        links['iiif_url'] = iiif_url
+        links['paragraph_iiif_urls'] = []
+        links['sentences'] = []
+        logger.info(f"<= {page_xml_path}")
+        scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
+        start_offset = len(cas.sofa_string)
+        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(scan_doc=scan_doc,
+                                                                                    start_offset=start_offset)
+
+        if not paragraph_text:
+            logger.warning(f"no paragraph text found in {page_xml_path}")
+        else:
+            cas.sofa_string += paragraph_text
+            doc = nlp(paragraph_text)
+            for sentence in doc.sents:
+                links['sentences'].append(sentence.text_with_ws)
+                sentence_start_char = start_offset + sentence.start_char
+                sentence_end_char = start_offset + sentence.end_char
+                cas.add(
+                    SentenceAnnotation(begin=sentence_start_char, end=sentence_end_char))
+                for token in [t for t in sentence if t.text != "\n"]:
+                    begin = start_offset + token.idx
+                    end = begin + len(token.text)
+                    cas.add(TokenAnnotation(begin=begin, end=end))
+
+            for pr, coords in zip(paragraph_ranges, paragraph_coords):
+                xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
+                paragraph_iiif_url = iiif_url.replace("full", xywh)
+                cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
+                links['paragraph_iiif_urls'].append(paragraph_iiif_url)
+        page_links[external_id] = links
+
+    results['page_links'] = page_links
+
+    xmi_path = f"out/{document_id}.xmi"
+    logger.info(f"=> {xmi_path}")
+    cas.to_xmi(xmi_path, pretty_print=True)
+
+    return xmi_path
+
+
+def get_iiif_url(external_id, textrepo_client):
+    meta = textrepo_client.find_document_metadata(external_id)[1]
+    scan_url = meta['scan_url']
+    return f"{scan_url}/full/max/0/default.jpg"
+
+
+def download_page_xml(external_id, textrepo_client):
+    pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
+    page_xml_path = f"out/{external_id}.xml"
+    logger.info(f"=> {page_xml_path}")
+    with open(page_xml_path, "w") as f:
+        f.write(pagexml)
+    return page_xml_path
+
+
+def store_results(results):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
@@ -207,32 +270,11 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-@hydra.main(version_base=None)
-@logger.catch
-def main(cfg: DictConfig) -> None:
-    metadata = read_document_selection(cfg)
-    trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
-    file_type = get_xmi_file_type(trc)
-    inc, project_id = init_inception_client(cfg)
-    results['textrepo_links'] = {}
-    for dm in metadata:
-        links = {}
-        document_identifier = create_tr_document(dm, trc)
-        links['tr_document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
-        links['tr_metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
-        xmi = generate_xmi(dm.pagexml_ids)
-        file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
-        links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
-        version_identifier = trc.create_version(file_locator.id, xmi)
-        links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
-        name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
-        response = inc.create_project_document(project_id=project_id, data=xmi, name=name,
-                                               format=InceptionFormat.TEXT)
-        idoc_id = response.body['id']
-        links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
-        # format = InceptionFormat.UIMA_CAS_XMI_XML_1_1)
-        results['textrepo_links'][dm.external_id] = links
-    store_results()
+def store_xmi(dm, xmi):
+    xmi_path = f"out/{dm.external_id}.xmi"
+    logger.info(f"=> {xmi_path}")
+    with open(xmi_path, 'w') as f:
+        f.write(xmi)
 
 
 def read_document_selection(cfg) -> List[DocumentMetadata]:
@@ -289,8 +331,6 @@ def create_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
     client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
     return document_identifier
 
-
-results = {}
 
 if __name__ == '__main__':
     main()

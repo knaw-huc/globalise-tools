@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, Any, List
+from typing import Dict, Any, List, TextIO
 
 import requests
 from dataclasses_json import dataclass_json
@@ -51,7 +51,7 @@ class InceptionClient:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
 
-    def create_project_document(self, project_id: int, data: Any, name: str, format: str, state: str = None):
+    def create_project_document(self, project_id: int, file_path: str, name: str, format: str, state: str = None):
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         rx = '[' + re.escape(''.join('\x00!"#$%&\'*+/:<=>?@\\`{|}')) + ']'
         acceptable_name = re.sub(rx, '', name)[:200].strip()
@@ -61,7 +61,8 @@ class InceptionClient:
         }
         if state:
             params['state'] = state
-        return self.__post(path, params=params, data=data)
+        with open(file_path) as file:
+            return self.__post(path, params=params, file=file)
 
     def get_document_curation(self, project_id: int, document_id: str):
         path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/curation"
@@ -87,7 +88,7 @@ class InceptionClient:
             # ic(self.user, self.password)
             return requests.get(url, auth=(self.user, self.password))
 
-    def __post(self, path: str, params: Dict, data: Any = None):
+    def __post(self, path: str, params: Dict, file: TextIO = None):
         url = self.base_uri + path
         logger.info(f"POST {url}")
         if self.authorization:
@@ -99,11 +100,11 @@ class InceptionClient:
                 },
                 params=params,
                 cookies=[self.cookie],
-                files={'content': data}
+                files={'content': file}
             )
         else:
             # ic(self.user, self.password)
-            response = requests.post(url=url, auth=(self.user, self.password), params=params, files={'content': data})
+            response = requests.post(url=url, auth=(self.user, self.password), params=params, files={'content': file})
         json = response.json()
         ic(response, json)
         return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
