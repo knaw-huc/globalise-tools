@@ -63,7 +63,7 @@ class DocumentMetadata:
         return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
 
     def _pagexml_ids(self) -> List[str]:
-        return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr)]
+        return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
 @hydra.main(version_base=None)
