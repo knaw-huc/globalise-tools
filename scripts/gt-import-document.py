@@ -290,7 +290,7 @@ def init_inception_client(cfg) -> (InceptionClient, int):
     authorization = inception_cfg.get('authorization', None)
     base = cfg.inception.base_uri
     if authorization:
-        client = InceptionClient(base_uri=base, authorization=authorization, cookie=cfg.inception.cookie)
+        client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=cfg.inception.oauth2_proxy)
     else:
         client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
     result = client.create_project(name=cfg.inception.project_name)

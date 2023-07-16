@@ -18,12 +18,12 @@ class InceptionClient:
                  user: str = None,
                  password: str = None,
                  authorization: str = None,
-                 cookie: str = None):
+                 oauth2_proxy: str = None):
         self.base_uri = base_uri.rstrip("/")
         self.user = user
         self.password = password
         self.authorization = authorization
-        self.cookie = cookie
+        self.cookies = {'_oauth2_proxy': oauth2_proxy}
 
     def get_projects(self):
         path = f"{PROJECTS_PATH}"
@@ -81,7 +81,7 @@ class InceptionClient:
                 url,
                 headers={
                     "authorization": self.authorization,
-                    "cookie": self.cookie
+                    "cookie": self.cookies
                 }
             )
         else:
@@ -99,7 +99,7 @@ class InceptionClient:
                     "authorization": self.authorization
                 },
                 params=params,
-                cookies=[self.cookie],
+                cookies=self.cookies,
                 files={'content': file}
             )
         else:
