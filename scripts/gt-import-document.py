@@ -76,25 +76,25 @@ def main(cfg: DictConfig) -> None:
     trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     file_type = get_xmi_file_type(trc)
     inc, project_id = init_inception_client(cfg)
-    results = {'textrepo_links': {}}
+    results = {}
     for dm in metadata:
-        links = {}
+        links = {'textrepo_links': {}}
         document_identifier = create_tr_document(dm, trc)
-        links['tr_document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
-        links['tr_metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
+        links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
+        links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
         xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp, pagexml_ids=dm.pagexml_ids,
-                                results=results)
+                                links=links)
         file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
-        links['tr_file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
+        links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
         with open(xmi_path) as file:
             version_identifier = trc.create_version(file_locator.id, file)
-        links['tr_version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
+        links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
         name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
         response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
                                                format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
         idoc_id = response.body['id']
         links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
-        results['textrepo_links'][dm.external_id] = links
+        results[dm.external_id] = links
     store_results(results)
 
 
@@ -165,7 +165,7 @@ def join_words(px_words):
 
 
 def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml_ids: List[str],
-                 results: Dict[str, Any]) -> str:
+                 links: Dict[str, Any]) -> str:
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
@@ -185,22 +185,22 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
     TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
     # ParagraphAnnotation = cas.typesystem.get_type(
     #     "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
-    page_links = {}
     typesystem_path = "out/typesystem.xml"
     logger.info(f"=> {typesystem_path}")
     typesystem.to_xml(typesystem_path)
 
     typesystem.to_xml()
+    scan_links = {}
 
     for external_id in pagexml_ids:
-        links = {}
+        page_links = {}
         page_xml_path = download_page_xml(external_id, textrepo_client)
 
         iiif_url = get_iiif_url(external_id, textrepo_client)
         logger.info(f"iiif_url={iiif_url}")
-        links['iiif_url'] = iiif_url
-        links['paragraph_iiif_urls'] = []
-        links['sentences'] = []
+        page_links['iiif_url'] = iiif_url
+        page_links['paragraph_iiif_urls'] = []
+        page_links['sentences'] = []
         logger.info(f"<= {page_xml_path}")
         scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
         start_offset = len(cas.sofa_string)
@@ -213,7 +213,7 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
             cas.sofa_string += paragraph_text
             doc = nlp(paragraph_text)
             for sentence in doc.sents:
-                links['sentences'].append(sentence.text_with_ws)
+                page_links['sentences'].append(sentence.text_with_ws)
                 sentence_start_char = start_offset + sentence.start_char
                 sentence_end_char = start_offset + sentence.end_char
                 cas.add(
@@ -227,10 +227,11 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
                 xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
                 paragraph_iiif_url = iiif_url.replace("full", xywh)
                 cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
-                links['paragraph_iiif_urls'].append(paragraph_iiif_url)
-        page_links[external_id] = links
+                page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
 
-    results['page_links'] = page_links
+        scan_links[external_id] = page_links
+
+    links['scan_links'] = scan_links
 
     xmi_path = f"out/{document_id}.xmi"
     logger.info(f"=> {xmi_path}")
