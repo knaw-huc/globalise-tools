@@ -51,13 +51,13 @@ class InceptionClient:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
 
-    def create_project_document(self, project_id: int, file_path: str, name: str, format: str, state: str = None):
+    def create_project_document(self, project_id: int, file_path: str, name: str, file_format: str, state: str = None):
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         rx = '[' + re.escape(''.join('\x00!"#$%&\'*+/:<=>?@\\`{|}')) + ']'
         acceptable_name = re.sub(rx, '', name)[:200].strip()
         params = {
             'name': acceptable_name,
-            'format': format
+            'format': file_format
         }
         if state:
             params['state'] = state

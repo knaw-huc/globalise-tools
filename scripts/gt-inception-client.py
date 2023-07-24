@@ -15,7 +15,7 @@ def main(cfg: DictConfig) -> None:
     authorization = inception_cfg.get('authorization', None)
     base = cfg.inception.base_uri
     if authorization:
-        client = InceptionClient(base_uri=base, authorization=authorization, cookie=cfg.inception.cookie)
+        client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=cfg.inception.oauth2_proxy)
     else:
         client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
     create_project(client)
@@ -26,9 +26,8 @@ def create_project(client: InceptionClient):
     response = client.create_project(name="my-project", title="a test project")
     ic(response.json())
     response = client.create_project_document(project_id=4,
-                                              data="Lorem ipsum dolor bla bla bla.",
                                               name="test-doc",
-                                              format='text')
+                                              file_format='text')
     ic(response)
     ic(response.json())
 
