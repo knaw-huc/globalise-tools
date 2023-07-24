@@ -91,7 +91,7 @@ def main(cfg: DictConfig) -> None:
         links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
         name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
         response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
-                                               format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+                                               file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
         idoc_id = response.body['id']
         links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
         results[dm.external_id] = links
@@ -216,8 +216,8 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
                 page_links['sentences'].append(sentence.text_with_ws)
                 sentence_start_char = start_offset + sentence.start_char
                 sentence_end_char = start_offset + sentence.end_char
-                cas.add(
-                    SentenceAnnotation(begin=sentence_start_char, end=sentence_end_char))
+                # cas.add(
+                #     SentenceAnnotation(begin=sentence_start_char, end=sentence_end_char))
                 for token in [t for t in sentence if t.text != "\n"]:
                     begin = start_offset + token.idx
                     end = begin + len(token.text)
@@ -226,6 +226,7 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
             for pr, coords in zip(paragraph_ranges, paragraph_coords):
                 xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
                 paragraph_iiif_url = iiif_url.replace("full", xywh)
+                cas.add(SentenceAnnotation(begin=pr[0], end=pr[1]))
                 cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
                 page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
 
