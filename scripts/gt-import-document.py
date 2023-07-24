@@ -121,9 +121,12 @@ def joined_text(lines: List[str]) -> str:
     return "".join(lines) + "\n"
 
 
-def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> Tuple[str, List[Tuple[int, int]], List[Coords]]:
+def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> \
+        Tuple[str, List[Tuple[int, int]], List[Coords], List[Tuple[int, int]], List[Coords]]:
     paragraph_ranges = []
     paragraph_coords = []
+    line_ranges = []
+    line_coords = []
     text = ""
     offset = start_offset
     for tr in scan_doc.get_text_regions_in_reading_order():
@@ -132,12 +135,18 @@ def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> Tuple[st
             for line in tr.lines:
                 if line.text:
                     lines.append(line.text)
-            text += joined_text(lines)
+                    line_begin = start_offset + len(text)
+                    line_end = line_begin + len(line.text)
+                    line_ranges.append((line_begin, line_end))
+                    line_coords.append(line.coords)
+                    text += line.text
+            # text += "".join(lines)
+            # text += joined_text(lines)
             text_len = len(text)
             paragraph_ranges.append((offset, start_offset + text_len))
             offset = start_offset + text_len
             paragraph_coords.append(tr.coords)
-    return text, paragraph_ranges, paragraph_coords
+    return text, paragraph_ranges, paragraph_coords, line_ranges, line_coords
 
 
 def print_annotations(cas):
@@ -204,8 +213,9 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
         logger.info(f"<= {page_xml_path}")
         scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
         start_offset = len(cas.sofa_string)
-        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(scan_doc=scan_doc,
-                                                                                    start_offset=start_offset)
+        paragraph_text, paragraph_ranges, paragraph_coords, line_ranges, line_coords = extract_paragraph_text(
+            scan_doc=scan_doc,
+            start_offset=start_offset)
 
         if not paragraph_text:
             logger.warning(f"no paragraph text found in {page_xml_path}")
@@ -226,8 +236,15 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
             for pr, coords in zip(paragraph_ranges, paragraph_coords):
                 xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
                 paragraph_iiif_url = iiif_url.replace("full", xywh)
-                cas.add(SentenceAnnotation(begin=pr[0], end=pr[1]))
+                # cas.add(SentenceAnnotation(begin=pr[0], end=pr[1]))
                 cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
+                page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
+
+            for lr, coords in zip(line_ranges, line_coords):
+                xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
+                paragraph_iiif_url = iiif_url.replace("full", xywh)
+                # cas.add(LineAnnotation(begin=pr[0], end=pr[1]),  iiif_url=iiif_url))
+                cas.add(SentenceAnnotation(begin=lr[0], end=lr[1]))
                 page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
 
         scan_links[external_id] = page_links
