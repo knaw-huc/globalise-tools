@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import csv
 import json
+import sys
 from dataclasses import dataclass, field
 from typing import Tuple, List, Dict, Any
 
@@ -9,7 +10,6 @@ import spacy
 from cassis import *
 from cassis.typesystem import TYPE_NAME_STRING
 from dataclasses_json import dataclass_json
-from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
@@ -27,6 +27,7 @@ spacy_core = "nl_core_news_lg"
 @dataclass
 class DocumentMetadata:
     document_id: str
+    internal_id: str
     title: str
     year_creation_or_dispatch: str
     inventory_number: str
@@ -77,24 +78,28 @@ def main(cfg: DictConfig) -> None:
     file_type = get_xmi_file_type(trc)
     inc, project_id = init_inception_client(cfg)
     results = {}
+    document_id_idx = {}
     for dm in metadata:
         links = {'textrepo_links': {}}
-        document_identifier = create_tr_document(dm, trc)
+        document_identifier = create_or_update_tr_document(dm, trc)
         links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
         links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
         xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp, pagexml_ids=dm.pagexml_ids,
                                 links=links)
-        file_locator = trc.create_document_file(document_identifier, type_id=file_type.id)
-        links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{file_locator.id}"
         with open(xmi_path) as file:
-            version_identifier = trc.create_version(file_locator.id, file)
-        links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.id}"
+            contents = file.read()
+            version_identifier = trc.import_version(external_id=dm.external_id, type_name=file_type.name,
+                                                    contents=contents, as_latest_version=True)
+        links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{version_identifier.file_id}"
+        links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
+        document_id_idx[dm.external_id] = version_identifier.version_id
         name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
         response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
                                                file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
         idoc_id = response.body['id']
         links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
         results[dm.external_id] = links
+    results['document_id_idx'] = document_id_idx
     store_results(results)
 
 
@@ -281,7 +286,7 @@ def store_xmi(dm, xmi):
 
 def read_document_selection(cfg) -> List[DocumentMetadata]:
     logger.info(f"<= {cfg.selection_file}")
-    with open(cfg.selection_file) as f:
+    with open(cfg.selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
         metadata = [DocumentMetadata.from_dict(row) for row in reader]
     return metadata
@@ -295,9 +300,13 @@ def init_inception_client(cfg) -> (InceptionClient, int):
         client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=cfg.inception.oauth2_proxy)
     else:
         client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
-    result = client.create_project(name=cfg.inception.project_name)
-    ic(result)
-    return client, result.body['id']
+    project = client.get_project_by_name(name=cfg.inception.project_name)
+    if not project:
+        result = client.create_project(name=cfg.inception.project_name)
+        project_id = result.body['id']
+    else:
+        project_id = project.id
+    return client, project_id
 
 
 def get_xmi_file_type(client: TextRepoClient):
@@ -309,12 +318,10 @@ def get_xmi_file_type(client: TextRepoClient):
     return file_type
 
 
-def create_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
-    try:
-        client.purge_document(external_id=metadata.external_id)
-    except:
-        pass
-    document_identifier = client.create_document(external_id=metadata.external_id)
+def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
+    document_identifier = client.read_document_by_external_id(metadata.external_id)
+    if not document_identifier:
+        document_identifier = client.create_document(external_id=metadata.external_id)
     document_id = document_identifier.id
     client.set_document_metadata(document_id=document_id, key='title', value=metadata.title)
     client.set_document_metadata(document_id=document_id, key='year_creation_or_dispatch',
@@ -335,4 +342,5 @@ def create_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
 
 
 if __name__ == '__main__':
+    script_args = " ".join(sys.argv[1:])
     main()
