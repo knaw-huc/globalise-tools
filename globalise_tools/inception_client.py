@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, Any, List, TextIO
+from typing import Dict, Any, List, TextIO, Union
 
 import requests
 from dataclasses_json import dataclass_json
@@ -9,6 +9,44 @@ from loguru import logger
 from requests import Response
 
 PROJECTS_PATH = "/api/aero/v1/projects"
+
+
+@dataclass_json
+@dataclass
+class Project:
+    id: int
+    name: str
+    title: str
+
+
+@dataclass_json
+@dataclass
+class Document:
+    id: int
+    name: str
+    state: str
+
+
+@dataclass_json
+@dataclass
+class Annotation:
+    user: str
+    state: str
+    timestamp: str = None
+
+
+@dataclass_json
+@dataclass
+class Message:
+    level: str
+    message: str
+
+
+@dataclass
+class InceptionAPIResponse:
+    response: Response
+    body: Any
+    messages: List[Message]
 
 
 class InceptionClient:
@@ -25,13 +63,21 @@ class InceptionClient:
         self.authorization = authorization
         self.cookies = {'_oauth2_proxy': oauth2_proxy}
 
-    def get_projects(self):
+    def get_projects(self) -> List[Project]:
         path = f"{PROJECTS_PATH}"
-        return self.__get(path)
+        result = self.__get(path)
+        return [Project.from_dict(d) for d in result.json()['body']]
 
-    def get_project(self, project_id: int):
+    def get_project_by_id(self, project_id: int):
         path = f"{PROJECTS_PATH}/{project_id}"
         return self.__get(path)
+
+    def get_project_by_name(self, name: str) -> Union[Project, None]:
+        matches = [p for p in (self.get_projects()) if p.name == name]
+        if matches:
+            return matches[0]
+        else:
+            return None
 
     def create_project(self, name: str, title: str = None):
         path = f"{PROJECTS_PATH}"
@@ -80,9 +126,9 @@ class InceptionClient:
             return requests.get(
                 url,
                 headers={
-                    "authorization": self.authorization,
-                    "cookie": self.cookies
-                }
+                    "authorization": self.authorization
+                },
+                cookies=self.cookies,
             )
         else:
             # ic(self.user, self.password)
@@ -108,41 +154,3 @@ class InceptionClient:
         json = response.json()
         ic(response, json)
         return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
-
-
-@dataclass_json
-@dataclass
-class Project:
-    id: int
-    name: str
-    title: str
-
-
-@dataclass_json
-@dataclass
-class Document:
-    id: int
-    name: str
-    state: str
-
-
-@dataclass_json
-@dataclass
-class Annotation:
-    user: str
-    state: str
-    timestamp: str = None
-
-
-@dataclass_json
-@dataclass
-class Message:
-    level: str
-    message: str
-
-
-@dataclass
-class InceptionAPIResponse:
-    response: Response
-    body: Any
-    messages: List[Message]
