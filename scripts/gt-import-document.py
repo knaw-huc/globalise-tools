@@ -1,8 +1,11 @@
 #!/usr/bin/env python3
 import csv
+import dataclasses
 import json
+import subprocess
 import sys
 from dataclasses import dataclass, field
+from datetime import datetime
 from typing import Tuple, List, Dict, Any
 
 import hydra
@@ -14,8 +17,11 @@ from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
+from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from pycaprio.core.mappings import InceptionFormat
+from spacy import Language
 from textrepo.client import TextRepoClient
+from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
 
@@ -75,28 +81,56 @@ def main(cfg: DictConfig) -> None:
     metadata = read_document_selection(cfg)
 
     logger.info(f"loading {spacy_core}")
-    nlp = spacy.load(spacy_core)
+    nlp: Language = spacy.load(spacy_core)
+
+    script_args = " ".join(sys.argv[1:])
+    commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+    base_provenance = ProvenanceData(
+        who=URI(cfg.provenance.who),
+        where=URI(cfg.provenance.where),
+        when=datetime.now(),
+        how=ProvenanceHow(
+            software=URI(
+                f'https://raw.githubusercontent.com/knaw-huc/globalise-tools/{commit_id}/'
+                f'scripts/gt-import-document.py'),
+            init=script_args
+        ),
+        why=ProvenanceWhy(motivation="converting"),
+        sources=[],
+        targets=[],
+    )
 
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     inception_client, project_id = init_inception_client(cfg)
-    with textrepo_client as trc, inception_client as inc:
+    provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
+    with textrepo_client as trc, inception_client as inc, provenance_client as prc:
         file_type = get_xmi_file_type(trc)
         for dm in metadata:
             links = {'textrepo_links': {}}
             document_identifier = create_or_update_tr_document(dm, trc)
             links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
             links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
-            xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp,
-                                    pagexml_ids=dm.pagexml_ids,
-                                    links=links)
+            xmi_path, xmi_provenance = generate_xmi(
+                textrepo_client=trc,
+                document_id=dm.external_id,
+                nlp=nlp,
+                pagexml_ids=dm.pagexml_ids,
+                links=links,
+                base_provenance=base_provenance
+            )
             with open(xmi_path) as file:
                 contents = file.read()
-            version_identifier = trc.import_version(external_id=dm.external_id,
-                                                    type_name=file_type.name,
-                                                    contents=contents,
-                                                    as_latest_version=True)
+            version_identifier = trc.import_version(
+                external_id=dm.external_id,
+                type_name=file_type.name,
+                contents=contents,
+                as_latest_version=True
+            )
             links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{version_identifier.file_id}"
-            links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
+            version_uri = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
+            xmi_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
+
+            links['textrepo_links']['version'] = version_uri
             file_name = f'{dm.external_id}.xmi'
             trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
             document_id_idx[dm.external_id] = version_identifier.version_id
@@ -105,7 +139,17 @@ def main(cfg: DictConfig) -> None:
             response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
                                                    file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
             idoc_id = response.body['id']
-            links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
+            inception_view = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
+            links['inception_view'] = inception_view
+
+            provenance = dataclasses.replace(
+                base_provenance,
+                sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
+                targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
+            )
+            xmi_provenance_id = prc.add_provenance(xmi_provenance)
+            provenance_id = prc.add_provenance(provenance)
+            links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
             results[dm.external_id] = links
     results['document_id_idx'] = document_id_idx
     store_results(results)
@@ -177,9 +221,17 @@ def join_words(px_words):
     return text.strip()
 
 
-def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml_ids: List[str],
-                 links: Dict[str, Any]) -> str:
+def generate_xmi(
+        textrepo_client: TextRepoClient,
+        document_id: str,
+        nlp: Language,
+        pagexml_ids: List[str],
+        base_provenance: ProvenanceData,
+        links: Dict[str, Any]
+) -> Tuple[str, ProvenanceData]:
     logger.info(f"<= {typesystem_xml}")
+    provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
+
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
 
@@ -202,12 +254,14 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
     logger.info(f"=> {typesystem_path}")
     typesystem.to_xml(typesystem_path)
 
-    typesystem.to_xml()
     scan_links = {}
 
     for external_id in pagexml_ids:
         page_links = {}
         page_xml_path = download_page_xml(external_id, textrepo_client)
+        version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
+        version_location = textrepo_client.version_uri(version_identifier.id)
+        provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
         iiif_url = get_iiif_url(external_id, textrepo_client)
         logger.info(f"iiif_url={iiif_url}")
@@ -217,8 +271,10 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
         logger.info(f"<= {page_xml_path}")
         scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
         start_offset = len(cas.sofa_string)
-        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(scan_doc=scan_doc,
-                                                                                    start_offset=start_offset)
+        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(
+            scan_doc=scan_doc,
+            start_offset=start_offset
+        )
 
         if not paragraph_text:
             logger.warning(f"no paragraph text found in {page_xml_path}")
@@ -251,7 +307,7 @@ def generate_xmi(textrepo_client: TextRepoClient, document_id: str, nlp, pagexml
     logger.info(f"=> {xmi_path}")
     cas.to_xmi(xmi_path, pretty_print=True)
 
-    return xmi_path
+    return xmi_path, provenance
 
 
 def get_iiif_url(external_id, textrepo_client):
@@ -350,5 +406,4 @@ def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoCli
 
 
 if __name__ == '__main__':
-    script_args = " ".join(sys.argv[1:])
     main()
