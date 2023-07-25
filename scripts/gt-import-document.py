@@ -70,16 +70,17 @@ class DocumentMetadata:
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
+    results = {}
+    document_id_idx = {}
     metadata = read_document_selection(cfg)
+
     logger.info(f"loading {spacy_core}")
     nlp = spacy.load(spacy_core)
 
-    trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
-    file_type = get_xmi_file_type(trc)
+    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     inception_client, project_id = init_inception_client(cfg)
-    results = {}
-    document_id_idx = {}
-    with inception_client as inc:
+    with textrepo_client as trc, inception_client as inc:
+        file_type = get_xmi_file_type(trc)
         for dm in metadata:
             links = {'textrepo_links': {}}
             document_identifier = create_or_update_tr_document(dm, trc)
