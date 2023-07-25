@@ -76,29 +76,35 @@ def main(cfg: DictConfig) -> None:
 
     trc = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     file_type = get_xmi_file_type(trc)
-    inc, project_id = init_inception_client(cfg)
+    inception_client, project_id = init_inception_client(cfg)
     results = {}
     document_id_idx = {}
-    for dm in metadata:
-        links = {'textrepo_links': {}}
-        document_identifier = create_or_update_tr_document(dm, trc)
-        links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
-        links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
-        xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp, pagexml_ids=dm.pagexml_ids,
-                                links=links)
-        with open(xmi_path) as file:
-            contents = file.read()
-            version_identifier = trc.import_version(external_id=dm.external_id, type_name=file_type.name,
-                                                    contents=contents, as_latest_version=True)
-        links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{version_identifier.file_id}"
-        links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
-        document_id_idx[dm.external_id] = version_identifier.version_id
-        name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
-        response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
-                                               file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
-        idoc_id = response.body['id']
-        links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
-        results[dm.external_id] = links
+    with inception_client as inc:
+        for dm in metadata:
+            links = {'textrepo_links': {}}
+            document_identifier = create_or_update_tr_document(dm, trc)
+            links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
+            links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
+            xmi_path = generate_xmi(textrepo_client=trc, document_id=dm.external_id, nlp=nlp,
+                                    pagexml_ids=dm.pagexml_ids,
+                                    links=links)
+            with open(xmi_path) as file:
+                contents = file.read()
+                version_identifier = trc.import_version(external_id=dm.external_id,
+                                                        type_name=file_type.name,
+                                                        contents=contents,
+                                                        as_latest_version=True)
+            links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{version_identifier.file_id}"
+            links['textrepo_links']['version'] = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
+            file_name = f'{dm.external_id}.xmi'
+            trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
+            document_id_idx[dm.external_id] = version_identifier.version_id
+            name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
+            response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
+                                                   file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+            idoc_id = response.body['id']
+            links['inception_view'] = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
+            results[dm.external_id] = links
     results['document_id_idx'] = document_id_idx
     store_results(results)
 

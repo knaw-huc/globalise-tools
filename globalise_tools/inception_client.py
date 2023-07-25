@@ -59,16 +59,35 @@ class InceptionClient:
                  oauth2_proxy: str = None):
         self.base_uri = base_uri.rstrip("/")
         self.user = user
-        self.password = password
-        self.authorization = authorization
-        self.cookies = {'_oauth2_proxy': oauth2_proxy}
+        self._prepare_session(authorization, oauth2_proxy, password, user)
+
+    def _prepare_session(self, authorization: str, oauth2_proxy: str, password: str, user: str):
+        self.session = requests.Session()
+        self.session.headers = {
+            'User-Agent': 'inception-python-client'
+        }
+        if authorization:
+            self.session.headers["authorization"] = authorization
+            self.session.cookies = {'_oauth2_proxy': oauth2_proxy}
+        else:
+            self.session.auth = (user, password)
+
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        # logger.info(f"closing session with args: {args}")
+        self.session.close()
+
+    def close(self):
+        self.__exit__()
 
     def get_projects(self) -> List[Project]:
         path = f"{PROJECTS_PATH}"
         result = self.__get(path)
-        return [Project.from_dict(d) for d in result.json()['body']]
+        return [Project.from_dict(d) for d in result.body]
 
-    def get_project_by_id(self, project_id: int):
+    def get_project_by_id(self, project_id: int) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}"
         return self.__get(path)
 
@@ -79,7 +98,7 @@ class InceptionClient:
         else:
             return None
 
-    def create_project(self, name: str, title: str = None):
+    def create_project(self, name: str, title: str = None) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}"
         params = {
             'name': name,
@@ -89,15 +108,16 @@ class InceptionClient:
             params['title'] = title
         return self.__post(path, params=params)
 
-    def get_project_user_permissions(self, project_id: int, user_id: str):
+    def get_project_user_permissions(self, project_id: int, user_id: str) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/permissions/{user_id}"
         return self.__get(path)
 
-    def get_project_documents(self, project_id: int):
+    def get_project_documents(self, project_id: int) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
 
-    def create_project_document(self, project_id: int, file_path: str, name: str, file_format: str, state: str = None):
+    def create_project_document(self, project_id: int, file_path: str, name: str, file_format: str,
+                                state: str = None) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         rx = '[' + re.escape(''.join('\x00!"#$%&\'*+/:<=>?@\\`{|}')) + ']'
         acceptable_name = re.sub(rx, '', name)[:200].strip()
@@ -110,47 +130,30 @@ class InceptionClient:
         with open(file_path) as file:
             return self.__post(path, params=params, file=file)
 
-    def get_document_curation(self, project_id: int, document_id: str):
+    def get_document_curation(self, project_id: int, document_id: str) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/curation"
         return self.__get(path)
 
-    def get_document_annotations(self, project_id: int, document_id: str):
+    def get_document_annotations(self, project_id: int, document_id: str) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/annotations"
         return self.__get(path)
 
-    def __get(self, path: str):
+    def __get(self, path: str) -> InceptionAPIResponse:
         url = self.base_uri + path
-        logger.info(f"GET {url}")
-        if self.authorization:
-            # ic(self.authorization, self.cookie)
-            return requests.get(
-                url,
-                headers={
-                    "authorization": self.authorization
-                },
-                cookies=self.cookies,
-            )
-        else:
-            # ic(self.user, self.password)
-            return requests.get(url, auth=(self.user, self.password))
+        logger.debug(f"GET {url}")
+        response = self.session.get(url)
+        return as_inception_api_response(response)
 
-    def __post(self, path: str, params: Dict, file: TextIO = None):
+    def __post(self, path: str, params: Dict, file: TextIO = None) -> InceptionAPIResponse:
         url = self.base_uri + path
-        logger.info(f"POST {url}")
-        if self.authorization:
-            # ic(self.authorization, self.cookie)
-            response = requests.post(
-                url=url,
-                headers={
-                    "authorization": self.authorization
-                },
-                params=params,
-                cookies=self.cookies,
-                files={'content': file}
-            )
-        else:
-            # ic(self.user, self.password)
-            response = requests.post(url=url, auth=(self.user, self.password), params=params, files={'content': file})
-        json = response.json()
-        ic(response, json)
-        return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
+        logger.debug(f"POST {url}")
+        response = self.session.post(url=url,
+                                     params=params,
+                                     files={'content': file})
+        return as_inception_api_response(response)
+
+
+def as_inception_api_response(response):
+    json = response.json()
+    ic(response, json)
+    return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
