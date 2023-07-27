@@ -133,7 +133,7 @@ def main(cfg: DictConfig) -> None:
             links['textrepo_links']['version'] = version_uri
             file_name = f'{dm.external_id}.xmi'
             trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
-            document_id_idx[dm.external_id] = version_identifier.version_id
+            document_id_idx[dm.external_id] = version_identifier.document_id
 
             name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
             response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
