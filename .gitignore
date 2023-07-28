@@ -135,3 +135,6 @@ scripts/*.csv
 
 outputs/
 conf/
+tests/example.stam.json
+scripts/gt-experiment.py
+scripts/try-hydra.py
