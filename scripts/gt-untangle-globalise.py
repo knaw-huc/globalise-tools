@@ -8,18 +8,20 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Optional
 
 import hydra
 from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
+from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from textrepo.client import TextRepoClient
 from uri import URI
+
+from globalise_tools.model import AnnotationEncoder
 
 
 @dataclass
@@ -28,6 +30,7 @@ class SimpleAnnotation:
     first_anchor: int
     last_anchor: int
     text: str
+    coords: Optional[Coords]
     metadata: dict[str, Any] = field(default_factory=dict, hash=False)
 
 
@@ -201,21 +204,32 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int) -> Tuple[Li
                     SimpleAnnotation(type='TextLine',
                                      text=line.text,
                                      first_anchor=line_start_anchor,
-                                     last_anchor=line_start_anchor))
+                                     last_anchor=line_start_anchor,
+                                     coords=line.coords,
+                                     metadata={'id': line.id}))
         # tr_len = len(tr_lines)
         # offset = start_offset + tr_len
         scan_annotations.append(
             SimpleAnnotation(type='TextRegion',
                              text=' '.join(tr_lines),
                              first_anchor=tr_start_anchor,
-                             last_anchor=tr_start_anchor + len(tr_lines) - 1))
+                             last_anchor=tr_start_anchor + len(tr_lines) - 1,
+                             coords=tr.coords,
+                             metadata={'id': tr.id, 'structure_type': tr.type[-1]}),
+        )
         scan_lines.extend(tr_lines)
 
     scan_annotations.append(
         SimpleAnnotation(type='Scan',
                          text=' '.join(scan_lines),
                          first_anchor=scan_start_anchor,
-                         last_anchor=scan_start_anchor + len(scan_lines) - 1))
+                         last_anchor=scan_start_anchor + len(scan_lines) - 1,
+                         coords=scan_doc.coords,
+                         metadata={
+                             'id': scan_doc.id
+                         }
+                         )
+    )
     return scan_lines, scan_annotations
 
 
@@ -265,7 +279,8 @@ def untangle_document(
     document_annotations.append(SimpleAnnotation(type="Document",
                                                  text=' '.join(document_lines),
                                                  first_anchor=doc_first_anchor,
-                                                 last_anchor=doc_last_anchor)
+                                                 last_anchor=doc_last_anchor,
+                                                 coords=None)
                                 )
     document_annotations.sort(key=lambda a: f'{a.first_anchor:06d}{10000 - a.last_anchor:06d}')
     links['scan_links'] = scan_links
@@ -299,7 +314,7 @@ def store_results(results: Dict[str, any]):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
-        json.dump(results, fp=f)
+        json.dump(results, fp=f, cls=AnnotationEncoder)
 
 
 def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:
