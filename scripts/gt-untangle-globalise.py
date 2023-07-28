@@ -91,6 +91,25 @@ def main(cfg: DictConfig) -> None:
             process_document(base_provenance, dm, prc, results, trc)
 
 
+def add_tr_view(
+        annotations: List[SimpleAnnotation],
+        textrepo_base_url: str,
+        segmented_version_id: str
+) -> List[SimpleAnnotation]:
+    new_annotations = []
+    for a in annotations:
+        if not a.metadata:
+            new_metadata = {}
+        else:
+            new_metadata = a.metadata
+        tr_view_url = (f"{textrepo_base_url}/view/versions/{segmented_version_id}"
+                       f"/segments/index/{a.first_anchor}/{a.last_anchor}")
+        new_metadata['tr_view'] = tr_view_url
+        clone = dataclasses.replace(a, metadata=new_metadata)
+        new_annotations.append(clone)
+    return new_annotations
+
+
 def process_document(base_provenance, document_metadata, prov_client, results, tr_client):
     links = {'textrepo_links': {}}
     document_identifier = create_or_update_tr_document(document_metadata, tr_client)
@@ -132,6 +151,9 @@ def process_document(base_provenance, document_metadata, prov_client, results, t
     links['provenance_links'] = [prov_json_link, prov_html_link]
     results[document_metadata.external_id] = links
 
+    annotations = add_tr_view(annotations=annotations,
+                              textrepo_base_url=tr_client.base_uri,
+                              segmented_version_id=version_identifier.version_id)
     links['annotations'] = [a.__dict__ for a in annotations]
     store_results(results)
 
@@ -238,12 +260,14 @@ def untangle_document(
             document_lines.extend(scan_lines)
         scan_links[external_id] = page_links
 
+    doc_first_anchor = 0
+    doc_last_anchor = len(document_lines) - 1
     document_annotations.append(SimpleAnnotation(type="Document",
                                                  text=' '.join(document_lines),
-                                                 first_anchor=0,
-                                                 last_anchor=len(document_lines) - 1)
+                                                 first_anchor=doc_first_anchor,
+                                                 last_anchor=doc_last_anchor)
                                 )
-
+    document_annotations.sort(key=lambda a: f'{a.first_anchor:06d}{10000 - a.last_anchor:06d}')
     links['scan_links'] = scan_links
     segmented_text = {"_ordered_segments": document_lines}
     return segmented_text, provenance, document_annotations
