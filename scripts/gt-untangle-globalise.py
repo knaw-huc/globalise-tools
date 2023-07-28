@@ -21,7 +21,14 @@ from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, P
 from textrepo.client import TextRepoClient
 from uri import URI
 
-from globalise_tools.tools import Annotation
+
+@dataclass
+class SimpleAnnotation:
+    type: str
+    first_anchor: int
+    last_anchor: int
+    text: str
+    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
 
 
 @dataclass_json
@@ -124,6 +131,8 @@ def process_document(base_provenance, document_metadata, prov_client, results, t
     prov_html_link = prov_json_link.replace('prov/', '#')
     links['provenance_links'] = [prov_json_link, prov_html_link]
     results[document_metadata.external_id] = links
+
+    links['annotations'] = [a.__dict__ for a in annotations]
     store_results(results)
 
 
@@ -155,19 +164,37 @@ def is_magrginalium(text_region: PageXMLTextRegion) -> bool:
     return text_region.type[-1] == "marginalia"
 
 
-def untangle_scan_doc(scan_doc: PageXMLScan, start_offset: int) -> Tuple[List[str], List[Annotation]]:
-    page_lines = []
-    annotations = []
+def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int) -> Tuple[List[str], List[SimpleAnnotation]]:
+    scan_lines = []
+    scan_annotations = []
     # offset = start_offset
     for tr in scan_doc.get_text_regions_in_reading_order():
+        tr_start_anchor = scan_start_anchor + len(scan_lines)
         tr_lines = []
         for line in tr.lines:
             if line.text:
+                line_start_anchor = tr_start_anchor + len(tr_lines)
                 tr_lines.append(line.text)
+                scan_annotations.append(
+                    SimpleAnnotation(type='TextLine',
+                                     text=line.text,
+                                     first_anchor=line_start_anchor,
+                                     last_anchor=line_start_anchor))
         # tr_len = len(tr_lines)
         # offset = start_offset + tr_len
-        page_lines.extend(tr_lines)
-    return page_lines, annotations
+        scan_annotations.append(
+            SimpleAnnotation(type='TextRegion',
+                             text=' '.join(tr_lines),
+                             first_anchor=tr_start_anchor,
+                             last_anchor=tr_start_anchor + len(tr_lines) - 1))
+        scan_lines.extend(tr_lines)
+
+    scan_annotations.append(
+        SimpleAnnotation(type='Scan',
+                         text=' '.join(scan_lines),
+                         first_anchor=scan_start_anchor,
+                         last_anchor=scan_start_anchor + len(scan_lines) - 1))
+    return scan_lines, scan_annotations
 
 
 def untangle_document(
@@ -176,7 +203,7 @@ def untangle_document(
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
         links: Dict[str, Any]
-) -> Tuple[Dict[str, any], ProvenanceData, List[Annotation]]:
+) -> Tuple[Dict[str, any], ProvenanceData, List[SimpleAnnotation]]:
     provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
 
     scan_links = {}
@@ -194,14 +221,14 @@ def untangle_document(
         iiif_url = get_iiif_url(external_id, textrepo_client)
         logger.info(f"iiif_url={iiif_url}")
         page_links['iiif_url'] = iiif_url
-        page_links['paragraph_iiif_urls'] = []
-        page_links['sentences'] = []
+        # page_links['paragraph_iiif_urls'] = []
+        # page_links['sentences'] = []
         logger.info(f"<= {page_xml_path}")
         scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
         start_offset = len(document_lines)
         scan_lines, scan_annotations = untangle_scan_doc(
             scan_doc=scan_doc,
-            start_offset=start_offset
+            scan_start_anchor=start_offset
         )
         document_annotations.extend(scan_annotations)
 
@@ -210,6 +237,12 @@ def untangle_document(
         else:
             document_lines.extend(scan_lines)
         scan_links[external_id] = page_links
+
+    document_annotations.append(SimpleAnnotation(type="Document",
+                                                 text=' '.join(document_lines),
+                                                 first_anchor=0,
+                                                 last_anchor=len(document_lines) - 1)
+                                )
 
     links['scan_links'] = scan_links
     segmented_text = {"_ordered_segments": document_lines}
