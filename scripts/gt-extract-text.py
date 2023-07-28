@@ -4,20 +4,16 @@ import csv
 import itertools
 import json
 import os
-import uuid as uuid
-from dataclasses import dataclass
-from datetime import datetime
-from json import JSONEncoder
 from typing import List, AnyStr, Dict, Any, Tuple
 
 import pagexml.parser as pxp
 import spacy
-from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
-from pagexml.model.physical_document_model import PageXMLScan, Coords
+from pagexml.model.physical_document_model import PageXMLScan
 
 import globalise_tools.tools as gt
+from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
 
 spacy_core = "nl_core_news_lg"
 
@@ -25,58 +21,6 @@ metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
 textrepo_version_csv = "data/tr-versions.csv"
 PAGE_TYPE = "px:Page"
-
-
-@dataclass
-class WebAnnotation:
-    body: Dict[str, Any]
-    target: Any
-
-    def wrapped(self):
-        anno_uuid = uuid.uuid4()
-        return {
-            "@context": "http://www.w3.org/ns/anno.jsonld",
-            "id": f"urn:globalise:annotation:{anno_uuid}",
-            "type": "Annotation",
-            "motivation": "classifying",
-            "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types
-            "generator": {  # use creator metadata from pagexml for px: types
-                "id": "https://github.com/rvankoert/loghi-htr",
-                "type": "Software",
-                "name": "Loghi"
-            },
-            "body": self.body,
-            "target": self.target
-        }
-
-
-@dataclass
-class TRVersions:
-    txt: str
-    segmented: str
-    conll: str
-
-
-@dataclass_json
-@dataclass
-class GTToken:
-    text: str
-    text_with_ws: str
-    offset: int
-
-
-class AnnotationEncoder(JSONEncoder):
-    def default(self, obj):
-        if isinstance(obj, gt.Annotation) \
-                or isinstance(obj, gt.PXTextRegion) \
-                or isinstance(obj, gt.PXTextLine) \
-                or isinstance(obj, GTToken):
-            return obj.to_dict()
-        elif isinstance(obj, WebAnnotation):
-            return obj.wrapped()
-        elif isinstance(obj, Coords):
-            return obj.points
-
 
 metadata_records = []
 ground_truth = []
