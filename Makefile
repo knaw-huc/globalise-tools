@@ -22,14 +22,19 @@ install:
 	poetry update
 	poetry install
 
+.PHONY: test-run
+test-run:
+	poetry run ./scripts/gt-extract-documents.py -cd conf -cn test.yaml
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
 	@echo
 	@echo "Please use \`make <target>', where <target> is one of:"
 	@echo "  install                to install the necessary requirements"
-	@echo "  extract-all            to extract text and annotations from all document directories"
-	@echo "  web-annotations        to generate the web-annotations"
+#	@echo "  extract-all            to extract text and annotations from all document directories"
+#	@echo "  web-annotations        to generate the web-annotations"
+	@echo "  test-run               to extract document text and web annotations using test settings
 	@echo "  sample                 to extract a sample of web annotations where every type is represented"
 	@echo "  install-spacy-model    to load the 'nl_core_news_lg' language model used by spacy"
 	@echo

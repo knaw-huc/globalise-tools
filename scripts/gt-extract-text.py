@@ -6,21 +6,19 @@ import json
 import os
 from typing import List, AnyStr, Dict, Any, Tuple
 
+import globalise_tools.tools as gt
 import pagexml.parser as pxp
 import spacy
+from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
 from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
-
-import globalise_tools.tools as gt
-from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
 
 spacy_core = "nl_core_news_lg"
 
 metadata_csv = "data/metadata_1618-1793_2022-08-30.csv"
 ground_truth_csv = "data/globalise-word-joins-MH.csv"
 textrepo_version_csv = "data/tr-versions.csv"
-PAGE_TYPE = "px:Page"
 
 metadata_records = []
 ground_truth = []
@@ -31,10 +29,6 @@ nlp = None
 def list_pagexml_files(directory: str):
     all_files = os.listdir(directory)
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith(".xml")])
-
-
-def make_id_prefix(scan_doc) -> str:
-    return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
 
 
 def index_word_ranges(words: List[gt.DisplayWord], word_range_index) -> Dict[str, Tuple[int, int]]:
@@ -49,7 +43,7 @@ def index_word_ranges(words: List[gt.DisplayWord], word_range_index) -> Dict[str
 def process_pagexml(path: str, document_id: str):
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
-    id_prefix = make_id_prefix(scan_doc)
+    id_prefix = gt.make_id_prefix(scan_doc)
 
     px_text_regions, px_text_lines, px_words = gt.extract_px_elements(scan_doc)
     id_dispenser = gt.IdDispenser(id_prefix)
@@ -58,7 +52,7 @@ def process_pagexml(path: str, document_id: str):
     display_word_range_idx = {}
     for w in display_words:
         stripped = w.text.strip()
-        wa = word_annotation(id_prefix, stripped, text, w)
+        wa = gt.word_annotation(id_prefix, stripped, text, w)
         annotations.append(wa)
         display_word_range_idx[w.id] = (wa.offset, wa.offset + wa.length)
         text += w.text
@@ -69,7 +63,7 @@ def process_pagexml(path: str, document_id: str):
 
     page_id = to_base_name(path)
     annotations.append(
-        page_annotation(id_prefix, page_id, path, total_size, document_id)
+        gt.page_annotation(id_prefix, page_id, path, total_size, document_id)
     )
 
     for text_region in px_text_regions:
@@ -77,7 +71,7 @@ def process_pagexml(path: str, document_id: str):
         last_word_range = px_word_range_idx[text_region.last_word_id]
         length = last_word_range[1] - offset
         annotations.append(
-            text_region_annotation(text_region, id_prefix, offset, length)
+            gt.text_region_annotation(text_region, id_prefix, offset, length)
         )
 
     for text_line in px_text_lines:
@@ -85,84 +79,9 @@ def process_pagexml(path: str, document_id: str):
         last_word_range = px_word_range_idx[text_line.last_word_id]
         length = last_word_range[1] - offset
         annotations.append(
-            text_line_annotation(text_line, id_prefix, offset, length)
+            gt.text_line_annotation(text_line, id_prefix, offset, length)
         )
     return paragraphs, annotations, total_size
-
-
-def page_annotation(id_prefix: str, page_id: str, path: str, total_size: int, document_id: str) -> gt.Annotation:
-    return gt.Annotation(
-        type=PAGE_TYPE,
-        id=make_page_id(id_prefix),
-        page_id=page_id,
-        offset=0,
-        length=total_size,
-        metadata={
-            "document": document_id,
-            "n": page_id.split("_")[-1],
-            "file": path,
-            "na_url": gt.na_url(path),
-            "tr_url": gt.tr_url(path)
-        }
-    )
-
-
-def text_region_annotation(text_region: gt.PXTextRegion, id_prefix: str, offset: int, length: int) -> gt.Annotation:
-    return gt.Annotation(
-        type="px:TextRegion",
-        id=make_textregion_id(id_prefix, text_region.id),
-        page_id=text_region.page_id,
-        offset=offset,
-        length=length,
-        metadata={
-            "coords": text_region.coords,
-            "text": text_region.text
-        }
-    )
-
-
-def text_line_annotation(text_line, id_prefix, offset, length) -> gt.Annotation:
-    return gt.Annotation(
-        type="px:TextLine",
-        id=make_textline_id(id_prefix, text_line.id),
-        page_id=text_line.page_id,
-        offset=offset,
-        length=length,
-        metadata={
-            "text": text_line.text,
-            "coords": text_line.coords
-        }
-    )
-
-
-def word_annotation(id_prefix, stripped, text, w) -> gt.Annotation:
-    return gt.Annotation(
-        type="tt:Word",
-        id=make_word_id(id_prefix, w),
-        page_id=w.px_words[0].page_id,
-        offset=len(text),
-        length=len(stripped),
-        metadata={
-            "text": stripped,
-            "coords": [pxw.coords for pxw in w.px_words]
-        }
-    )
-
-
-def make_word_id(prefix: str, w) -> str:
-    return prefix + ":word:" + ":".join([pxw.id for pxw in w.px_words])
-
-
-def make_textline_id(prefix: str, line_id) -> str:
-    return prefix + ":textline:" + line_id
-
-
-def make_page_id(prefix: str) -> str:
-    return prefix
-
-
-def make_textregion_id(prefix: str, textregion_id) -> str:
-    return prefix + ":textregion:" + textregion_id
 
 
 def to_conll2002(token: str) -> str:
@@ -298,7 +217,7 @@ def make_token_annotations(base_name, tokens, scan_ranges):
         if token_is_paragraph_end:
             page_id = get_page_id(par_offset, par_length, scan_ranges)
             annotations.append(
-                paragraph_annotation(base_name, page_id, par_num, par_offset, par_length, par_text.strip()))
+                gt.paragraph_annotation(base_name, page_id, par_num, par_offset, par_length, par_text.strip()))
             par_offset += par_length
             par_num += 1
             par_text = ""
@@ -306,73 +225,23 @@ def make_token_annotations(base_name, tokens, scan_ranges):
             token_length = len(token)
             page_id = get_page_id(offset, token_length, scan_ranges)
             annotations.append(
-                token_annotation(base_name=base_name, page_id=page_id, token_num=i, offset=offset,
-                                 token_length=token_length, token_text=token, sentence_num=par_num))
+                gt.token_annotation(base_name=base_name, page_id=page_id, token_num=i, offset=offset,
+                                    token_length=token_length, token_text=token, sentence_num=par_num))
             par_length = offset - par_offset + token_length
         # ic(annotations[-1])
     return annotations
 
 
-def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str):
-    return gt.Annotation(
-        type="tt:Paragraph",
-        id=f"urn:globalise:{base_name}:paragraph:{par_num}",
-        page_id=page_id,
-        offset=par_offset,
-        length=par_length,
-        metadata={
-            "text": text
-        }
-    )
-
-
-def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int):
-    return gt.Annotation(
-        type="tt:Token",
-        id=f"urn:globalise:{base_name}:token:{token_num}",
-        page_id=page_id,
-        offset=offset,
-        length=token_length,
-        metadata={
-            "text": token_text,
-            "sentence_num": sentence_num,
-            "token_num": token_num
-        }
-    )
-
-
 def make_web_annotations(annotations: List[gt.Annotation], webannotation_factory: gt.WebAnnotationFactory) \
         -> List[WebAnnotation]:
-    return [to_web_annotation(a, webannotation_factory) for a in annotations]
-
-
-def to_web_annotation(annotation: gt.Annotation, webannotation_factory: gt.WebAnnotationFactory) -> WebAnnotation:
-    body = annotation_body(annotation)
-    targets = webannotation_factory.annotation_targets(annotation)
-    return WebAnnotation(body=body, target=targets)
-
-
-def annotation_body(annotation: gt.Annotation):
-    body = {
-        "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
-        "id": annotation.id,
-        "type": annotation.type
-    }
-    if "text" in annotation.metadata:
-        body["text"] = annotation.metadata["text"]
-    if annotation.type == PAGE_TYPE:
-        body["metadata"] = {
-            "document": annotation.metadata["document"],
-            "opening": int(annotation.metadata["n"]),
-        }
-    return body
+    return [gt.to_web_annotation(a, webannotation_factory) for a in annotations]
 
 
 def ranges_per_scan(annotations: List[gt.Annotation]) -> Dict[str, Tuple[int, int]]:
     return {
         pa.page_id: (pa.offset, pa.offset + pa.length)
         for pa in annotations
-        if pa.type == PAGE_TYPE
+        if pa.type == gt.PAGE_TYPE
     }
 
 

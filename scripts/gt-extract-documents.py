@@ -5,6 +5,7 @@ from pathlib import Path
 from typing import List, Dict, Any
 
 import hydra
+from annorepo.client import AnnoRepoClient
 from globalise_tools.model import Document, WebAnnotation
 from globalise_tools.tools import read_document_metadata
 from loguru import logger
@@ -37,26 +38,38 @@ def parse_pagexml(pagexml_paths: List[str]) -> (Dict[str, Any], List[WebAnnotati
     return segmented_text, web_annotations
 
 
-def store_segmented_text(base_dir: str, segmented_text: Dict[str, Any]):
+def store_segmented_text(base_dir: str, segmented_text: Dict[str, Any]) -> str:
     path = f"{base_dir}/textstore.json"
-    logger.debug("=> {path}")
+    logger.debug(f"=> {path}")
     with open(path, 'w') as f:
         json.dump(segmented_text, fp=f, indent=4)
+    return path
 
 
-def store_annotations(base_dir: str, web_annotations: List[WebAnnotation]):
+def store_annotations(base_dir: str, web_annotations: List[WebAnnotation]) -> str:
     path = f"{base_dir}/web_annotations.json"
-    logger.debug("=> {path}")
+    logger.debug(f"=> {path}")
     with open(path, 'w') as f:
         json.dump(web_annotations, fp=f, indent=4)
+    return path
 
 
-def process_document(doc: Document, trc: TextRepoClient):
+def upload_segmented_text(trc: TextRepoClient, text_store_path: str):
+    logger.warning(f"TODO: upload {text_store_path} to {trc.base_uri}")
+
+
+def upload_annotations(arc: AnnoRepoClient, annotations_path: str):
+    logger.warning(f"TODO: upload {annotations_path} to {arc.base_url}")
+
+
+def process_document(doc: Document, trc: TextRepoClient, arc: AnnoRepoClient):
     base_dir = create_document_directory(doc)
     pagexml_paths = download_pagexml(trc, base_dir, doc.scan_ids())
     segmented_text, web_annotations = parse_pagexml(pagexml_paths)
-    store_segmented_text(base_dir, segmented_text)
-    store_annotations(base_dir, web_annotations)
+    text_store_path = store_segmented_text(base_dir, segmented_text)
+    upload_segmented_text(trc, text_store_path)
+    annotations_path = store_annotations(base_dir, web_annotations)
+    upload_annotations(arc, annotations_path)
 
 
 @hydra.main(version_base=None)
@@ -67,10 +80,11 @@ def main(cfg: DictConfig) -> None:
     documents = read_document_metadata(meta_path)
 
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    annorepo_client = AnnoRepoClient(cfg.annorepo.base_uri)
 
-    with textrepo_client as trc:
-        for dm in documents[0:1]:
-            process_document(dm, trc)
+    with textrepo_client as trc, annorepo_client as arc:
+        for dm in documents[0:2]:
+            process_document(dm, trc, arc)
 
 
 if __name__ == '__main__':
