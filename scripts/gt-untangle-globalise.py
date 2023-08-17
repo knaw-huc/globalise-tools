@@ -5,6 +5,7 @@ import json
 import os
 import subprocess
 import sys
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -12,6 +13,7 @@ from typing import Tuple, List, Dict, Any, Optional
 
 import hydra
 from dataclasses_json import dataclass_json
+from globalise_tools.model import AnnotationEncoder, WebAnnotation
 from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
@@ -20,8 +22,6 @@ from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from textrepo.client import TextRepoClient
 from uri import URI
-
-from globalise_tools.model import AnnotationEncoder
 
 
 @dataclass
@@ -159,6 +159,32 @@ def process_document(base_provenance, document_metadata, prov_client, results, t
                               segmented_version_id=version_identifier.version_id)
     links['annotations'] = [a.__dict__ for a in annotations]
     store_results(results)
+    web_annotations = [to_web_annotation(a) for a in annotations]
+    export_web_annotations(document_metadata, web_annotations)
+
+
+def to_web_annotation(annotation: SimpleAnnotation) -> WebAnnotation:
+    id = "urn:globalise:" + annotation.type.lower() + ":"
+    if "id" in annotation.metadata:
+        id = id + annotation.metadata["id"]
+    else:
+        id = f"{id}{uuid.uuid4()}"
+    body = {
+        "id": id,
+        "type": annotation.type,
+        "metadata": {
+            annotation.metadata
+        }
+    }
+    targets = []
+    return WebAnnotation(body=body, target=targets)
+
+
+def export_web_annotations(document_metadata, web_annotations):
+    path = f"out/{document_metadata.hana_nr}/web_annotations.json"
+    logger.debug(f"=>{path}")
+    with open(path, "w") as f:
+        json.dump(web_annotations, fp=f, indent=4)
 
 
 def generate_base_provenance(cfg):
@@ -314,7 +340,7 @@ def store_results(results: Dict[str, any]):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
-        json.dump(results, fp=f, cls=AnnotationEncoder)
+        json.dump(results, fp=f, cls=AnnotationEncoder, indent=4)
 
 
 def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:

@@ -3,6 +3,7 @@ from dataclasses import dataclass, field
 from typing import List, Any, Tuple, Dict
 
 from dataclasses_json import dataclass_json
+from globalise_tools.model import Document
 from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan
 
@@ -220,7 +221,7 @@ def cutout_target(textrepo_base_url: str,
 
 
 class WebAnnotationFactory:
-    REPUBLIC_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
+    ANNO_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
 
     def __init__(self, iiif_mapping_file: str):
         self.iiif_base_url_idx = {}
@@ -249,7 +250,7 @@ class WebAnnotationFactory:
                     "type": "Image"
                 },
                 {
-                    '@context': "https://brambg.github.io/ns/republic.jsonld",
+                    '@context': self.ANNO_CONTEXT,
                     'source': canvas_url,
                     'type': "Canvas",
                 }
@@ -331,7 +332,7 @@ class WebAnnotationFactory:
             'source': f"{textrepo_base_url}/rest/versions/{segmented_version_id}/contents",
             'type': "Text",
             "selector": {
-                '@context': self.REPUBLIC_CONTEXT,
+                '@context': self.ANNO_CONTEXT,
                 "type": "urn:republic:TextAnchorSelector",
                 "start": begin_anchor,
                 "end": end_anchor
@@ -351,7 +352,7 @@ class WebAnnotationFactory:
         if coords_list:
             selectors.append(self._svg_selector(coords_list))
         return {
-            '@context': "https://brambg.github.io/ns/republic.jsonld",
+            '@context': self.ANNO_CONTEXT,
             'source': canvas_url,
             'type': "Canvas",
             'selector': selectors
@@ -381,3 +382,10 @@ class WebAnnotationFactory:
             'type': "SvgSelector",
             'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""
         }
+
+
+def read_document_metadata(meta_path):
+    with open(meta_path) as f:
+        reader = csv.DictReader(f)
+        documents = [Document.from_dict(d) for d in reader]
+    return documents
