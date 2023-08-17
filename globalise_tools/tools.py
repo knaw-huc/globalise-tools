@@ -500,7 +500,7 @@ def make_textregion_id(prefix: str, textregion_id) -> str:
     return prefix + ":textregion:" + textregion_id
 
 
-def to_web_annotation(annotation: Annotation, webannotation_factory: gt.WebAnnotationFactory) -> WebAnnotation:
+def to_web_annotation(annotation: Annotation, webannotation_factory: WebAnnotationFactory) -> WebAnnotation:
     body = annotation_body(annotation)
     targets = webannotation_factory.annotation_targets(annotation)
     return WebAnnotation(body=body, target=targets)
