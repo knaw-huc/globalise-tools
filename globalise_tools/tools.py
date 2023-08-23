@@ -4,6 +4,7 @@ from typing import List, Any, Tuple, Dict
 
 from dataclasses_json import dataclass_json
 from globalise_tools.model import Document, WebAnnotation
+from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan
 
@@ -16,6 +17,8 @@ class PXTextRegion:
     id: str
     page_id: str
     coords: Coords
+    first_line_id: str
+    last_line_id: str
     first_word_id: str
     last_word_id: str
     text: str
@@ -171,21 +174,37 @@ def extract_px_elements(scan_doc: PageXMLScan) -> (List[PXTextRegion], List[PXTe
 
 
 def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_regions):
-    first_tr_word_index = len(px_words)
-    for line in tr.lines:
+    first_line_index = len(text_lines)
+    for line in [line for line in tr.lines if line.text]:
         collect_elements_from_line(line, tr, page_id, px_words, text_lines)
-    last_tr_word_index = len(px_words) - 1
-    first_word_id_in_text_region = px_words[first_tr_word_index].id
-    last_word_id_in_text_region = px_words[last_tr_word_index].id
-    tr_text = tr.text if tr.text else " ".join([w.text for w in px_words[first_tr_word_index:last_tr_word_index]])
-    text_regions.append(
-        PXTextRegion(id=tr.id,
-                     page_id=page_id,
-                     coords=tr.coords,
-                     first_word_id=first_word_id_in_text_region,
-                     last_word_id=last_word_id_in_text_region,
-                     text=tr_text)
-    )
+    last_line_index = len(text_lines) - 1
+    if first_line_index > last_line_index:
+        logger.warning(f"no lines in {tr.id}")
+    else:
+        first_line_id_in_text_region = text_lines[first_line_index].id
+        last_line_id_in_text_region = text_lines[last_line_index].id
+        if px_words:
+            first_tr_word_index = len(px_words)
+            last_tr_word_index = len(px_words) - 1
+            first_word_id_in_text_region = px_words[first_tr_word_index].id
+            last_word_id_in_text_region = px_words[last_tr_word_index].id
+            tr_text = tr.text if tr.text else " ".join(
+                [w.text for w in px_words[first_tr_word_index:last_tr_word_index]])
+        else:
+            first_word_id_in_text_region = None
+            last_word_id_in_text_region = None
+            tr_text = tr.text if tr.text else " ".join([l.text for l in text_lines[first_line_index:last_line_index]])
+
+        text_regions.append(
+            PXTextRegion(id=tr.id,
+                         page_id=page_id,
+                         coords=tr.coords,
+                         first_line_id=first_line_id_in_text_region,
+                         last_line_id=last_line_id_in_text_region,
+                         first_word_id=first_word_id_in_text_region,
+                         last_word_id=last_word_id_in_text_region,
+                         text=tr_text)
+        )
 
 
 def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
@@ -208,6 +227,16 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
                        coords=line.coords,
                        first_word_id=first_word_id_in_line,
                        last_word_id=last_word_id_in_line)
+        )
+    else:
+        text_lines.append(
+            PXTextLine(id=line.id,
+                       text_region_id=tr.id,
+                       page_id=page_id,
+                       text=line.text,
+                       coords=line.coords,
+                       first_word_id=None,
+                       last_word_id=None)
         )
 
 
@@ -386,7 +415,7 @@ class WebAnnotationFactory:
         }
 
 
-def read_document_metadata(meta_path):
+def read_misssive_metadata(meta_path):
     with open(meta_path) as f:
         reader = csv.DictReader(f)
         documents = [Document.from_dict(d) for d in reader]

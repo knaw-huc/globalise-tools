@@ -17,14 +17,14 @@ install-spacy-model:
 web-annotations:
 	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
 
+.PHONY: test-untangle
+test-untangle:
+	poetry run ./scripts/gt-extract-documents.py -cd conf -cn test.yaml
+
 .PHONY: install
 install:
 	poetry update
 	poetry install
-
-.PHONY: test-run
-test-run:
-	poetry run ./scripts/gt-extract-documents.py -cd conf -cn test.yaml
 
 .PHONY: help
 help:
@@ -34,7 +34,7 @@ help:
 	@echo "  install                to install the necessary requirements"
 #	@echo "  extract-all            to extract text and annotations from all document directories"
 #	@echo "  web-annotations        to generate the web-annotations"
-	@echo "  test-run               to extract document text and web annotations using test settings"
+	@echo "  untangle               to generate and upload segmented text and web-annotations using test settings"
 	@echo "  sample                 to extract a sample of web annotations where every type is represented"
 	@echo "  install-spacy-model    to load the 'nl_core_news_lg' language model used by spacy"
 	@echo
