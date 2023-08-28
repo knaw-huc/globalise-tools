@@ -183,13 +183,13 @@ def process_document(
 def to_web_annotation(annotation: Annotation,
                       webannotation_factory: WebAnnotationFactory) -> WebAnnotation:
     body_id = annotation.id
-    annotation.metadata.pop("coords", None)
     body = {
         "id": body_id,
         "type": annotation.type,
         "metadata": annotation.metadata
     }
     targets = webannotation_factory.annotation_targets(annotation)
+    body['metadata'].pop("coords", None)
     return WebAnnotation(body=body, target=targets)
 
 
