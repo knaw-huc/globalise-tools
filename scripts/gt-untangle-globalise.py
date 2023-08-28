@@ -79,7 +79,8 @@ def main(cfg: DictConfig) -> None:
     base_provenance = generate_base_provenance(cfg)
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-    dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:5]
+    # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:5]
+    dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file)
 
     with textrepo_client as trc, provenance_client as prc:
@@ -334,7 +335,7 @@ def untangle_document(
         provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
         iiif_url = get_iiif_url(external_id, textrepo_client)
-        logger.info(f"iiif_url={iiif_url}")
+        # logger.info(f"iiif_url={iiif_url}")
         page_links['iiif_url'] = iiif_url
         # page_links['paragraph_iiif_urls'] = []
         # page_links['sentences'] = []
