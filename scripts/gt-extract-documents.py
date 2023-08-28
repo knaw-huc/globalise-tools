@@ -54,7 +54,7 @@ class DocumentMetadata:
 
 
 def create_document_directory(doc: DocumentMetadata) -> str:
-    output_directory = f'out/{doc.external_id}'
+    output_directory = f'out/{doc.hana_nr}'
     os.makedirs(output_directory, exist_ok=True)
     return output_directory
 
@@ -72,7 +72,7 @@ def download_pagexml(trc: TextRepoClient, base_dir: str, scan_ids: List[str]) ->
     return paths
 
 
-def parse_pagexml(path: str, document_id: str) -> (List[str], List[WebAnnotation]):
+def parse_pagexml(path: str, document_id: str, segment_offset: int) -> (List[str], List[WebAnnotation]):
     lines = []
     annotations = []
     logger.debug(f"<= {path}")
@@ -80,25 +80,25 @@ def parse_pagexml(path: str, document_id: str) -> (List[str], List[WebAnnotation
     id_prefix = gt.make_id_prefix(scan_doc)
     px_text_regions, px_text_lines, px_words = gt.extract_px_elements(scan_doc)
     page_id = to_base_name(path)
-    total_size = 0
-    annotations.append(
-        gt.page_annotation(id_prefix, page_id, path, total_size, document_id)
-    )
 
+    tr_segment_offset = segment_offset
     for text_region in px_text_regions:
-        offset = 0
-        length = 0
         annotations.append(
-            gt.text_region_annotation(text_region, id_prefix, offset, length)
+            gt.text_region_annotation(text_region, id_prefix, tr_segment_offset, text_region.segment_length)
         )
+        tr_segment_offset += text_region.segment_length
 
+    tl_segment_offset = segment_offset
     for text_line in px_text_lines:
-        offset = 0
-        length = 0
         lines.append(text_line.text)
         annotations.append(
-            gt.text_line_annotation(text_line, id_prefix, offset, length)
+            gt.text_line_annotation(text_line, id_prefix, tl_segment_offset, 1)
         )
+        tl_segment_offset += 1
+
+    annotations.append(
+        gt.page_annotation(id_prefix, page_id, path, tl_segment_offset, document_id)
+    )
 
     return lines, annotations
 
@@ -113,14 +113,13 @@ def parse_pagexmls(
         waf: gt.WebAnnotationFactory
 ) -> (Dict[str, Any], List[WebAnnotation]):
     document_lines = []
-    annotations = []
+    document_annotations = []
     for path in pagexml_paths:
-        lines, annotations = parse_pagexml(path, doc_id)
+        lines, annotations = parse_pagexml(path, doc_id, len(document_lines))
         document_lines.extend(lines)
-        annotations.extend(annotations)
-
+        document_annotations.extend(annotations)
     segmented_text = {"_ordered_segments": document_lines}
-    web_annotations = [gt.to_web_annotation(a, waf) for a in annotations]
+    web_annotations = [gt.to_web_annotation(a, waf) for a in document_annotations]
     return segmented_text, web_annotations
 
 

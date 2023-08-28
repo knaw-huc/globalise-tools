@@ -3,10 +3,10 @@ from dataclasses import dataclass, field
 from typing import List, Any, Tuple, Dict
 
 from dataclasses_json import dataclass_json
-from globalise_tools.model import Document, WebAnnotation
-from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan
+
+from globalise_tools.model import Document, WebAnnotation
 
 PAGE_TYPE = "px:Page"
 
@@ -21,6 +21,8 @@ class PXTextRegion:
     last_line_id: str
     first_word_id: str
     last_word_id: str
+    segment_length: int
+    structure_type: str
     text: str
 
 
@@ -203,6 +205,7 @@ def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_re
                          last_line_id=last_line_id_in_text_region,
                          first_word_id=first_word_id_in_text_region,
                          last_word_id=last_word_id_in_text_region,
+                         segment_length=(last_line_index - first_line_index + 1),
                          text=tr_text)
         )
 
@@ -257,6 +260,7 @@ class WebAnnotationFactory:
     def __init__(self, iiif_mapping_file: str):
         self.iiif_base_url_idx = {}
         self._init_iiif_base_url_idx(iiif_mapping_file)
+        self._iiif_mapping_file = iiif_mapping_file
 
     @logger.catch
     def annotation_targets(self, annotation: Annotation):
@@ -297,7 +301,7 @@ class WebAnnotationFactory:
         return f"{coords.left},{coords.top},{coords.width},{coords.height}"
 
     def _init_iiif_base_url_idx(self, path: str):
-        logger.info(f"loading {path}...")
+        logger.info(f"<= {path}...")
         with open(path) as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -336,6 +340,8 @@ class WebAnnotationFactory:
         return targets
 
     def _get_iiif_base_url(self, page_id: str) -> str:
+        if page_id not in self.iiif_base_url_idx:
+            logger.error(f"{page_id} not found in {self._iiif_mapping_file}")
         return self.iiif_base_url_idx[page_id]
 
     def _make_text_targets(self, textrepo_base_url, annotation: Annotation):
@@ -452,12 +458,13 @@ def text_region_annotation(text_region: PXTextRegion, id_prefix: str, offset: in
         length=length,
         metadata={
             "coords": text_region.coords,
-            "text": text_region.text
+            "text": text_region.text,
+            "px:structureType": text_region.structure_type
         }
     )
 
 
-def text_line_annotation(text_line, id_prefix, offset, length) -> Annotation:
+def text_line_annotation(text_line: PXTextLine, id_prefix, offset, length) -> Annotation:
     return Annotation(
         type="px:TextLine",
         id=make_textline_id(id_prefix, text_line.id),

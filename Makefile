@@ -1,6 +1,9 @@
 all: help
 SHELL=/bin/bash
 
+data/iiif-url-mapping.csv: scripts/gt-map-pagexml-to-iiif-url.py data/NL-HaNA_1.04.02_mets.csv
+	poetry run scripts/gt-map-pagexml-to-iiif-url.py --data-dir data
+
 .PHONY: extract-all
 extract-all:
 	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
@@ -18,8 +21,8 @@ web-annotations:
 	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
 
 .PHONY: test-untangle
-test-untangle:
-	poetry run ./scripts/gt-extract-documents.py -cd conf -cn test.yaml
+test-untangle: data/iiif-url-mapping.csv
+	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
 
 .PHONY: install
 install:
@@ -34,7 +37,7 @@ help:
 	@echo "  install                to install the necessary requirements"
 #	@echo "  extract-all            to extract text and annotations from all document directories"
 #	@echo "  web-annotations        to generate the web-annotations"
-	@echo "  untangle               to generate and upload segmented text and web-annotations using test settings"
+	@echo "  test-untangle          to generate and upload segmented text and web-annotations using test settings"
 	@echo "  sample                 to extract a sample of web annotations where every type is represented"
 	@echo "  install-spacy-model    to load the 'nl_core_news_lg' language model used by spacy"
 	@echo

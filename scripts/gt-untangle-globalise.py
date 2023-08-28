@@ -5,7 +5,6 @@ import json
 import os
 import subprocess
 import sys
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -13,7 +12,6 @@ from typing import Tuple, List, Dict, Any, Optional
 
 import hydra
 from dataclasses_json import dataclass_json
-from globalise_tools.model import AnnotationEncoder, WebAnnotation
 from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
@@ -22,6 +20,10 @@ from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from textrepo.client import TextRepoClient
 from uri import URI
+
+import globalise_tools.tools as gt
+from globalise_tools.model import AnnotationEncoder, WebAnnotation
+from globalise_tools.tools import WebAnnotationFactory, Annotation
 
 
 @dataclass
@@ -37,23 +39,14 @@ class SimpleAnnotation:
 @dataclass_json
 @dataclass
 class DocumentMetadata:
-    # document_id: str
-    # internal_id: str
-    # title: str
-    # year_creation_or_dispatch: str
     inventory_number: str
-    # folio_or_page: str
-    # folio_or_page_range: str
     scan_range: str
     scan_start: str
     scan_end: str
     no_of_scans: int
-    # no_of_pages: int
-    # GM_id: str
-    # remarks: str
     first_scan_nr: int = field(init=False)
     last_scan_nr: int = field(init=False)
-    hana_nr: str = field(init=False)
+    nl_hana_nr: str = field(init=False)
     external_id: str = field(init=False)
     pagexml_ids: List[str] = field(init=False)
 
@@ -61,7 +54,7 @@ class DocumentMetadata:
         # self.no_of_pages = int(self.no_of_pages)
         self.no_of_scans = int(self.no_of_scans)
         (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
-        self.hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
+        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
         self.external_id = self._external_id()
         self.pagexml_ids = self._pagexml_ids()
 
@@ -72,10 +65,10 @@ class DocumentMetadata:
         return first, last
 
     def _external_id(self) -> str:
-        return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
 
     def _pagexml_ids(self) -> List[str]:
-        return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
+        return [f"{self.nl_hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
 @hydra.main(version_base=None)
@@ -86,40 +79,51 @@ def main(cfg: DictConfig) -> None:
     base_provenance = generate_base_provenance(cfg)
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-    dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:6]
+    dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:5]
+    webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file)
 
     with textrepo_client as trc, provenance_client as prc:
         for dm in dm_selection:
             # ic(dm)
-            process_document(base_provenance, dm, prc, results, trc)
+            process_document(base_provenance, dm, prc, results, trc, webannotation_factory)
 
 
-def add_tr_view(
-        annotations: List[SimpleAnnotation],
-        textrepo_base_url: str,
-        segmented_version_id: str
-) -> List[SimpleAnnotation]:
-    new_annotations = []
-    for a in annotations:
-        if not a.metadata:
-            new_metadata = {}
-        else:
-            new_metadata = a.metadata
-        tr_view_url = (f"{textrepo_base_url}/view/versions/{segmented_version_id}"
-                       f"/segments/index/{a.first_anchor}/{a.last_anchor}")
-        new_metadata['tr_view'] = tr_view_url
-        clone = dataclasses.replace(a, metadata=new_metadata)
-        new_annotations.append(clone)
-    return new_annotations
+# def add_tr_view(
+#         annotations: List[SimpleAnnotation],
+#         textrepo_base_url: str,
+#         segmented_version_id: str
+# ) -> List[SimpleAnnotation]:
+#     new_annotations = []
+#     for a in annotations:
+#         if not a.metadata:
+#             new_metadata = {}
+#         else:
+#             new_metadata = a.metadata
+#         tr_view_url = (f"{textrepo_base_url}/view/versions/{segmented_version_id}"
+#                        f"/segments/index/{a.first_anchor}/{a.last_anchor}")
+#         new_metadata['tr_view'] = tr_view_url
+#         clone = dataclasses.replace(a, metadata=new_metadata)
+#         new_annotations.append(clone)
+#     return new_annotations
 
 
-def process_document(base_provenance, document_metadata, prov_client, results, tr_client):
+def process_document(
+        base_provenance: ProvenanceData,
+        document_metadata: DocumentMetadata,
+        prov_client: ProvenanceClient,
+        results: Dict[str, any],
+        tr_client: TextRepoClient,
+        waf: WebAnnotationFactory
+):
     links = {'textrepo_links': {}}
+
     document_identifier = create_or_update_tr_document(document_metadata, tr_client)
+
     links['textrepo_links']['document'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}"
     links['textrepo_links']['metadata'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}/metadata"
+
     segmented_text, text_provenance, annotations = untangle_document(
-        document_id=document_metadata.external_id,
+        document_id=document_metadata.nl_hana_nr,
         textrepo_client=tr_client,
         pagexml_ids=document_metadata.pagexml_ids,
         links=links,
@@ -128,19 +132,20 @@ def process_document(base_provenance, document_metadata, prov_client, results, t
     version_identifier = tr_client.import_version(
         external_id=document_metadata.external_id,
         type_name='segmented_text',
-        contents=json.dumps(segmented_text),
+        contents=json.dumps(segmented_text, ensure_ascii=False),
         as_latest_version=True
     )
     links['textrepo_links']['file'] = f"{tr_client.base_uri}/rest/files/{version_identifier.file_id}"
 
     version_uri = f"{tr_client.base_uri}/rest/versions/{version_identifier.version_id}"
     links['textrepo_links']['version'] = version_uri
+
     text_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
 
     links['textrepo_links']['contents'] = (f"{tr_client.base_uri}/task/find/{document_metadata.external_id}"
                                            f"/file/contents?type=segmented_text")
 
-    file_name = f'{document_metadata.external_id}.json'
+    file_name = f'{document_metadata.nl_hana_nr}.json'
     tr_client.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
     # provenance = dataclasses.replace(
     #     base_provenance,
@@ -154,40 +159,71 @@ def process_document(base_provenance, document_metadata, prov_client, results, t
     links['provenance_links'] = [prov_json_link, prov_html_link]
     results[document_metadata.external_id] = links
 
-    annotations = add_tr_view(annotations=annotations,
-                              textrepo_base_url=tr_client.base_uri,
-                              segmented_version_id=version_identifier.version_id)
-    links['annotations'] = [a.__dict__ for a in annotations]
+    # annotations = add_tr_view(annotations=annotations,
+    #                           textrepo_base_url=tr_client.base_uri,
+    #                           segmented_version_id=version_identifier.version_id)
+    # links['annotations'] = [a.__dict__ for a in annotations]
+
     store_results(results)
-    web_annotations = [to_web_annotation(a) for a in annotations]
+
+    for a in annotations:
+        a.segmented_version_id = version_identifier.version_id
+        a.begin_anchor = a.offset
+        a.end_anchor = a.offset + a.length - 1
+
+    web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
+    web_annotations.insert(
+        0,
+        document_web_annotation(annotations, document_identifier.id, waf, version_identifier.version_id)
+    )
+
     export_web_annotations(document_metadata, web_annotations)
 
 
-def to_web_annotation(annotation: SimpleAnnotation) -> WebAnnotation:
-    id = "urn:globalise:" + annotation.type.lower() + ":"
-    if "id" in annotation.metadata:
-        id = id + annotation.metadata["id"]
-    else:
-        id = f"{id}{uuid.uuid4()}"
+def to_web_annotation(annotation: Annotation,
+                      webannotation_factory: WebAnnotationFactory) -> WebAnnotation:
+    body_id = annotation.id
+    annotation.metadata.pop("coords", None)
     body = {
-        "id": id,
+        "id": body_id,
         "type": annotation.type,
-        "metadata": {
-            annotation.metadata
-        }
+        "metadata": annotation.metadata
     }
-    targets = []
+    targets = webannotation_factory.annotation_targets(annotation)
     return WebAnnotation(body=body, target=targets)
 
 
+def document_web_annotation(all_annotations: List[Annotation], document_id: str,
+                            webannotation_factory: WebAnnotationFactory, segmented_version_id: str) -> WebAnnotation:
+    manifest_id = document_id.split('_')[0]
+    manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
+    textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
+    end_anchor = max([a.end_anchor for a in all_annotations])
+    return (WebAnnotation(
+        body={
+            "id": f"urn:globalise:document:{document_id}",
+            "type": "Document",
+            "metadata": {
+                "document": document_id,
+                "manifest": manifest_url
+            }
+        },
+        target=[webannotation_factory.text_anchor_selector_target(textrepo_base_url=textrepo_base_url,
+                                                                  segmented_version_id=segmented_version_id,
+                                                                  begin_anchor=0, end_anchor=end_anchor),
+                gt.cutout_target(textrepo_base_url=textrepo_base_url, segmented_version_id=segmented_version_id,
+                                 begin_anchor=0, end_anchor=end_anchor)]
+    ))
+
+
 def export_web_annotations(document_metadata, web_annotations):
-    path = f"out/{document_metadata.hana_nr}/web_annotations.json"
+    path = f"out/{document_metadata.nl_hana_nr}/web_annotations.json"
     logger.debug(f"=>{path}")
     with open(path, "w") as f:
-        json.dump(web_annotations, fp=f, indent=4)
+        json.dump(web_annotations, fp=f, indent=4, ensure_ascii=False, cls=AnnotationEncoder)
 
 
-def generate_base_provenance(cfg):
+def generate_base_provenance(cfg) -> ProvenanceData:
     script_args = " ".join(sys.argv[1:])
     commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
     base_provenance = ProvenanceData(
@@ -215,48 +251,64 @@ def is_magrginalium(text_region: PageXMLTextRegion) -> bool:
     return text_region.type[-1] == "marginalia"
 
 
-def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int) -> Tuple[List[str], List[SimpleAnnotation]]:
+def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) -> Tuple[List[str], List[Annotation]]:
     scan_lines = []
     scan_annotations = []
-    # offset = start_offset
+    id_prefix = gt.make_id_prefix(scan_doc)
+
     for tr in scan_doc.get_text_regions_in_reading_order():
         tr_start_anchor = scan_start_anchor + len(scan_lines)
         tr_lines = []
         for line in tr.lines:
             if line.text:
                 line_start_anchor = tr_start_anchor + len(tr_lines)
-                tr_lines.append(line.text)
+                tr_lines.append(line)
+                # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
+                #                                      last_anchor=line_start_anchor, coords=line.coords,
+                #                                      metadata={'id': line.id})
+                px_line = gt.PXTextLine(
+                    id=line.id,
+                    text_region_id=tr.id,
+                    page_id=page_id(scan_doc),
+                    coords=line.coords,
+                    first_word_id=None,
+                    last_word_id=None,
+                    text=line.text,
+                )
                 scan_annotations.append(
-                    SimpleAnnotation(type='TextLine',
-                                     text=line.text,
-                                     first_anchor=line_start_anchor,
-                                     last_anchor=line_start_anchor,
-                                     coords=line.coords,
-                                     metadata={'id': line.id}))
-        # tr_len = len(tr_lines)
-        # offset = start_offset + tr_len
-        scan_annotations.append(
-            SimpleAnnotation(type='TextRegion',
-                             text=' '.join(tr_lines),
-                             first_anchor=tr_start_anchor,
-                             last_anchor=tr_start_anchor + len(tr_lines) - 1,
-                             coords=tr.coords,
-                             metadata={'id': tr.id, 'structure_type': tr.type[-1]}),
-        )
-        scan_lines.extend(tr_lines)
+                    gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix, offset=tr_start_anchor, length=1)
+                )
+        if tr_lines:
+            px_textregion = gt.PXTextRegion(
+                id=tr.id,
+                page_id=page_id(scan_doc),
+                coords=tr.coords,
+                first_line_id=tr_lines[0].id,
+                last_line_id=tr_lines[-1].id,
+                first_word_id=None,
+                last_word_id=None,
+                segment_length=len(tr_lines),
+                structure_type=tr.type[-1],
+                text=" ".join([trl.text for trl in tr_lines])
+            )
+            scan_annotations.append(
+                gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix, offset=tr_start_anchor,
+                                          length=len(tr_lines))
+            )
+            scan_lines.extend([trl.text for trl in tr_lines])
 
     scan_annotations.append(
-        SimpleAnnotation(type='Scan',
-                         text=' '.join(scan_lines),
-                         first_anchor=scan_start_anchor,
-                         last_anchor=scan_start_anchor + len(scan_lines) - 1,
-                         coords=scan_doc.coords,
-                         metadata={
-                             'id': scan_doc.id
-                         }
-                         )
+        gt.page_annotation(id_prefix=id_prefix,
+                           page_id=page_id(scan_doc),
+                           path=path,
+                           total_size=len(scan_lines),
+                           document_id=scan_doc.id)
     )
     return scan_lines, scan_annotations
+
+
+def page_id(scan_doc):
+    return scan_doc.id.replace('.jpg', '')
 
 
 def untangle_document(
@@ -265,7 +317,7 @@ def untangle_document(
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
         links: Dict[str, Any]
-) -> Tuple[Dict[str, any], ProvenanceData, List[SimpleAnnotation]]:
+) -> Tuple[Dict[str, any], ProvenanceData, List[Annotation]]:
     provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
 
     scan_links = {}
@@ -290,7 +342,8 @@ def untangle_document(
         start_offset = len(document_lines)
         scan_lines, scan_annotations = untangle_scan_doc(
             scan_doc=scan_doc,
-            scan_start_anchor=start_offset
+            scan_start_anchor=start_offset,
+            path=page_xml_path.split('/')[-1]
         )
         document_annotations.extend(scan_annotations)
 
@@ -300,15 +353,7 @@ def untangle_document(
             document_lines.extend(scan_lines)
         scan_links[external_id] = page_links
 
-    doc_first_anchor = 0
-    doc_last_anchor = len(document_lines) - 1
-    document_annotations.append(SimpleAnnotation(type="Document",
-                                                 text=' '.join(document_lines),
-                                                 first_anchor=doc_first_anchor,
-                                                 last_anchor=doc_last_anchor,
-                                                 coords=None)
-                                )
-    document_annotations.sort(key=lambda a: f'{a.first_anchor:06d}{10000 - a.last_anchor:06d}')
+    document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     links['scan_links'] = scan_links
     segmented_text = {"_ordered_segments": document_lines}
     return segmented_text, provenance, document_annotations
@@ -340,7 +385,7 @@ def store_results(results: Dict[str, any]):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
-        json.dump(results, fp=f, cls=AnnotationEncoder, indent=4)
+        json.dump(results, fp=f, cls=AnnotationEncoder, indent=4, ensure_ascii=False)
 
 
 def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:

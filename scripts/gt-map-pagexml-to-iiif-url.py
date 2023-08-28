@@ -23,7 +23,7 @@ def to_div(element) -> Div:
 
 
 def base_name(label: str) -> str:
-    return label.replace('.tif', '').split('/')[-1]
+    return label.replace('.tif', '').replace('.jpg', '').split('/')[-1]
 
 
 def iiif_base_url(file_id: str, root) -> str:
