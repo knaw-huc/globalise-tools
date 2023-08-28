@@ -174,7 +174,7 @@ def process_document(
     web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
     web_annotations.insert(
         0,
-        document_web_annotation(annotations, document_identifier.id, waf, version_identifier.version_id)
+        document_web_annotation(annotations, document_metadata.nl_hana_nr, waf, version_identifier.version_id)
     )
 
     export_web_annotations(document_metadata, web_annotations)
@@ -195,13 +195,13 @@ def to_web_annotation(annotation: Annotation,
 
 def document_web_annotation(all_annotations: List[Annotation], document_id: str,
                             webannotation_factory: WebAnnotationFactory, segmented_version_id: str) -> WebAnnotation:
-    manifest_id = document_id.split('_')[0]
+    manifest_id = document_id
     manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
     textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
     end_anchor = max([a.end_anchor for a in all_annotations])
     return (WebAnnotation(
         body={
-            "id": f"urn:globalise:document:{document_id}",
+            "id": f"urn:globalise:{document_id}:document",
             "type": "Document",
             "metadata": {
                 "document": document_id,
@@ -276,7 +276,8 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
                     text=line.text,
                 )
                 scan_annotations.append(
-                    gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix, offset=tr_start_anchor, length=1)
+                    gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix,
+                                            offset=tr_start_anchor + len(tr_lines) - 1, length=1)
                 )
         if tr_lines:
             px_textregion = gt.PXTextRegion(
