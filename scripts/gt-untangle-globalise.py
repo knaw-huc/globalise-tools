@@ -75,55 +75,30 @@ class DocumentMetadata:
 @logger.catch
 def main(cfg: DictConfig) -> None:
     results = {}
-    metadata = read_document_metadata(cfg.documents_file)
+    metadata = read_na_file_metadata(cfg.documents_file)
     base_provenance = generate_base_provenance(cfg)
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-    # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:5]
-    dm_selection = metadata
+    dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:10]
+    # dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file)
 
     with textrepo_client as trc, provenance_client as prc:
         for dm in dm_selection:
             # ic(dm)
-            process_document(base_provenance, dm, prc, results, trc, webannotation_factory)
+            process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results)
 
 
-# def add_tr_view(
-#         annotations: List[SimpleAnnotation],
-#         textrepo_base_url: str,
-#         segmented_version_id: str
-# ) -> List[SimpleAnnotation]:
-#     new_annotations = []
-#     for a in annotations:
-#         if not a.metadata:
-#             new_metadata = {}
-#         else:
-#             new_metadata = a.metadata
-#         tr_view_url = (f"{textrepo_base_url}/view/versions/{segmented_version_id}"
-#                        f"/segments/index/{a.first_anchor}/{a.last_anchor}")
-#         new_metadata['tr_view'] = tr_view_url
-#         clone = dataclasses.replace(a, metadata=new_metadata)
-#         new_annotations.append(clone)
-#     return new_annotations
-
-
-def process_document(
-        base_provenance: ProvenanceData,
-        document_metadata: DocumentMetadata,
-        prov_client: ProvenanceClient,
-        results: Dict[str, any],
-        tr_client: TextRepoClient,
-        waf: WebAnnotationFactory
-):
-    links = {'textrepo_links': {}}
+def process_na_file(base_provenance: ProvenanceData, document_metadata: DocumentMetadata, prov_client: ProvenanceClient,
+                    tr_client: TextRepoClient, waf: WebAnnotationFactory, results: Dict[str, any]):
+    links = {'textrepo_links': {}, 'errors': []}
 
     document_identifier = create_or_update_tr_document(document_metadata, tr_client)
 
     links['textrepo_links']['document'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}"
     links['textrepo_links']['metadata'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}/metadata"
 
-    segmented_text, text_provenance, annotations = untangle_document(
+    segmented_text, text_provenance, annotations = untangle_na_file(
         document_id=document_metadata.nl_hana_nr,
         textrepo_client=tr_client,
         pagexml_ids=document_metadata.pagexml_ids,
@@ -314,7 +289,7 @@ def page_id(scan_doc):
     return scan_doc.id.replace('.jpg', '')
 
 
-def untangle_document(
+def untangle_na_file(
         document_id: str,
         textrepo_client: TextRepoClient,
         pagexml_ids: List[str],
@@ -336,25 +311,28 @@ def untangle_document(
         provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
         iiif_url = get_iiif_url(external_id, textrepo_client)
-        # logger.info(f"iiif_url={iiif_url}")
-        page_links['iiif_url'] = iiif_url
-        # page_links['paragraph_iiif_urls'] = []
-        # page_links['sentences'] = []
-        logger.info(f"<= {page_xml_path}")
-        scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-        start_offset = len(document_lines)
-        scan_lines, scan_annotations = untangle_scan_doc(
-            scan_doc=scan_doc,
-            scan_start_anchor=start_offset,
-            path=page_xml_path.split('/')[-1]
-        )
-        document_annotations.extend(scan_annotations)
-
-        if not scan_lines:
-            logger.warning(f"no paragraph text found in {page_xml_path}")
+        if not iiif_url:
+            links['errors'].append(f"{external_id}: missing scan_url")
         else:
-            document_lines.extend(scan_lines)
-        scan_links[external_id] = page_links
+            # logger.info(f"iiif_url={iiif_url}")
+            page_links['iiif_url'] = iiif_url
+            # page_links['paragraph_iiif_urls'] = []
+            # page_links['sentences'] = []
+            logger.info(f"<= {page_xml_path}")
+            scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
+            start_offset = len(document_lines)
+            scan_lines, scan_annotations = untangle_scan_doc(
+                scan_doc=scan_doc,
+                scan_start_anchor=start_offset,
+                path=page_xml_path.split('/')[-1]
+            )
+            document_annotations.extend(scan_annotations)
+
+            if not scan_lines:
+                logger.warning(f"no paragraph text found in {page_xml_path}")
+            else:
+                document_lines.extend(scan_lines)
+            scan_links[external_id] = page_links
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     links['scan_links'] = scan_links
@@ -369,7 +347,7 @@ def get_iiif_url(external_id, textrepo_client):
         scan_url = meta['scan_url']
         return f"{scan_url}/full/max/0/default.jpg"
     else:
-        logger.error(f'missing scan_url in {meta}')
+        logger.error(f'{external_id}: missing scan_url in {meta}')
         ic(document_metadata)
         return ""
 
@@ -405,7 +383,7 @@ def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:
     )
 
 
-def read_document_metadata(selection_file: str) -> List[DocumentMetadata]:
+def read_na_file_metadata(selection_file: str) -> List[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
