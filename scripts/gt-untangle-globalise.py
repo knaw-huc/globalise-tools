@@ -142,18 +142,19 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
 
     store_results(results)
 
-    for a in annotations:
-        a.segmented_version_id = version_identifier.version_id
-        a.begin_anchor = a.offset
-        a.end_anchor = a.offset + a.length - 1
+    if annotations:
+        for a in annotations:
+            a.segmented_version_id = version_identifier.version_id
+            a.begin_anchor = a.offset
+            a.end_anchor = a.offset + a.length - 1
 
-    web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
-    web_annotations.insert(
-        0,
-        document_web_annotation(annotations, document_metadata.nl_hana_nr, waf, version_identifier.version_id)
-    )
+        web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
+        web_annotations.insert(
+            0,
+            document_web_annotation(annotations, document_metadata.nl_hana_nr, waf, version_identifier.version_id)
+        )
 
-    export_web_annotations(document_metadata, web_annotations)
+        export_web_annotations(document_metadata, web_annotations)
 
 
 def to_web_annotation(annotation: Annotation,
