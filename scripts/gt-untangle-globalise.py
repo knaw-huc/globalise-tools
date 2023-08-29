@@ -202,10 +202,11 @@ def document_web_annotation(all_annotations: List[Annotation], document_id: str,
     end_anchor = max([a.end_anchor for a in all_annotations])
     return (WebAnnotation(
         body={
-            "id": f"urn:globalise:{document_id}:document",
-            "type": "Document",
+            "@context": {"na": "https://brambg.github.io/ns/nationaal-archief#"},
+            "id": f"urn:globalise:{document_id}:file",
+            "type": "na:File",
             "metadata": {
-                "document": document_id,
+                "file": document_id,
                 "manifest": manifest_url
             }
         },
