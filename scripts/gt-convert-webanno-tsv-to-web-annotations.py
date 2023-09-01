@@ -127,8 +127,8 @@ class TokenContext:
 
 
 @logger.catch
-def main(iiif_mapping_file: str, data_dir: str):
-    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
+def main(iiif_mapping_file: str, textrepo_base_uri:str, data_dir: str):
+    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file,textrepo_base_uri=textrepo_base_uri)
     annotations = create_web_annotations(webannotation_factory, data_dir)
     print(json.dumps(annotations, indent=2))
 
@@ -386,4 +386,4 @@ def word_annotation_covers_token_range(annotation: dict[str, any],
 
 
 if __name__ == '__main__':
-    main('data/iiif-url-mapping.csv', DATA_DIR)
+    main('data/iiif-url-mapping.csv', 'https://globalise.tt.di.huc.knaw.nl/textrepo', DATA_DIR)

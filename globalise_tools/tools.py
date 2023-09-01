@@ -254,11 +254,20 @@ def cutout_target(textrepo_base_url: str,
     }
 
 
+def get_canvas_url(page_id):
+    parts = page_id.split('_')
+    inventory_number = parts[-2]
+    page_num = int(parts[-1])
+    canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
+    return canvas_url
+
+
 class WebAnnotationFactory:
     ANNO_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
 
-    def __init__(self, iiif_mapping_file: str):
+    def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str):
         self.iiif_base_url_idx = {}
+        self.textrepo_base_uri = textrepo_base_uri
         self._init_iiif_base_url_idx(iiif_mapping_file)
         self._iiif_mapping_file = iiif_mapping_file
 
@@ -266,7 +275,7 @@ class WebAnnotationFactory:
     def annotation_targets(self, annotation: Annotation):
         targets = []
         page_id = annotation.page_id
-        canvas_url = f"urn:globalise:canvas:{page_id}"
+        canvas_url = get_canvas_url(page_id)
         if "coords" in annotation.metadata:
             coords = annotation.metadata["coords"]
             if isinstance(coords, Coords):
@@ -291,7 +300,7 @@ class WebAnnotationFactory:
                 }
             ])
         targets.extend(
-            self._make_text_targets(textrepo_base_url="https://globalise.tt.di.huc.knaw.nl/textrepo",
+            self._make_text_targets(textrepo_base_url=self.textrepo_base_uri,
                                     annotation=annotation)
         )
         return targets
@@ -432,12 +441,13 @@ def make_id_prefix(scan_doc: PageXMLScan) -> str:
     return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
 
 
-def page_annotation(id_prefix: str, page_id: str, path: str, total_size: int, document_id: str) -> Annotation:
+def page_annotation(id_prefix: str, page_id: str, path: str, offset: int, total_size: int,
+                    document_id: str) -> Annotation:
     return Annotation(
         type=PAGE_TYPE,
         id=make_page_id(id_prefix),
         page_id=page_id,
-        offset=0,
+        offset=offset,
         length=total_size,
         metadata={
             "document": document_id,

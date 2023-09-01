@@ -79,9 +79,15 @@ def main(cfg: DictConfig) -> None:
     base_provenance = generate_base_provenance(cfg)
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-    dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[:10]
+
+    with open('data/na_file_selection.json') as f:
+        na_file_id_selection = set(json.load(f))
+    # ic(list(na_file_id_selection)[0])
+    # ic(metadata[0].external_id)
+    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection]
+    # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
-    webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file)
+    webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
 
     with textrepo_client as trc, provenance_client as prc:
         for dm in dm_selection:
@@ -101,7 +107,7 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
     segmented_text, text_provenance, annotations = untangle_na_file(
         document_id=document_metadata.nl_hana_nr,
         textrepo_client=tr_client,
-        pagexml_ids=document_metadata.pagexml_ids,
+        pagexml_ids=document_metadata.pagexml_ids[0:10],
         links=links,
         base_provenance=base_provenance
     )
@@ -151,7 +157,9 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
         web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
         web_annotations.insert(
             0,
-            document_web_annotation(annotations, document_metadata.nl_hana_nr, waf, version_identifier.version_id)
+            document_web_annotation(annotations, document_metadata.nl_hana_nr, waf,
+                                    version_identifier.version_id,
+                                    document_metadata.inventory_number)
         )
 
         export_web_annotations(document_metadata, web_annotations)
@@ -170,13 +178,17 @@ def to_web_annotation(annotation: Annotation,
     return WebAnnotation(body=body, target=targets)
 
 
-def document_web_annotation(all_annotations: List[Annotation], document_id: str,
-                            webannotation_factory: WebAnnotationFactory, segmented_version_id: str) -> WebAnnotation:
-    manifest_id = document_id
-    manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
+def document_web_annotation(
+        all_annotations: List[Annotation],
+        document_id: str,
+        webannotation_factory: WebAnnotationFactory,
+        segmented_version_id: str,
+        inventory_number: str
+) -> WebAnnotation:
+    manifest_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
     textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
     end_anchor = max([a.end_anchor for a in all_annotations])
-    return (WebAnnotation(
+    return WebAnnotation(
         body={
             "@context": {"na": "https://brambg.github.io/ns/nationaal-archief#"},
             "id": f"urn:globalise:{document_id}:file",
@@ -191,7 +203,7 @@ def document_web_annotation(all_annotations: List[Annotation], document_id: str,
                                                                   begin_anchor=0, end_anchor=end_anchor),
                 gt.cutout_target(textrepo_base_url=textrepo_base_url, segmented_version_id=segmented_version_id,
                                  begin_anchor=0, end_anchor=end_anchor)]
-    ))
+    )
 
 
 def export_web_annotations(document_metadata, web_annotations):
@@ -280,6 +292,7 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
         gt.page_annotation(id_prefix=id_prefix,
                            page_id=page_id(scan_doc),
                            path=path,
+                           offset=scan_start_anchor,
                            total_size=len(scan_lines),
                            document_id=scan_doc.id)
     )
@@ -306,34 +319,37 @@ def untangle_na_file(
     document_annotations = []
     for external_id in pagexml_ids:
         page_links = {}
-        page_xml_path = download_page_xml(external_id, textrepo_client, output_directory)
-        version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
-        version_location = textrepo_client.version_uri(version_identifier.id)
-        provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
-
-        iiif_url = get_iiif_url(external_id, textrepo_client)
-        if not iiif_url:
-            links['errors'].append(f"{external_id}: missing scan_url")
+        page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
+        if error:
+            links['errors'].append(error)
         else:
-            # logger.info(f"iiif_url={iiif_url}")
-            page_links['iiif_url'] = iiif_url
-            # page_links['paragraph_iiif_urls'] = []
-            # page_links['sentences'] = []
-            logger.info(f"<= {page_xml_path}")
-            scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-            start_offset = len(document_lines)
-            scan_lines, scan_annotations = untangle_scan_doc(
-                scan_doc=scan_doc,
-                scan_start_anchor=start_offset,
-                path=page_xml_path.split('/')[-1]
-            )
-            document_annotations.extend(scan_annotations)
+            version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
+            version_location = textrepo_client.version_uri(version_identifier.id)
+            provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
-            if not scan_lines:
-                logger.warning(f"no paragraph text found in {page_xml_path}")
+            iiif_url = get_iiif_url(external_id, textrepo_client)
+            if not iiif_url:
+                links['errors'].append(f"{external_id}: missing scan_url")
             else:
-                document_lines.extend(scan_lines)
-            scan_links[external_id] = page_links
+                # logger.info(f"iiif_url={iiif_url}")
+                page_links['iiif_url'] = iiif_url
+                # page_links['paragraph_iiif_urls'] = []
+                # page_links['sentences'] = []
+                logger.info(f"<= {page_xml_path}")
+                scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
+                start_offset = len(document_lines)
+                scan_lines, scan_annotations = untangle_scan_doc(
+                    scan_doc=scan_doc,
+                    scan_start_anchor=start_offset,
+                    path=page_xml_path.split('/')[-1]
+                )
+                document_annotations.extend(scan_annotations)
+
+                if not scan_lines:
+                    logger.warning(f"no paragraph text found in {page_xml_path}")
+                else:
+                    document_lines.extend(scan_lines)
+                scan_links[external_id] = page_links
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     links['scan_links'] = scan_links
@@ -354,13 +370,17 @@ def get_iiif_url(external_id, textrepo_client):
 
 
 def download_page_xml(external_id, textrepo_client, output_directory: str):
+    error = None
     page_xml_path = f"{output_directory}/{external_id}.xml"
     if not Path(page_xml_path).is_file():
-        pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-        logger.info(f"=> {page_xml_path}")
-        with open(page_xml_path, "w") as f:
-            f.write(pagexml)
-    return page_xml_path
+        try:
+            pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
+            logger.info(f"=> {page_xml_path}")
+            with open(page_xml_path, "w") as f:
+                f.write(pagexml)
+        except:
+            error = f"{external_id}: not found on {textrepo_client.base_uri}"
+    return page_xml_path, error
 
 
 def store_results(results: Dict[str, any]):
