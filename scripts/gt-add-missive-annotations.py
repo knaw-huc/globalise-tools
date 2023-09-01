@@ -2,7 +2,7 @@
 import csv
 import json
 import os.path
-from typing import Dict
+from typing import Dict, Any
 
 import hydra
 from loguru import logger
@@ -13,6 +13,21 @@ from globalise_tools.model import WebAnnotation, AnnotationEncoder
 from globalise_tools.tools import WebAnnotationFactory
 
 missiven = 'data/generale_missiven.csv'
+
+
+def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = {}
+    for key in missive_record.keys():
+        new_key = ("gl:" + key.lower()
+                   .replace(' ', '_')
+                   .replace('.', '_')
+                   .replace(':', '')
+                   .replace('?', '')
+                   .replace('(', '')
+                   .replace(')', '')
+                   )
+        metadata[new_key] = missive_record[key]
+    return metadata
 
 
 @hydra.main(version_base=None)
@@ -58,13 +73,14 @@ def main(cfg: DictConfig) -> None:
                 # )
                 segmented_version_id, begin_anchor, end_anchor = document_range
 
+                metadata = as_metadata(mr)
+
                 missive_annotation = WebAnnotation(
                     body={
                         "@context": {"gl": "https://brambg.github.io/ns/globalise#"},
                         "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
                         "type": "gl:GeneralMissive",
-                        "metadata": {
-                        }
+                        "metadata": metadata
                     },
                     target=[
                         webannotation_factory.text_anchor_selector_target(

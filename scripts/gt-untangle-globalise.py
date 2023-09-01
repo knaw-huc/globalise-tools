@@ -85,6 +85,7 @@ def main(cfg: DictConfig) -> None:
     # ic(list(na_file_id_selection)[0])
     # ic(metadata[0].external_id)
     dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection]
+    dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
@@ -107,7 +108,7 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
     segmented_text, text_provenance, annotations = untangle_na_file(
         document_id=document_metadata.nl_hana_nr,
         textrepo_client=tr_client,
-        pagexml_ids=document_metadata.pagexml_ids[0:10],
+        pagexml_ids=document_metadata.pagexml_ids,
         links=links,
         base_provenance=base_provenance
     )
@@ -208,7 +209,7 @@ def document_web_annotation(
 
 def export_web_annotations(document_metadata, web_annotations):
     path = f"out/{document_metadata.nl_hana_nr}/web_annotations.json"
-    logger.debug(f"=>{path}")
+    logger.debug(f"=> {path}")
     with open(path, "w") as f:
         json.dump(web_annotations, fp=f, indent=4, ensure_ascii=False, cls=AnnotationEncoder)
 
@@ -380,6 +381,7 @@ def download_page_xml(external_id, textrepo_client, output_directory: str):
                 f.write(pagexml)
         except:
             error = f"{external_id}: not found on {textrepo_client.base_uri}"
+            logger.error(error)
     return page_xml_path, error
 
 
