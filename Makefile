@@ -4,6 +4,12 @@ SHELL=/bin/bash
 data/iiif-url-mapping.csv: scripts/gt-map-pagexml-to-iiif-url.py data/NL-HaNA_1.04.02_mets.csv
 	poetry run scripts/gt-map-pagexml-to-iiif-url.py --data-dir data
 
+data/generale_missiven.csv:
+	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
+
+data/document_metadata.csv:
+	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
+
 .PHONY: extract-all
 extract-all:
 	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
