@@ -30,6 +30,13 @@ def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
     return metadata
 
 
+def store_annotations(annotations):
+    path = "out/missive_annotations.json"
+    logger.debug(f"=> {path}")
+    with open(path, "w") as f:
+        json.dump(annotations, fp=f, indent=4, ensure_ascii=False, cls=AnnotationEncoder)
+
+
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
@@ -39,6 +46,7 @@ def main(cfg: DictConfig) -> None:
     last_inv_nr = None
     last_segment_ranges = None
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
+    missive_annotations = []
     for mr in missiven_records:
         if mr['Beginscan']:
             inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']
@@ -64,7 +72,7 @@ def main(cfg: DictConfig) -> None:
                 first_range = page_segment_ranges[first_scan]
                 last_range = page_segment_ranges[last_scan]
                 document_range = (first_range[0], first_range[1], last_range[2])
-                print(internal_id, document_range)
+                # print(internal_id, document_range)
                 tanap_id = mr['ID in TANAP database']
                 # missive_annotation = Annotation(
                 #     type="gl:GeneralMissive",
@@ -97,7 +105,10 @@ def main(cfg: DictConfig) -> None:
                         )
                     ]
                 )
-                print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
+                missive_annotations.append(missive_annotation)
+
+                # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
+        store_annotations(missive_annotations)
 
 
 def segment_range(web_annotation: Dict[str, any]):
