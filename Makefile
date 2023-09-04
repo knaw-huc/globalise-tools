@@ -29,6 +29,16 @@ web-annotations:
 .PHONY: test-untangle
 test-untangle: data/iiif-url-mapping.csv
 	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
+	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
+	poetry run ./scripts/gt-convert-inception-annotations.py -cd conf -cn test.yaml
+
+.PHONY: test-missive-annotations
+test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt-create-missive-annotations.py conf/test.yaml
+	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
+
+.PHONY: test-inception-annotations
+test-inception-annotations: out/*/web_annotations.json data/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations.py conf/test.yaml
+	poetry run ./scripts/gt-convert-inception-annotations.py -cd conf -cn test.yaml
 
 .PHONY: install
 install:
@@ -40,10 +50,12 @@ help:
 	@echo "make-tools for globalise-tools"
 	@echo
 	@echo "Please use \`make <target>\', where <target> is one of:"
-	@echo "  install                to install the necessary requirements"
-#	@echo "  extract-all            to extract text and annotations from all document directories"
-#	@echo "  web-annotations        to generate the web-annotations"
-	@echo "  test-untangle          to generate and upload segmented text and web-annotations using test settings"
-	@echo "  sample                 to extract a sample of web annotations where every type is represented"
-	@echo "  install-spacy-model    to load the 'nl_core_news_lg' language model used by spacy"
+	@echo "  install                	to install the necessary requirements"
+#	@echo "  extract-all            		to extract text and annotations from all document directories"
+#	@echo "  web-annotations        		to generate the web-annotations"
+	@echo "  test-untangle          	to generate and upload segmented text and web-annotations using test settings"
+	@echo "  test-missive-annotations	to generate general missive web-annotations using test settings"
+	@echo "  test-inception-annotations	to generate document web-annotations from the inception export using test settings"
+	@echo "  sample                 	to extract a sample of web annotations where every type is represented"
+	@echo "  install-spacy-model    	to load the 'nl_core_news_lg' language model used by spacy"
 	@echo

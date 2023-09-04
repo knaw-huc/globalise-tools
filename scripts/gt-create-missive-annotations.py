@@ -51,13 +51,16 @@ def main(cfg: DictConfig) -> None:
     last_segment_ranges = None
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
     missive_annotations = []
-    for mr in missiven_records:
+    total = len(missiven_records)
+    missed = 0
+    for i, mr in enumerate(missiven_records):
+        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']
+        logger.info(f"processing inv.nr. {inv_nr} ({mr['Beginscan']} - {mr['Eindscan']}) [{i + 1}/{total}]")
         if mr['Beginscan']:
-            inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']
             na_file_id = f"NL-HaNA_1.04.02_{inv_nr}"
             first_scan = f"{int(mr['Beginscan']):04d}"
             last_scan = f"{int(mr['Eindscan']):04d}"
-            internal_id = f"{na_file_id}_{first_scan}-{last_scan}"
+            # internal_id = f"{na_file_id}_{first_scan}-{last_scan}"
             page_segment_ranges = {}
             if inv_nr == last_inv_nr:
                 page_segment_ranges = last_segment_ranges
@@ -70,19 +73,16 @@ def main(cfg: DictConfig) -> None:
                         annotations = json.load(f)
                     page_annotations = [a for a in annotations if a['body']['type'] == 'px:Page']
                     page_segment_ranges = {a['body']['metadata']['n']: segment_range(a) for a in page_annotations}
+                else:
+                    logger.warning(f"file not found: {wa_path} ; skipping this inv.nr.")
+                    missed += 1
                 last_inv_nr = inv_nr
                 last_segment_ranges = page_segment_ranges
             if page_segment_ranges:
                 first_range = page_segment_ranges[first_scan]
                 last_range = page_segment_ranges[last_scan]
                 document_range = (first_range[0], first_range[1], last_range[2])
-                # print(internal_id, document_range)
                 tanap_id = mr['ID in TANAP database']
-                # missive_annotation = Annotation(
-                #     type="gl:GeneralMissive",
-
-                #
-                # )
                 segmented_version_id, begin_anchor, end_anchor = document_range
 
                 metadata = as_metadata(mr)
@@ -117,7 +117,9 @@ def main(cfg: DictConfig) -> None:
                 missive_annotations.append(missive_annotation)
 
                 # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
-        store_annotations(missive_annotations)
+                store_annotations(missive_annotations)
+    if missed:
+        logger.warning(f"web_annotations were not found for {missed}/{total} missives")
 
 
 def segment_range(web_annotation: Dict[str, any]):

@@ -42,7 +42,9 @@ def main(cfg: DictConfig) -> None:
     last_segment_ranges = None
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
     inception_annotations = []
-    for mr in metadata_records:
+    total = len(metadata_records)
+    for i, mr in enumerate(metadata_records):
+        logger.info(f"processing {mr['internal_id']} ({i + 1}/{total})")
         if mr['scan_range']:
             start, end = mr['scan_range'].split('-')
             inv_nr = mr['inventory_number']
@@ -61,6 +63,8 @@ def main(cfg: DictConfig) -> None:
                         annotations = json.load(f)
                     page_annotations = [a for a in annotations if a['body']['type'] == 'px:Page']
                     page_segment_ranges = {a['body']['metadata']['n']: segment_range(a) for a in page_annotations}
+                else:
+                    logger.warning(f"file not found: {wa_path} ; skipping this record")
                 last_inv_nr = inv_nr
                 last_segment_ranges = page_segment_ranges
             if page_segment_ranges:
@@ -101,7 +105,7 @@ def main(cfg: DictConfig) -> None:
                 inception_annotations.append(missive_annotation)
 
                 # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
-        store_annotations(inception_annotations)
+                store_annotations(inception_annotations)
 
 
 def segment_range(web_annotation: Dict[str, any]):
