@@ -206,7 +206,7 @@ def document_web_annotation(
     end_anchor = max([a.end_anchor for a in all_annotations])
     return WebAnnotation(
         body={
-            "@context": {"na": "https://brambg.github.io/ns/nationaal-archief#"},
+            "@context": {"na": "https://knaw-huc.github.io/ns/nationaal-archief#"},
             "id": f"urn:globalise:{document_id}:file",
             "type": "na:File",
             "metadata": {

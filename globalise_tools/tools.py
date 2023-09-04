@@ -263,7 +263,7 @@ def get_canvas_url(page_id):
 
 
 class WebAnnotationFactory:
-    ANNO_CONTEXT = "https://brambg.github.io/ns/republic.jsonld"
+    ANNO_CONTEXT = "https://knaw-huc.github.io/ns/huc-di-tt.jsonld"
 
     def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str):
         self.iiif_base_url_idx = {}
@@ -379,7 +379,7 @@ class WebAnnotationFactory:
             'type': "Text",
             "selector": {
                 '@context': self.ANNO_CONTEXT,
-                "type": "urn:republic:TextAnchorSelector",
+                "type": "TextAnchorSelector",
                 "start": begin_anchor,
                 "end": end_anchor
             }
@@ -554,7 +554,7 @@ def to_web_annotation(annotation: Annotation, webannotation_factory: WebAnnotati
 
 def annotation_body(annotation: Annotation):
     body = {
-        "@context": {"tt": "https://brambg.github.io/ns/team-text#", "px": "https://brambg.github.io/ns/pagexml#"},
+        "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#", "px": "https://knaw-huc.github.io/ns/pagexml#"},
         "id": annotation.id,
         "type": annotation.type
     }

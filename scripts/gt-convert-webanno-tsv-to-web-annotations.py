@@ -243,7 +243,7 @@ def make_event_argument_annotation(al: AnnotationLink,
                                    event_body_id: str):
     anno = linked_annotation
     body = {
-        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
         "type": "tt:EventArgument",
         "id": f"urn:globalise:event_argument:{uuid.uuid4()}",
         "text": anno.text,
@@ -266,7 +266,7 @@ def make_event_argument_annotation(al: AnnotationLink,
 def make_event_body(anno: Annotation, argument_source: Dict[str, str], body_id: str) -> Dict[str, any]:
     fields = anno.features
     body = {
-        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
         "type": "tt:Event",
         "id": body_id,
         "text": anno.text
@@ -318,7 +318,7 @@ def make_entity_body(anno: Annotation):
     class_name = fields["value"]
     e_uuid = uuid.uuid4()
     body = {
-        "@context": {"tt": "https://brambg.github.io/ns/team-text#"},
+        "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
         "type": "tt:Entity",
         "id": f"urn:globalise:entity:{e_uuid}",
         "class_name": class_name,
