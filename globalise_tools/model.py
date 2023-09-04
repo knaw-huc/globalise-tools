@@ -1,12 +1,13 @@
 import uuid
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from datetime import datetime
 from json import JSONEncoder
 from typing import Dict, Any, List
 
-import globalise_tools.tools as gt
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
+
+import globalise_tools.tools as gt
 
 
 @dataclass
@@ -78,10 +79,11 @@ def as_int(string: str) -> int:
 class WebAnnotation:
     body: Dict[str, Any]
     target: Any
+    custom: dict[str, Any] = field(default_factory=dict, hash=False)
 
     def wrapped(self):
         anno_uuid = uuid.uuid4()
-        return {
+        dict = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
@@ -95,6 +97,9 @@ class WebAnnotation:
             "body": self.body,
             "target": self.target
         }
+        if self.custom:
+            dict.update(self.custom)
+        return dict
 
 
 @dataclass

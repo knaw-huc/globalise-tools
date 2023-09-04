@@ -16,10 +16,11 @@ missiven = 'data/generale_missiven.csv'
 
 
 def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
-    metadata = {}
+    metadata = {"@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"}, "type": "GeneralMissiveMetadata"}
+
     for key in missive_record.keys():
-        # namespace = "gl:"
-        namespace = ""
+        namespace = "gl:"
+        # namespace = ""
         new_key = (namespace + key.lower()
                    .replace(' ', '_')
                    .replace('.', '_')
@@ -27,6 +28,7 @@ def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
                    .replace('?', '')
                    .replace('(', '')
                    .replace(')', '')
+                   .replace('__', '_')
                    )
         metadata[new_key] = missive_record[key]
     return metadata
@@ -105,7 +107,12 @@ def main(cfg: DictConfig) -> None:
                             begin_anchor=begin_anchor,
                             end_anchor=end_anchor
                         )
-                    ]
+                    ],
+                    custom={
+                        "generator": {
+                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-add-missive-annotations.py",
+                            "type": "Software"}
+                    }
                 )
                 missive_annotations.append(missive_annotation)
 
