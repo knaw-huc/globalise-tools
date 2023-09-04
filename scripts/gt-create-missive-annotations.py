@@ -110,7 +110,7 @@ def main(cfg: DictConfig) -> None:
                     ],
                     custom={
                         "generator": {
-                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-add-missive-annotations.py",
+                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-create-missive-annotations.py",
                             "type": "Software"}
                     }
                 )

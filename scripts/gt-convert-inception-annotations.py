@@ -12,30 +12,21 @@ import globalise_tools.tools as gt
 from globalise_tools.model import WebAnnotation, AnnotationEncoder
 from globalise_tools.tools import WebAnnotationFactory
 
-missiven = 'data/generale_missiven.csv'
+metadata_path = "data/document_metadata.csv"
 
 
-def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
-    metadata = {"@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"}, "type": "GeneralMissiveMetadata"}
+def as_metadata(record: Dict[str, Any]) -> Dict[str, Any]:
+    metadata = {"@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"}, "type": "DocumentMetadata"}
 
-    for key in missive_record.keys():
+    for key in record.keys():
         namespace = "gl:"
-        # namespace = ""
-        new_key = (namespace + key.lower()
-                   .replace(' ', '_')
-                   .replace('.', '_')
-                   .replace(':', '')
-                   .replace('?', '')
-                   .replace('(', '')
-                   .replace(')', '')
-                   .replace('__', '_')
-                   )
-        metadata[new_key] = missive_record[key]
+        new_key = f"{namespace}{key}"
+        metadata[new_key] = record[key]
     return metadata
 
 
 def store_annotations(annotations):
-    path = "out/missive_annotations.json"
+    path = "out/inception_annotations.json"
     logger.debug(f"=> {path}")
     with open(path, "w") as f:
         json.dump(annotations, fp=f, indent=4, ensure_ascii=False, cls=AnnotationEncoder)
@@ -44,20 +35,20 @@ def store_annotations(annotations):
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
-    with open(missiven, 'r') as f:
-        reader = csv.DictReader(f, delimiter=';')
-        missiven_records = [r for r in reader]
+    with open(metadata_path, 'r') as f:
+        reader = csv.DictReader(f)
+        metadata_records = [r for r in reader]
     last_inv_nr = None
     last_segment_ranges = None
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
-    missive_annotations = []
-    for mr in missiven_records:
-        if mr['Beginscan']:
-            inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']
+    inception_annotations = []
+    for mr in metadata_records:
+        if mr['scan_range']:
+            start, end = mr['scan_range'].split('-')
+            inv_nr = mr['inventory_number']
             na_file_id = f"NL-HaNA_1.04.02_{inv_nr}"
-            first_scan = f"{int(mr['Beginscan']):04d}"
-            last_scan = f"{int(mr['Eindscan']):04d}"
-            internal_id = f"{na_file_id}_{first_scan}-{last_scan}"
+            first_scan = f"{int(start):04d}"
+            last_scan = f"{int(end):04d}"
             page_segment_ranges = {}
             if inv_nr == last_inv_nr:
                 page_segment_ranges = last_segment_ranges
@@ -76,13 +67,6 @@ def main(cfg: DictConfig) -> None:
                 first_range = page_segment_ranges[first_scan]
                 last_range = page_segment_ranges[last_scan]
                 document_range = (first_range[0], first_range[1], last_range[2])
-                # print(internal_id, document_range)
-                tanap_id = mr['ID in TANAP database']
-                # missive_annotation = Annotation(
-                #     type="gl:GeneralMissive",
-
-                #
-                # )
                 segmented_version_id, begin_anchor, end_anchor = document_range
 
                 metadata = as_metadata(mr)
@@ -90,8 +74,8 @@ def main(cfg: DictConfig) -> None:
                 missive_annotation = WebAnnotation(
                     body={
                         "@context": {"@vocab": "https://knaw-huc.github.io/ns/globalise#"},
-                        "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
-                        "type": "GeneralMissive",
+                        "id": f"urn:globalise:document:{mr['document_id']}",
+                        "type": "Document",
                         "metadata": metadata
                     },
                     target=[
@@ -110,14 +94,14 @@ def main(cfg: DictConfig) -> None:
                     ],
                     custom={
                         "generator": {
-                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-add-missive-annotations.py",
+                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-convert-inception-annotations.py",
                             "type": "Software"}
                     }
                 )
-                missive_annotations.append(missive_annotation)
+                inception_annotations.append(missive_annotation)
 
                 # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
-        store_annotations(missive_annotations)
+        store_annotations(inception_annotations)
 
 
 def segment_range(web_annotation: Dict[str, any]):
