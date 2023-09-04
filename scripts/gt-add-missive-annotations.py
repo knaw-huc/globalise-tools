@@ -18,7 +18,9 @@ missiven = 'data/generale_missiven.csv'
 def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
     metadata = {}
     for key in missive_record.keys():
-        new_key = ("gl:" + key.lower()
+        # namespace = "gl:"
+        namespace = ""
+        new_key = (namespace + key.lower()
                    .replace(' ', '_')
                    .replace('.', '_')
                    .replace(':', '')
@@ -85,9 +87,9 @@ def main(cfg: DictConfig) -> None:
 
                 missive_annotation = WebAnnotation(
                     body={
-                        "@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"},
+                        "@context": {"@vocab": "https://knaw-huc.github.io/ns/globalise#"},
                         "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
-                        "type": "gl:GeneralMissive",
+                        "type": "GeneralMissive",
                         "metadata": metadata
                     },
                     target=[
