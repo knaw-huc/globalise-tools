@@ -75,6 +75,8 @@ class DocumentMetadata:
 @logger.catch
 def main(cfg: DictConfig) -> None:
     results = {}
+    processed = load_processed_files()
+
     metadata = read_na_file_metadata(cfg.documents_file)
     base_provenance = generate_base_provenance(cfg)
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
@@ -84,7 +86,7 @@ def main(cfg: DictConfig) -> None:
         na_file_id_selection = set(json.load(f))
     # ic(list(na_file_id_selection)[0])
     # ic(metadata[0].external_id)
-    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection]
+    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
     dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
@@ -94,6 +96,19 @@ def main(cfg: DictConfig) -> None:
         for dm in dm_selection:
             # ic(dm)
             process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results)
+            processed.add(dm.external_id)
+            with open("out/processed.json", "w") as f:
+                json.dump(list(processed), fp=f)
+
+
+def load_processed_files():
+    processed_file = "out/processed.json"
+    if os.path.exists(processed_file):
+        with open("out/processed.json") as f:
+            processed = set(json.load(f))
+    else:
+        processed = set()
+    return processed
 
 
 def process_na_file(base_provenance: ProvenanceData, document_metadata: DocumentMetadata, prov_client: ProvenanceClient,
