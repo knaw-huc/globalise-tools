@@ -89,7 +89,7 @@ def main(cfg: DictConfig) -> None:
     # ic(list(na_file_id_selection)[0])
     # ic(metadata[0].external_id)
     dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
-    dm_selection.sort(key=lambda x: x.no_of_scans)
+    # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
@@ -309,6 +309,10 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
             )
             scan_lines.extend([trl.text for trl in tr_lines])
 
+    if not scan_lines:
+        logger.warning(f"no paragraph text found in {scan_doc.id}")
+        scan_lines.append("")
+
     scan_annotations.append(
         gt.page_annotation(id_prefix=id_prefix,
                            page_id=page_id(scan_doc),
@@ -368,12 +372,7 @@ def untangle_na_file(
                     path=page_xml_path.split('/')[-1]
                 )
                 document_annotations.extend(scan_annotations)
-
-                if not scan_lines:
-                    logger.warning(f"no paragraph text found in {page_xml_path}")
-                    document_lines.append("")
-                else:
-                    document_lines.extend(scan_lines)
+                document_lines.extend(scan_lines)
                 scan_links[external_id] = page_links
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
@@ -400,7 +399,7 @@ def download_page_xml(external_id, textrepo_client, output_directory: str):
     if not Path(page_xml_path).is_file():
         try:
             pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-            # logger.info(f"=> {page_xml_path}")
+            logger.info(f"=> {page_xml_path}")
             with open(page_xml_path, "w") as f:
                 f.write(pagexml)
         except:
