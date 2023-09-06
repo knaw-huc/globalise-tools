@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import csv
-import dataclasses
 import json
 import os
 import subprocess
 import sys
+import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
@@ -17,7 +17,7 @@ from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
-from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
+from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
 from textrepo.client import TextRepoClient
 from uri import URI
 
@@ -74,11 +74,13 @@ class DocumentMetadata:
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
+    # logger.level('warning')
     results = {}
     processed = load_processed_files()
 
     metadata = read_na_file_metadata(cfg.documents_file)
-    base_provenance = generate_base_provenance(cfg)
+    # base_provenance = generate_base_provenance(cfg)
+    base_provenance = None
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
@@ -92,10 +94,15 @@ def main(cfg: DictConfig) -> None:
     # dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
 
+    total = len(dm_selection)
     with textrepo_client as trc, provenance_client as prc:
-        for dm in dm_selection:
-            # ic(dm)
+        for i, dm in enumerate(dm_selection):
+            logger.info(f"processing {dm.external_id} [{i + 1}/{total}]")
+            before = time.perf_counter()
             process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results)
+            after = time.perf_counter()
+            diff = after - before
+            logger.debug(f"done in {diff} s = {diff / dm.no_of_scans} s/pagexml")
             processed.add(dm.external_id)
             with open("out/processed.json", "w") as f:
                 json.dump(list(processed), fp=f)
@@ -104,7 +111,8 @@ def main(cfg: DictConfig) -> None:
 def load_processed_files():
     processed_file = "out/processed.json"
     if os.path.exists(processed_file):
-        with open("out/processed.json") as f:
+        logger.info(f"<= {processed_file}")
+        with open(processed_file) as f:
             processed = set(json.load(f))
     else:
         processed = set()
@@ -138,29 +146,24 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
     version_uri = f"{tr_client.base_uri}/rest/versions/{version_identifier.version_id}"
     links['textrepo_links']['version'] = version_uri
 
-    text_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
+    # text_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
 
     links['textrepo_links']['contents'] = (f"{tr_client.base_uri}/task/find/{document_metadata.external_id}"
                                            f"/file/contents?type=segmented_text")
 
     file_name = f'{document_metadata.nl_hana_nr}.json'
     tr_client.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
-    # provenance = dataclasses.replace(
-    #     base_provenance,
-    #     sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
-    #     targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
-    # )
-    text_provenance_id = prov_client.add_provenance(text_provenance)
-    # provenance_id = prc.add_provenance(provenance)
-    prov_json_link = str(text_provenance_id.location)
-    prov_html_link = prov_json_link.replace('prov/', '#')
-    links['provenance_links'] = [prov_json_link, prov_html_link]
+    # # provenance = dataclasses.replace(
+    # #     base_provenance,
+    # #     sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
+    # #     targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
+    # # )
+    # text_provenance_id = prov_client.add_provenance(text_provenance)
+    # # provenance_id = prc.add_provenance(provenance)
+    # prov_json_link = str(text_provenance_id.location)
+    # prov_html_link = prov_json_link.replace('prov/', '#')
+    # links['provenance_links'] = [prov_json_link, prov_html_link]
     results[document_metadata.external_id] = links
-
-    # annotations = add_tr_view(annotations=annotations,
-    #                           textrepo_base_url=tr_client.base_uri,
-    #                           segmented_version_id=version_identifier.version_id)
-    # links['annotations'] = [a.__dict__ for a in annotations]
 
     store_results(results)
 
@@ -328,13 +331,16 @@ def untangle_na_file(
         base_provenance: ProvenanceData,
         links: Dict[str, Any]
 ) -> Tuple[Dict[str, any], ProvenanceData, List[Annotation]]:
-    provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
+    # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
+    provenance = None
 
     scan_links = {}
     output_directory = f'out/{document_id}'
     os.makedirs(output_directory, exist_ok=True)
     document_lines = []
     document_annotations = []
+    total = len(pagexml_ids)
+    logger.info(f"processing {total} pagexmls...")
     for external_id in pagexml_ids:
         page_links = {}
         page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
@@ -343,7 +349,7 @@ def untangle_na_file(
         else:
             version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
             version_location = textrepo_client.version_uri(version_identifier.id)
-            provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
+            # provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
             iiif_url = get_iiif_url(external_id, textrepo_client)
             if not iiif_url:
@@ -353,7 +359,7 @@ def untangle_na_file(
                 page_links['iiif_url'] = iiif_url
                 # page_links['paragraph_iiif_urls'] = []
                 # page_links['sentences'] = []
-                logger.info(f"<= {page_xml_path}")
+                # logger.info(f"<= {page_xml_path}")
                 scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
                 start_offset = len(document_lines)
                 scan_lines, scan_annotations = untangle_scan_doc(
@@ -365,6 +371,7 @@ def untangle_na_file(
 
                 if not scan_lines:
                     logger.warning(f"no paragraph text found in {page_xml_path}")
+                    document_lines.append("")
                 else:
                     document_lines.extend(scan_lines)
                 scan_links[external_id] = page_links
@@ -393,7 +400,7 @@ def download_page_xml(external_id, textrepo_client, output_directory: str):
     if not Path(page_xml_path).is_file():
         try:
             pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-            logger.info(f"=> {page_xml_path}")
+            # logger.info(f"=> {page_xml_path}")
             with open(page_xml_path, "w") as f:
                 f.write(pagexml)
         except:
