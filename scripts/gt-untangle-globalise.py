@@ -351,8 +351,8 @@ def untangle_na_file(
         if error:
             links['errors'].append(error)
         else:
-            version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
-            version_location = textrepo_client.version_uri(version_identifier.id)
+            # version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
+            # version_location = textrepo_client.version_uri(version_identifier.id)
             # provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
             iiif_url = get_iiif_url(external_id, textrepo_client)
