@@ -53,8 +53,9 @@ def main(cfg: DictConfig) -> None:
     missive_annotations = []
     total = len(missiven_records)
     missed = 0
+    missing_inv_nrs = []
     for i, mr in enumerate(missiven_records):
-        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']
+        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']+mr['Deel v. inventarisnummer']
         logger.info(f"processing inv.nr. {inv_nr} ({mr['Beginscan']} - {mr['Eindscan']}) [{i + 1}/{total}]")
         if mr['Beginscan']:
             na_file_id = f"NL-HaNA_1.04.02_{inv_nr}"
@@ -75,6 +76,7 @@ def main(cfg: DictConfig) -> None:
                     page_segment_ranges = {a['body']['metadata']['n']: segment_range(a) for a in page_annotations}
                 else:
                     logger.warning(f"file not found: {wa_path} ; skipping this inv.nr.")
+                    missing_inv_nrs.append(mr)
                     missed += 1
                 last_inv_nr = inv_nr
                 last_segment_ranges = page_segment_ranges
@@ -120,6 +122,18 @@ def main(cfg: DictConfig) -> None:
                 store_annotations(missive_annotations)
     if missed:
         logger.warning(f"web_annotations were not found for {missed}/{total} missives")
+        for m in missing_inv_nrs:
+            logger.warning("{")
+            for k in m.keys():
+                logger.warning(f"  {k}: {m[k]}")
+            logger.warning("}")
+        for m in missing_inv_nrs:
+            logger.warning("{")
+            for k in m.keys():
+                logger.warning(f"  {k}: {m[k]}")
+            logger.warning("}")
+        for m in missing_inv_nrs:
+            print(f"{m['Inv.nr. Nationaal Archief (1.04.02)']}; {m['Problemen gevonden tijdens handmatige check:']}")
 
 
 def segment_range(web_annotation: Dict[str, any]):
