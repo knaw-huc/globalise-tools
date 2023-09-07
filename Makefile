@@ -29,8 +29,8 @@ web-annotations:
 .PHONY: test-untangle
 test-untangle: data/iiif-url-mapping.csv
 	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
-	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
-	poetry run ./scripts/gt-convert-inception-annotations.py -cd conf -cn test.yaml
+#	make test-missive-annotations
+#	make test-inception-annotations
 
 .PHONY: test-missive-annotations
 test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt-create-missive-annotations.py conf/test.yaml
