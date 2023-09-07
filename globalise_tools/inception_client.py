@@ -7,6 +7,7 @@ from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
 from requests import Response
+from requests.cookies import cookiejar_from_dict
 
 PROJECTS_PATH = "/api/aero/v1/projects"
 
@@ -68,7 +69,7 @@ class InceptionClient:
         }
         if authorization:
             self.session.headers["authorization"] = authorization
-            self.session.cookies = {'_oauth2_proxy': oauth2_proxy}
+            self.session.cookies = cookiejar_from_dict({'_oauth2_proxy': oauth2_proxy})
         else:
             self.session.auth = (user, password)
 
@@ -116,6 +117,11 @@ class InceptionClient:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
         return self.__get(path)
 
+    def get_project_document(self, project_id: int, document_id: int,
+                             export_format: str = "xmi-xml1.1") -> str:
+        path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}?format={export_format}"
+        return self.__get(path, get_text=True)
+
     def create_project_document(self, project_id: int, file_path: str, name: str, file_format: str,
                                 state: str = None) -> InceptionAPIResponse:
         path = f"{PROJECTS_PATH}/{project_id}/documents"
@@ -138,11 +144,14 @@ class InceptionClient:
         path = f"{PROJECTS_PATH}/{project_id}/documents/{document_id}/annotations"
         return self.__get(path)
 
-    def __get(self, path: str) -> InceptionAPIResponse:
+    def __get(self, path: str, get_text: bool = False) -> Union[InceptionAPIResponse, str]:
         url = self.base_uri + path
         logger.debug(f"GET {url}")
         response = self.session.get(url)
-        return as_inception_api_response(response)
+        if get_text:
+            return response.text
+        else:
+            return as_inception_api_response(response)
 
     def __post(self, path: str, params: Dict, file: TextIO = None) -> InceptionAPIResponse:
         url = self.base_uri + path
