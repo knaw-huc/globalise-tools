@@ -10,6 +10,12 @@ data/generale_missiven.csv:
 data/document_metadata.csv:
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
 
+data/pagexml_map.json: data/pagexml-2023-05-30-contents.txt scripts/gt-create-pagexml-map.py
+	poetry run scripts/gt-create-pagexml-map.py
+
+data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
+	poetry run scripts/gt-extract-scan-url-mapping.py
+
 .PHONY: extract-all
 extract-all:
 	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
@@ -27,7 +33,7 @@ web-annotations:
 	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
 
 .PHONY: test-untangle
-test-untangle: data/iiif-url-mapping.csv
+test-untangle: data/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
 	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
