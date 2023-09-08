@@ -7,7 +7,7 @@ from loguru import logger
 @logger.catch
 def main() -> None:
     import pathlib
-    inventories_path = pathlib.Path("/Users/bram/workspaces/globalise/manifests/inventories")
+    inventories_path = pathlib.Path("../manifests/inventories")
     scan_url_mapping = {}
     manifest_paths = list(inventories_path.glob("*.json"))
     manifest_paths.sort()
