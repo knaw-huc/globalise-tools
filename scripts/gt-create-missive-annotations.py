@@ -55,7 +55,9 @@ def main(cfg: DictConfig) -> None:
     missed = 0
     missing_inv_nrs = []
     for i, mr in enumerate(missiven_records):
-        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']+mr['Deel v. inventarisnummer']
+        deel = mr['Deel v. inventarisnummer']
+        supplement = deel if deel.isalpha() else ""
+        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)'] # + supplement
         logger.info(f"processing inv.nr. {inv_nr} ({mr['Beginscan']} - {mr['Eindscan']}) [{i + 1}/{total}]")
         if mr['Beginscan']:
             na_file_id = f"NL-HaNA_1.04.02_{inv_nr}"
