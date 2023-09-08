@@ -437,6 +437,7 @@ def untangle_na_file(
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
                 scan_links[external_id] = page_links
+                os.remove(page_xml_path)
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     links['scan_links'] = scan_links
