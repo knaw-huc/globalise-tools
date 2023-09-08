@@ -71,6 +71,50 @@ class DocumentMetadata:
         return [f"{self.nl_hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
+@dataclass_json
+@dataclass
+class DocumentMetadata2:
+    inventory_number: str
+    pagexml_ids: List[str]
+    first_scan_nr: int = field(init=False)
+    last_scan_nr: int = field(init=False)
+    no_of_scans: int = field(init=False)
+    nl_hana_nr: str = field(init=False)
+    scan_range: str = field(init=False)
+    scan_start: str = field(init=False)
+    scan_end: str = field(init=False)
+    external_id: str = field(init=False)
+
+    def __post_init__(self):
+        self.no_of_scans = len(self.pagexml_ids)
+        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
+        self.scan_start = self.pagexml_ids[0].split('_')[-1]
+        self.scan_end = self.pagexml_ids[-1].split('_')[-1]
+        self.first_scan_nr = int(self.scan_start)
+        self.last_scan_nr = int(self.scan_end)
+        self.external_id = self._external_id()
+        self.scan_range = f"{self.first_scan_nr}-{self.last_scan_nr}"
+
+    def _external_id(self) -> str:
+        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+
+
+def read_all_metadata():
+    path = f"data/pagexml_map.json"
+    logger.info(f"<= {path}")
+    with open(path, encoding='utf8') as f:
+        pagexml_per_inv_nr = json.load(f)
+    metadata = []
+    for k in pagexml_per_inv_nr.keys():
+        metadata.append(
+            DocumentMetadata2(
+                inventory_number=k,
+                pagexml_ids=pagexml_per_inv_nr[k]
+            )
+        )
+    return metadata
+
+
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
@@ -78,17 +122,19 @@ def main(cfg: DictConfig) -> None:
     results = {}
     processed = load_processed_files()
 
-    metadata = read_na_file_metadata(cfg.documents_file)
+    metadata = read_all_metadata()
+    # metadata = read_na_file_metadata(cfg.documents_file)
     # base_provenance = generate_base_provenance(cfg)
     base_provenance = None
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    with open('data/na_file_selection.json') as f:
-        na_file_id_selection = set(json.load(f))
+    # with open('data/na_file_selection.json') as f:
+    #     na_file_id_selection = set(json.load(f))
     # ic(list(na_file_id_selection)[0])
     # ic(metadata[0].external_id)
-    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
+    # dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
+    dm_selection = [m for m in metadata if m.external_id not in processed]
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
@@ -120,7 +166,7 @@ def load_processed_files():
 
 
 def process_na_file(base_provenance: ProvenanceData, document_metadata: DocumentMetadata, prov_client: ProvenanceClient,
-                    tr_client: TextRepoClient, waf: WebAnnotationFactory, results: Dict[str, any]):
+                    tr_client: TextRepoClient, waf: WebAnnotationFactory, results: Dict[str, any]) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
     document_identifier = create_or_update_tr_document(document_metadata, tr_client)
@@ -182,6 +228,7 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
         )
 
         export_web_annotations(document_metadata, web_annotations)
+    return len(annotations > 0)
 
 
 def to_web_annotation(annotation: Annotation,
@@ -389,7 +436,7 @@ def get_iiif_url(external_id, textrepo_client):
         return f"{scan_url}/full/max/0/default.jpg"
     else:
         logger.error(f'{external_id}: missing scan_url in {meta}')
-        ic(document_metadata)
+        # ic(document_metadata)
         return ""
 
 
