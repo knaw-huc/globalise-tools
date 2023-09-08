@@ -12,7 +12,6 @@ from typing import Tuple, List, Dict, Any, Optional
 
 import hydra
 from dataclasses_json import dataclass_json
-from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
@@ -115,12 +114,21 @@ def read_all_metadata():
     return metadata
 
 
+def read_scan_url_mapping() -> Dict[str, str]:
+    path = "data/scan_url_mapping.json"
+    with open(path) as f:
+        scan_url_mapping = json.load(f)
+    return scan_url_mapping
+
+
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
     # logger.level('warning')
     results = {}
     processed = load_processed_files()
+
+    scan_url_mapping = read_scan_url_mapping()
 
     metadata = read_all_metadata()
     # metadata = read_na_file_metadata(cfg.documents_file)
@@ -145,13 +153,15 @@ def main(cfg: DictConfig) -> None:
         for i, dm in enumerate(dm_selection):
             logger.info(f"processing {dm.external_id} [{i + 1}/{total}]")
             before = time.perf_counter()
-            process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results)
+            annotations_stored = process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results,
+                                                 scan_url_mapping)
             after = time.perf_counter()
             diff = after - before
             logger.debug(f"done in {diff} s = {diff / dm.no_of_scans} s/pagexml")
-            processed.add(dm.external_id)
-            with open("out/processed.json", "w") as f:
-                json.dump(list(processed), fp=f)
+            if annotations_stored:
+                processed.add(dm.external_id)
+                with open("out/processed.json", "w") as f:
+                    json.dump(list(processed), fp=f)
 
 
 def load_processed_files():
@@ -165,8 +175,15 @@ def load_processed_files():
     return processed
 
 
-def process_na_file(base_provenance: ProvenanceData, document_metadata: DocumentMetadata, prov_client: ProvenanceClient,
-                    tr_client: TextRepoClient, waf: WebAnnotationFactory, results: Dict[str, any]) -> bool:
+def process_na_file(
+        base_provenance: ProvenanceData,
+        document_metadata: DocumentMetadata,
+        prov_client: ProvenanceClient,
+        tr_client: TextRepoClient,
+        waf: WebAnnotationFactory,
+        results: Dict[str, any],
+        scan_url_mapping: Dict[str, str]
+) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
     document_identifier = create_or_update_tr_document(document_metadata, tr_client)
@@ -174,13 +191,11 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
     links['textrepo_links']['document'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}"
     links['textrepo_links']['metadata'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}/metadata"
 
-    segmented_text, text_provenance, annotations = untangle_na_file(
-        document_id=document_metadata.nl_hana_nr,
-        textrepo_client=tr_client,
-        pagexml_ids=document_metadata.pagexml_ids,
-        links=links,
-        base_provenance=base_provenance
-    )
+    segmented_text, text_provenance, annotations = untangle_na_file(document_id=document_metadata.nl_hana_nr,
+                                                                    textrepo_client=tr_client,
+                                                                    pagexml_ids=document_metadata.pagexml_ids,
+                                                                    base_provenance=base_provenance, links=links,
+                                                                    scan_url_mapping=scan_url_mapping)
     version_identifier = tr_client.import_version(
         external_id=document_metadata.external_id,
         type_name='segmented_text',
@@ -228,7 +243,7 @@ def process_na_file(base_provenance: ProvenanceData, document_metadata: Document
         )
 
         export_web_annotations(document_metadata, web_annotations)
-    return len(annotations > 0)
+    return len(annotations) > 0
 
 
 def to_web_annotation(annotation: Annotation,
@@ -380,7 +395,8 @@ def untangle_na_file(
         textrepo_client: TextRepoClient,
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
-        links: Dict[str, Any]
+        links: Dict[str, Any],
+        scan_url_mapping: Dict[str, str]
 ) -> Tuple[Dict[str, any], ProvenanceData, List[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
@@ -402,10 +418,10 @@ def untangle_na_file(
             # version_location = textrepo_client.version_uri(version_identifier.id)
             # provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
-            iiif_url = get_iiif_url(external_id, textrepo_client)
-            if not iiif_url:
+            if external_id not in scan_url_mapping:
                 links['errors'].append(f"{external_id}: missing scan_url")
             else:
+                iiif_url = scan_url_mapping[external_id]
                 # logger.info(f"iiif_url={iiif_url}")
                 page_links['iiif_url'] = iiif_url
                 # page_links['paragraph_iiif_urls'] = []
@@ -446,7 +462,7 @@ def download_page_xml(external_id, textrepo_client, output_directory: str):
     if not Path(page_xml_path).is_file():
         try:
             pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-            logger.info(f"=> {page_xml_path}")
+            # logger.info(f"=> {page_xml_path}")
             with open(page_xml_path, "w") as f:
                 f.write(pagexml)
         except:
