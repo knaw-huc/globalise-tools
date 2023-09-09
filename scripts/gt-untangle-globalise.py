@@ -158,7 +158,7 @@ def main(cfg: DictConfig) -> None:
             after = time.perf_counter()
             diff = after - before
             logger.debug(f"done in {diff} s = {diff / dm.no_of_scans} s/pagexml")
-            if annotations_stored:
+            if annotations_stored and not results[dm.external_id]['errors']:
                 processed.add(dm.external_id)
                 with open("out/processed.json", "w") as f:
                     json.dump(list(processed), fp=f)
@@ -410,7 +410,18 @@ def untangle_na_file(
     logger.info(f"processing {total} pagexmls...")
     for external_id in pagexml_ids:
         page_links = {}
-        page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
+        tries = 0
+        done = False
+        while not done:
+            page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
+            if error and tries < 10:
+                tries += 1
+                logger.warning(f"error returned on downloadinf {external_id}, retry in {tries} seconds")
+                time.sleep(tries)
+                done = False
+            else:
+                done = True
+
         if error:
             links['errors'].append(error)
         else:
