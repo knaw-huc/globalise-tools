@@ -249,6 +249,8 @@ def process_na_file(
 def to_web_annotation(annotation: Annotation,
                       webannotation_factory: WebAnnotationFactory) -> WebAnnotation:
     body_id = annotation.id
+    if 'text' in annotation.metadata:
+        annotation.metadata.pop('text')
     body = {
         "id": body_id,
         "type": annotation.type,
@@ -416,7 +418,7 @@ def untangle_na_file(
             page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
             if error and tries < 10:
                 tries += 1
-                logger.warning(f"error returned on downloadinf {external_id}, retry in {tries} seconds")
+                logger.warning(f"error returned on downloading {external_id}, retry in {tries} seconds")
                 time.sleep(tries)
                 done = False
             else:
