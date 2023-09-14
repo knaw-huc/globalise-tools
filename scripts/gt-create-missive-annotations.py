@@ -57,7 +57,7 @@ def main(cfg: DictConfig) -> None:
     for i, mr in enumerate(missiven_records):
         deel = mr['Deel v. inventarisnummer']
         supplement = deel if deel.isalpha() else ""
-        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)'] # + supplement
+        inv_nr = mr['Inv.nr. Nationaal Archief (1.04.02)']  # + supplement
         logger.info(f"processing inv.nr. {inv_nr} ({mr['Beginscan']} - {mr['Eindscan']}) [{i + 1}/{total}]")
         if mr['Beginscan']:
             na_file_id = f"NL-HaNA_1.04.02_{inv_nr}"
@@ -83,57 +83,55 @@ def main(cfg: DictConfig) -> None:
                 last_inv_nr = inv_nr
                 last_segment_ranges = page_segment_ranges
             if page_segment_ranges:
-                first_range = page_segment_ranges[first_scan]
-                last_range = page_segment_ranges[last_scan]
-                document_range = (first_range[0], first_range[1], last_range[2])
-                tanap_id = mr['ID in TANAP database']
-                segmented_version_id, begin_anchor, end_anchor = document_range
+                if first_scan in page_segment_ranges:
+                    first_range = page_segment_ranges[first_scan]
+                    last_range = page_segment_ranges[last_scan]
+                    document_range = (first_range[0], first_range[1], last_range[2])
+                    tanap_id = mr['ID in TANAP database']
+                    segmented_version_id, begin_anchor, end_anchor = document_range
 
-                metadata = as_metadata(mr)
+                    metadata = as_metadata(mr)
 
-                missive_annotation = WebAnnotation(
-                    body={
-                        "@context": {"@vocab": "https://knaw-huc.github.io/ns/globalise#"},
-                        "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
-                        "type": "GeneralMissive",
-                        "metadata": metadata
-                    },
-                    target=[
-                        webannotation_factory.text_anchor_selector_target(
-                            textrepo_base_url=cfg.textrepo.base_uri,
-                            segmented_version_id=segmented_version_id,
-                            begin_anchor=begin_anchor,
-                            end_anchor=end_anchor
-                        ),
-                        gt.cutout_target(
-                            textrepo_base_url=cfg.textrepo.base_uri,
-                            segmented_version_id=segmented_version_id,
-                            begin_anchor=begin_anchor,
-                            end_anchor=end_anchor
-                        )
-                    ],
-                    custom={
-                        "generator": {
-                            "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-create-missive-annotations.py",
-                            "type": "Software"}
-                    }
-                )
-                missive_annotations.append(missive_annotation)
+                    missive_annotation = WebAnnotation(
+                        body={
+                            "@context": {"@vocab": "https://knaw-huc.github.io/ns/globalise#"},
+                            "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
+                            "type": "GeneralMissive",
+                            "metadata": metadata
+                        },
+                        target=[
+                            webannotation_factory.text_anchor_selector_target(
+                                textrepo_base_url=cfg.textrepo.base_uri,
+                                segmented_version_id=segmented_version_id,
+                                begin_anchor=begin_anchor,
+                                end_anchor=end_anchor
+                            ),
+                            gt.cutout_target(
+                                textrepo_base_url=cfg.textrepo.base_uri,
+                                segmented_version_id=segmented_version_id,
+                                begin_anchor=begin_anchor,
+                                end_anchor=end_anchor
+                            )
+                        ],
+                        custom={
+                            "generator": {
+                                "id": "https://github.com/brambg/globalise-tools/blob/main/scripts/gt-create-missive-annotations.py",
+                                "type": "Software"}
+                        }
+                    )
+                    missive_annotations.append(missive_annotation)
 
-                # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
-                store_annotations(missive_annotations)
+                    # print(json.dumps(missive_annotation, indent=4, ensure_ascii=False, cls=AnnotationEncoder))
+                    store_annotations(missive_annotations)
+                else:
+                    logger.error(f'unexpected index: {first_scan}')
     if missed:
         logger.warning(f"web_annotations were not found for {missed}/{total} missives")
-        for m in missing_inv_nrs:
-            logger.warning("{")
-            for k in m.keys():
-                logger.warning(f"  {k}: {m[k]}")
-            logger.warning("}")
-        for m in missing_inv_nrs:
-            logger.warning("{")
-            for k in m.keys():
-                logger.warning(f"  {k}: {m[k]}")
-            logger.warning("}")
+        # for m in missing_inv_nrs:
+        #     logger.warning("{")
+        #     for k in m.keys():
+        #         logger.warning(f"  {k}: {m[k]}")
+        #     logger.warning("}")
         for m in missing_inv_nrs:
             print(f"{m['Inv.nr. Nationaal Archief (1.04.02)']}; {m['Problemen gevonden tijdens handmatige check:']}")
 
