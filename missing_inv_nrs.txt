@@ -1,24 +1,8 @@
 1133; niet in pagexml
 1171; Niet gedigitaliseerd.; ook niet in nieuwe pagexml
 1179; Moderne kopie van missive 118. Folio 1-36 en 105-106 ontbreken. ; directory=1179, pagexml =NL-HaNA_1.04.02_10119B_0001.xml
-1441; scan_url
-1444; scan_url
-1445; scan_url
 1457; A
-1466; scan_url
-1488; scan_url
-1490; scan_url
 1501; niet in pagexml
-1503; scan_url
-1504; scan_url
-1521; scan_url
-1523; scan_url
-1540; scan_url
-1561; scan_url
-1562; scan_url
-1573; scan_url
-1575; scan_url
-1602; scan_url
 1684; niet in pagexml; ook niet in nieuwe pagexml
 1887; niet in pagexml; ook niet in nieuwe pagexml
 2770; Niet gedigitaliseerd.; ook niet in nieuwe pagexml
