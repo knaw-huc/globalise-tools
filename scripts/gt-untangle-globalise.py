@@ -8,6 +8,7 @@ import time
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
+from random import shuffle
 from typing import Tuple, List, Dict, Any, Optional
 
 import hydra
@@ -139,10 +140,11 @@ def main(cfg: DictConfig) -> None:
 
     # with open('data/na_file_selection.json') as f:
     #     na_file_id_selection = set(json.load(f))
-    # ic(list(na_file_id_selection)[0])
-    # ic(metadata[0].external_id)
+    # # ic(list(na_file_id_selection)[0])
+    # # ic(metadata[0].external_id)
     # dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
     dm_selection = [m for m in metadata if m.external_id not in processed]
+    shuffle(dm_selection)
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
@@ -415,8 +417,9 @@ def untangle_na_file(
         tries = 0
         done = False
         while not done:
-            page_xml_path, error = download_page_xml(external_id, textrepo_client, output_directory)
+            page_xml_path, page_xml, error = download_page_xml(external_id, textrepo_client, output_directory)
             if error and tries < 10:
+                logger.error(f"Error={error}")
                 tries += 1
                 logger.warning(f"error returned on downloading {external_id}, retry in {tries} seconds")
                 time.sleep(tries)
@@ -440,7 +443,7 @@ def untangle_na_file(
                 # page_links['paragraph_iiif_urls'] = []
                 # page_links['sentences'] = []
                 # logger.info(f"<= {page_xml_path}")
-                scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
+                scan_doc: PageXMLScan = parse_pagexml_file(pagexml_file=page_xml_path, pagexml_data=page_xml)
                 start_offset = len(document_lines)
                 scan_lines, scan_annotations = untangle_scan_doc(
                     scan_doc=scan_doc,
@@ -450,7 +453,7 @@ def untangle_na_file(
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
                 scan_links[external_id] = page_links
-                os.remove(page_xml_path)
+                # os.remove(page_xml_path)
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     links['scan_links'] = scan_links
@@ -473,16 +476,16 @@ def get_iiif_url(external_id, textrepo_client):
 def download_page_xml(external_id, textrepo_client, output_directory: str):
     error = None
     page_xml_path = f"{output_directory}/{external_id}.xml"
-    if not Path(page_xml_path).is_file():
-        try:
-            pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-            # logger.info(f"=> {page_xml_path}")
-            with open(page_xml_path, "w") as f:
-                f.write(pagexml)
-        except:
-            error = f"{external_id}: not found on {textrepo_client.base_uri}"
-            logger.error(error)
-    return page_xml_path, error
+    # if not Path(page_xml_path).is_file():
+    try:
+        page_xml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
+        # logger.info(f"=> {page_xml_path}")
+        # with open(page_xml_path, "w") as f:
+        #     f.write(pagexml)
+    except:
+        error = f"{external_id}: not found on {textrepo_client.base_uri}"
+        logger.error(error)
+    return page_xml_path, page_xml, error
 
 
 def store_results(results: Dict[str, any]):
