@@ -55,7 +55,7 @@ install:
 help:
 	@echo "make-tools for globalise-tools"
 	@echo
-	@echo "Please use \`make <target>\', where <target> is one of:"
+	@echo "Please use \`make <target>', where <target> is one of:"
 	@echo "  install                	to install the necessary requirements"
 #	@echo "  extract-all            		to extract text and annotations from all document directories"
 #	@echo "  web-annotations        		to generate the web-annotations"
