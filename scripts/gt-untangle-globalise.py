@@ -405,7 +405,7 @@ def untangle_na_file(
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
 
-    scan_links = {}
+    # scan_links = {}
     output_directory = f'out/{document_id}'
     os.makedirs(output_directory, exist_ok=True)
     document_lines = []
@@ -452,11 +452,11 @@ def untangle_na_file(
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
-                scan_links[external_id] = page_links
+                # scan_links[external_id] = page_links
                 # os.remove(page_xml_path)
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
-    links['scan_links'] = scan_links
+    # links['scan_links'] = scan_links
     segmented_text = {"_ordered_segments": document_lines}
     return segmented_text, provenance, document_annotations
 
