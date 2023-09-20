@@ -51,6 +51,14 @@ install:
 	poetry update
 	poetry install
 
+.PHONY: watch-mongodb-data-space
+watch-mongodb-data-space:
+	kubectl exec -it $(shell kubectl get pods -o custom-columns=POD_ID:.metadata.name -l app=globalise-annorepo-mongodb --no-headers) -- watch -n 60 -d df -h /data/db
+
+.PHONY: process-manifests
+process-manifests:
+	poetry run ./scripts/gt-process-manifests.py
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"

@@ -36,6 +36,7 @@ uri = { git = "https://github.com/marrow/uri.git", rev = "5b58db87451ca4680004a8
 xlsxwriter = "^3.0.3"
 hydra-core = "^1.3.2"
 appengine-python-standard = "^1.1.3"
+progressbar2 = "^4.2.0"
 
 
 [build-system]
