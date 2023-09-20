@@ -73,10 +73,9 @@ def main(root_path) -> None:
     ]
     paths = annotations_paths(path)
     grouped_annotations = defaultdict(list)
+    nav_provider = NavProvider()
     with progressbar.ProgressBar(widgets=widgets, max_value=len(paths), redirect_stdout=True) as bar:
         for i, file_path in enumerate(paths):
-            inv_nr = get_inv_nr(file_path)
-            nav_provider = NavProvider(inv_nr)
             grouped = group_annotations(file_path)
             for body_type, annotations in grouped:
                 grouped_annotations[body_type].extend(post_process(annotations, body_type, nav_provider))
