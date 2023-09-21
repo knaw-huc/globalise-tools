@@ -90,7 +90,7 @@ class WebAnnotation:
             "motivation": "classifying",
             "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types
             "generator": {  # use creator metadata from pagexml for px: types
-                "id": "https://github.com/rvankoert/loghi-htr",
+                "id": "https://github.com/knaw-huc/loghi-htr",
                 "type": "Software",
                 "name": "Loghi"
             },
