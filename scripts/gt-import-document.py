@@ -15,7 +15,7 @@ from cassis.typesystem import TYPE_NAME_STRING
 from dataclasses_json import dataclass_json
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
+from pagexml.model.physical_document_model import PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from pycaprio.core.mappings import InceptionFormat
@@ -24,6 +24,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
+from globalise_tools.tools import is_paragraph, is_marginalium, paragraph_text
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -155,70 +156,32 @@ def main(cfg: DictConfig) -> None:
     store_results(results)
 
 
-def is_paragraph(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "paragraph"
-
-
-def is_magrginalium(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "marginalia"
-
-
-def joined_text(lines: List[str]) -> str:
-    break_char = "„"
-    # ic(lines)
-    for i in range(0, len(lines) - 1):
-        line0 = lines[i]
-        line1 = lines[i + 1]
-        if line0.endswith(break_char):
-            lines[i] = line0.rstrip(break_char)
-            lines[i + 1] = line1.lstrip(break_char)
-        else:
-            lines[i] = f"{line0} "
-    # ic(lines)
-    return "".join(lines) + "\n"
-
-
 def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> Tuple[str, List[Tuple[int, int]], List[Coords]]:
     paragraph_ranges = []
     paragraph_coords = []
     text = ""
     offset = start_offset
     for tr in scan_doc.get_text_regions_in_reading_order():
-        if is_paragraph(tr) or is_magrginalium(tr):
+        logger.info(f"text_region: {tr.id}")
+        logger.info(f"type: {tr.type[-1]}")
+        line_text = [l.text for l in tr.lines]
+        for t in line_text:
+            logger.info(f"line: {t}")
+
+        if is_paragraph(tr) or is_marginalium(tr):
             lines = []
             for line in tr.lines:
                 if line.text:
                     lines.append(line.text)
-            text += joined_text(lines)
+            ptext = paragraph_text(lines)
+            text += ptext
             text_len = len(text)
             paragraph_ranges.append((offset, start_offset + text_len))
             offset = start_offset + text_len
             paragraph_coords.append(tr.coords)
+            logger.info(f"para: {ptext}")
+        logger.info("")
     return text, paragraph_ranges, paragraph_coords
-
-
-def print_annotations(cas):
-    for a in cas.views[0].get_all_annotations():
-        print(a)
-        print(f"'{a.get_covered_text()}'")
-        print()
-
-
-def join_words(px_words):
-    text = ""
-    last_text_region = None
-    last_line = None
-    for w in px_words:
-        if w.text_region_id == last_text_region:
-            if w.line_id != last_line:
-                text += "|\n"
-            text += " "
-        else:
-            text += "\n\n"
-        text += w.text
-        last_text_region = w.text_region_id
-        last_line = w.line_id
-    return text.strip()
 
 
 def generate_xmi(

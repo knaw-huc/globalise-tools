@@ -4,7 +4,7 @@ from typing import List, Any, Tuple, Dict
 
 from dataclasses_json import dataclass_json
 from loguru import logger
-from pagexml.model.physical_document_model import Coords, PageXMLScan
+from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion
 
 from globalise_tools.model import Document, WebAnnotation
 
@@ -566,3 +566,52 @@ def annotation_body(annotation: Annotation):
             "opening": int(annotation.metadata["n"]),
         }
     return body
+
+
+def is_paragraph(text_region: PageXMLTextRegion) -> bool:
+    return text_region.type[-1] == "paragraph"
+
+
+def is_marginalium(text_region: PageXMLTextRegion) -> bool:
+    return text_region.type[-1] == "marginalia"
+
+
+def paragraph_text(lines: List[str]) -> str:
+    break_char1 = "„"
+    break_char2 = "¬"
+    break_chars = [break_char1, break_char2]
+    # ic(lines)
+    for i in range(0, len(lines) - 1):
+        line0 = lines[i]
+        line1 = lines[i + 1]
+        if line0[-1] in break_chars:
+            lines[i] = line0.rstrip(line0[-1])
+            lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
+        else:
+            lines[i] = f"{line0} "
+    # ic(lines)
+    return "".join(lines) + "\n"
+
+
+def print_annotations(cas):
+    for a in cas.views[0].get_all_annotations():
+        print(a)
+        print(f"'{a.get_covered_text()}'")
+        print()
+
+
+def join_words(px_words):
+    text = ""
+    last_text_region = None
+    last_line = None
+    for w in px_words:
+        if w.text_region_id == last_text_region:
+            if w.line_id != last_line:
+                text += "|\n"
+            text += " "
+        else:
+            text += "\n\n"
+        text += w.text
+        last_text_region = w.text_region_id
+        last_line = w.line_id
+    return text.strip()

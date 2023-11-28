@@ -5,11 +5,13 @@ from typing import Tuple, List
 import spacy
 from cassis import *
 from loguru import logger
-from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
+
+from globalise_tools.tools import is_paragraph, paragraph_text
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
+
 logger.info(f"loading {spacy_core}")
 nlp = spacy.load(spacy_core)
 
@@ -23,10 +25,6 @@ def get_arguments():
                         help="The path to the pagexml file.",
                         type=str)
     return parser.parse_args()
-
-
-def is_paragraph(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "paragraph"
 
 
 def output_path(page_xml_path: str) -> str:
@@ -73,24 +71,6 @@ def convert(page_xml_path: str):
         cas.to_xmi(cas_xmi, pretty_print=True)
 
 
-def paragraph_text(lines: List[str]) -> str:
-    break_char1 = "„"
-    break_char2 = "¬"
-    break_chars = [break_char1, break_char2]
-    # ic(lines)
-    for i in range(0, len(lines) - 1):
-        line0 = lines[i]
-        line1 = lines[i + 1]
-        if line0[-1] in break_chars:
-            # if line0.endswith(break_char1) or line0.endswith(break_char2):
-            lines[i] = line0.rstrip(line0[-1])
-            lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
-        else:
-            lines[i] = f"{line0} "
-    # ic(lines)
-    return "".join(lines) + "\n"
-
-
 def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
     paragraph_ranges = []
     offset = 0
@@ -114,30 +94,6 @@ def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
             logger.info(f"para: {ptext}")
         logger.info("")
     return text, paragraph_ranges
-
-
-def print_annotations(cas):
-    for a in cas.views[0].get_all_annotations():
-        print(a)
-        print(f"'{a.get_covered_text()}'")
-        print()
-
-
-def join_words(px_words):
-    text = ""
-    last_text_region = None
-    last_line = None
-    for w in px_words:
-        if w.text_region_id == last_text_region:
-            if w.line_id != last_line:
-                text += "|\n"
-            text += " "
-        else:
-            text += "\n\n"
-        text += w.text
-        last_text_region = w.text_region_id
-        last_line = w.line_id
-    return text.strip()
 
 
 if __name__ == '__main__':
