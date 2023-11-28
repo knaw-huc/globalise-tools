@@ -4,7 +4,6 @@ from typing import Tuple, List
 
 import spacy
 from cassis import *
-from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
@@ -75,14 +74,17 @@ def convert(page_xml_path: str):
 
 
 def paragraph_text(lines: List[str]) -> str:
-    break_char = "„"
+    break_char1 = "„"
+    break_char2 = "¬"
+    break_chars = [break_char1, break_char2]
     # ic(lines)
     for i in range(0, len(lines) - 1):
         line0 = lines[i]
         line1 = lines[i + 1]
-        if line0.endswith(break_char):
-            lines[i] = line0.rstrip(break_char)
-            lines[i + 1] = line1.lstrip(break_char)
+        if line0[-1] in break_chars:
+            # if line0.endswith(break_char1) or line0.endswith(break_char2):
+            lines[i] = line0.rstrip(line0[-1])
+            lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
         else:
             lines[i] = f"{line0} "
     # ic(lines)
@@ -94,15 +96,23 @@ def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
     offset = 0
     text = ""
     for tr in scan_doc.get_text_regions_in_reading_order():
+        logger.info(f"text_region: {tr.id}")
+        logger.info(f"type: {tr.type[-1]}")
+        line_text = [l.text for l in tr.lines]
+        for t in line_text:
+            logger.info(f"line: {t}")
         if is_paragraph(tr):
             lines = []
             for line in tr.lines:
                 if line.text:
                     lines.append(line.text)
-            text += paragraph_text(lines)
+            ptext = paragraph_text(lines)
+            text += ptext
             text_len = len(text)
             paragraph_ranges.append((offset, text_len))
             offset = text_len
+            logger.info(f"para: {ptext}")
+        logger.info("")
     return text, paragraph_ranges
 
 
