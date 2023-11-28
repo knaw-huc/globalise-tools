@@ -9,6 +9,8 @@ from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
 from textrepo.client import TextRepoClient
 
+from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH
+
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
 
@@ -74,9 +76,9 @@ def convert(page_xml_path: str):
         cas.sofa_string = text
         cas.sofa_mime = "text/plain"
 
-        SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
-        TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
-        ParagraphAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
+        SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
+        TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
+        ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
         doc = nlp(text)
         for sentence in doc.sents:
             cas.add(SentenceAnnotation(begin=sentence.start_char, end=sentence.end_char))

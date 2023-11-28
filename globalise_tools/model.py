@@ -128,3 +128,8 @@ class AnnotationEncoder(JSONEncoder):
             return obj.wrapped()
         elif isinstance(obj, Coords):
             return obj.points
+
+
+CAS_SENTENCE = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence"
+CAS_TOKEN = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token"
+CAS_PARAGRAPH = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph"

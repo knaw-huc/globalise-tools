@@ -24,6 +24,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
+from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN
 from globalise_tools.tools import is_paragraph, is_marginalium, paragraph_text
 
 typesystem_xml = 'data/typesystem.xml'
@@ -209,10 +210,10 @@ def generate_xmi(
     typesystem.create_feature(domainType=ParagraphAnnotation, name="type", rangeType=TYPE_NAME_STRING)
     typesystem.create_feature(domainType=ParagraphAnnotation, name="iiif_url", rangeType=TYPE_NAME_STRING)
 
-    SentenceAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence")
-    TokenAnnotation = cas.typesystem.get_type("de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token")
+    SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
+    TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
     # ParagraphAnnotation = cas.typesystem.get_type(
-    #     "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph")
+    #     CAS_PARAGRAPH)
     typesystem_path = "out/typesystem.xml"
     logger.info(f"=> {typesystem_path}")
     typesystem.to_xml(typesystem_path)
