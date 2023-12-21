@@ -50,6 +50,10 @@ test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mappin
 test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/test.yaml
 	poetry run ./scripts/gt-import-document.py -cd conf -cn test.yaml
 
+.PHONY: prod-xmi-generation
+prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
+	poetry run ./scripts/gt-import-document.py -cd conf -cn prod.yaml
+
 .PHONY: install
 install:
 	poetry update
@@ -88,6 +92,7 @@ help:
 	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
 	@echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
+	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
 	@echo
 	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
 	@echo

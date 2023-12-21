@@ -154,13 +154,12 @@ def main(cfg: DictConfig) -> None:
             trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
             document_id_idx[dm.external_id] = version_identifier.document_id
 
-            if dm.year_creation_or_dispatch:
-                year = dm.year_creation_or_dispatch
-            else:
-                year = "unknown"
-            name = f'{dm.external_id} - {year} - {cut_off(dm.title, 100)}'
-            response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
-                                                   file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+            response = inc.create_project_document(
+                project_id=project_id,
+                file_path=xmi_path,
+                name=inception_document_name(dm),
+                file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1
+            )
             idoc_id = response.body['id']
             inception_view = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
             links['inception_view'] = inception_view
@@ -176,6 +175,19 @@ def main(cfg: DictConfig) -> None:
             results[dm.external_id] = links
     results['document_id_idx'] = document_id_idx
     store_results(results)
+
+
+def inception_document_name(dm):
+    if dm.year_creation_or_dispatch:
+        year = dm.year_creation_or_dispatch
+    else:
+        year = "<year unknown>"
+    if dm.title:
+        title = cut_off(dm.title, 100)
+    else:
+        title = "<no title>"
+    name = f'{dm.external_id} - {year} - {title}'
+    return name
 
 
 def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
