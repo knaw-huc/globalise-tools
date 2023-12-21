@@ -569,28 +569,43 @@ def annotation_body(annotation: Annotation):
 
 
 def is_paragraph(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "paragraph"
+    return text_region_type_is(text_region, "paragraph")
+
+
+def text_region_type_is(text_region, type):
+    return text_region.type[-1] == type
 
 
 def is_marginalium(text_region: PageXMLTextRegion) -> bool:
-    return text_region.type[-1] == "marginalia"
+    return text_region_type_is(text_region, "marginalia")
+
+
+def is_header(text_region: PageXMLTextRegion) -> bool:
+    return text_region_type_is(text_region, "header")
+
+
+def is_signature(text_region: PageXMLTextRegion) -> bool:
+    return text_region_type_is(text_region, "signature-mark")
 
 
 def paragraph_text(lines: List[str]) -> str:
-    break_char1 = "„"
-    break_char2 = "¬"
-    break_chars = [break_char1, break_char2]
-    # ic(lines)
-    for i in range(0, len(lines) - 1):
-        line0 = lines[i]
-        line1 = lines[i + 1]
-        if line0[-1] in break_chars:
-            lines[i] = line0.rstrip(line0[-1])
-            lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
-        else:
-            lines[i] = f"{line0} "
-    # ic(lines)
-    return "".join(lines) + "\n"
+    if lines:
+        break_char1 = "„"
+        break_char2 = "¬"
+        break_chars = [break_char1, break_char2]
+        # ic(lines)
+        for i in range(0, len(lines) - 1):
+            line0 = lines[i]
+            line1 = lines[i + 1]
+            if line0[-1] in break_chars:
+                lines[i] = line0.rstrip(line0[-1])
+                lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
+            else:
+                lines[i] = f"{line0} "
+        # ic(lines)
+        return "".join(lines) + "\n"
+    else:
+        return ""
 
 
 def print_annotations(cas):
