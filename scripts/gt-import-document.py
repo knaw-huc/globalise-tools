@@ -231,6 +231,21 @@ def joined_lines(tr):
     return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
 
 
+def store_document_text(inventory_id, document_id, marginalia, headers, paragraphs):
+    document_text = "# marginalia\n"
+    document_text += "\n".join(marginalia)
+    document_text += "\n\n# header\n"
+    if headers:
+        document_text += headers[0]
+    document_text += "\n\n# paragraphs\n"
+    document_text += "\n".join(paragraphs)
+
+    path = f"out/{inventory_id}/{document_id}.txt"
+    logger.info(f"=> {path}")
+    with open(path, 'w') as f:
+        f.write(document_text)
+
+
 def generate_xmi(
         textrepo_client: TextRepoClient,
         document_id: str,
@@ -291,6 +306,7 @@ def generate_xmi(
         document_paragraphs.extend(page_paragraphs)
         scan_links[external_id] = page_links
 
+    store_document_text(inventory_id, document_id, document_marginalia, document_headers, document_paragraphs)
     marginalia_ranges = []
     header_range = None
     paragraph_ranges = []
@@ -315,13 +331,11 @@ def generate_xmi(
     if '  ' in document_text:
         logger.error('double space in text')
 
-    start_offset = len(cas.sofa_string)
-
     cas.sofa_string = document_text
     doc = nlp(document_text)
     for sentence in doc.sents:
         for token in [t for t in sentence if t.text != "\n"]:
-            begin = start_offset + token.idx
+            begin = token.idx
             end = begin + len(token.text)
             cas.add(TokenAnnotation(begin=begin, end=end))
 
@@ -341,7 +355,7 @@ def generate_xmi(
     return xmi_path, provenance
 
 
-def extract_text(scan_doc):
+def extract_text(scan_doc) -> (List[str], List[str], List[str]):
     paragraphs = []
     headers = []
     marginalia = []
@@ -365,95 +379,6 @@ def extract_text(scan_doc):
                 paragraphs.append(ptext)
         logger.info("")
     return marginalia, headers, paragraphs
-
-
-def generate_xmi0(
-        textrepo_client: TextRepoClient,
-        document_id: str,
-        nlp: Language,
-        pagexml_ids: List[str],
-        base_provenance: ProvenanceData,
-        links: Dict[str, Any]
-) -> Tuple[str, ProvenanceData]:
-    logger.info(f"<= {typesystem_xml}")
-    provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
-
-    with open(typesystem_xml, 'rb') as f:
-        typesystem = load_typesystem(f)
-
-    cas = Cas(typesystem=typesystem)
-    cas.sofa_string = ""
-    cas.sofa_mime = "text/plain"
-
-    MarginaliaAnnotation = typesystem.create_type("pagexml.Marginalia")
-    typesystem.create_feature(domainType=MarginaliaAnnotation, name="url", rangeType=TYPE_NAME_STRING)
-
-    ParagraphAnnotation = typesystem.create_type("webanno.custom.Paragraph")
-    typesystem.create_feature(domainType=ParagraphAnnotation, name="type", rangeType=TYPE_NAME_STRING)
-    typesystem.create_feature(domainType=ParagraphAnnotation, name="iiif_url", rangeType=TYPE_NAME_STRING)
-
-    SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
-    TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
-    # ParagraphAnnotation = cas.typesystem.get_type(
-    #     CAS_PARAGRAPH)
-    typesystem_path = "out/typesystem.xml"
-    logger.info(f"=> {typesystem_path}")
-    typesystem.to_xml(typesystem_path)
-
-    scan_links = {}
-
-    for external_id in pagexml_ids:
-        page_links = {}
-        page_xml_path = download_page_xml(external_id, textrepo_client)
-        version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
-        version_location = textrepo_client.version_uri(version_identifier.id)
-        provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
-
-        iiif_url = get_iiif_url(external_id, textrepo_client)
-        logger.info(f"iiif_url={iiif_url}")
-        page_links['iiif_url'] = iiif_url
-        page_links['paragraph_iiif_urls'] = []
-        page_links['sentences'] = []
-        logger.info(f"<= {page_xml_path}")
-        scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-        start_offset = len(cas.sofa_string)
-        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(
-            scan_doc=scan_doc,
-            start_offset=start_offset
-        )
-
-        if not paragraph_text:
-            logger.warning(f"no paragraph text found in {page_xml_path}")
-        else:
-            cas.sofa_string += paragraph_text
-            doc = nlp(paragraph_text)
-            for sentence in doc.sents:
-                page_links['sentences'].append(sentence.text_with_ws)
-                sentence_start_char = start_offset + sentence.start_char
-                sentence_end_char = start_offset + sentence.end_char
-                # cas.add(
-                #     SentenceAnnotation(begin=sentence_start_char, end=sentence_end_char))
-                for token in [t for t in sentence if t.text != "\n"]:
-                    begin = start_offset + token.idx
-                    end = begin + len(token.text)
-                    cas.add(TokenAnnotation(begin=begin, end=end))
-
-            for pr, coords in zip(paragraph_ranges, paragraph_coords):
-                xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
-                paragraph_iiif_url = iiif_url.replace("full", xywh)
-                cas.add(SentenceAnnotation(begin=pr[0], end=pr[1]))
-                cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
-                page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
-
-        scan_links[external_id] = page_links
-
-    links['scan_links'] = scan_links
-
-    xmi_path = f"out/{document_id}.xmi"
-    logger.info(f"=> {xmi_path}")
-    cas.to_xmi(xmi_path, pretty_print=True)
-
-    return xmi_path, provenance
 
 
 def get_iiif_url(external_id, textrepo_client):
@@ -487,13 +412,6 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-# def store_xmi(dm, xmi):
-#     xmi_path = f"out/{dm.inventory_number}/{dm.external_id}.xmi"
-#     logger.info(f"=> {xmi_path}")
-#     with open(xmi_path, 'w') as f:
-#         f.write(xmi)
-
-
 def read_document_selection(cfg) -> List[DocumentMetadata]:
     logger.info(f"<= {cfg.selection_file}")
     with open(cfg.selection_file, encoding='utf8') as f:
@@ -504,7 +422,8 @@ def read_document_selection(cfg) -> List[DocumentMetadata]:
             "no_of_pages", "GM_id", "tanap_id", "tanap_description", "remarks", "marginalia",
             "partOf500_filename", "partOf500_folio"])
         all_metadata = [DocumentMetadata.from_dict(row) for row in reader]
-    return [m for m in all_metadata if m.quality_check == 'TRUE']
+    # return [m for m in all_metadata if m.quality_check == 'TRUE']
+    return all_metadata
 
 
 def init_inception_client(cfg) -> (InceptionClient, int):
