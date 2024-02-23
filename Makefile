@@ -75,6 +75,10 @@ run-inception:
 stop-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker-compose down
 
+.PHONY: browse-globalise-inception
+browse-globalise-inception:
+	open https://text-annotation.huc.knaw.nl/
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
@@ -90,9 +94,11 @@ help:
 	@echo
 	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
 	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
-	@echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
+	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
 	@echo
 	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
+	@echo
+	@echo "  browse-globalise-inception - to open the globalise inception in a browser"
 	@echo
