@@ -119,9 +119,10 @@ def main(cfg: DictConfig) -> None:
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     inception_client, project_id = init_inception_client(cfg)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
+    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
     with textrepo_client as trc, inception_client as inc, provenance_client as prc:
         file_type = get_xmi_file_type(trc)
-        for dm in metadata:
+        for dm in quality_checked_metadata:
             inventory_id = dm.inventory_number
             Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
             links = {'textrepo_links': {}}
