@@ -133,3 +133,5 @@ class AnnotationEncoder(JSONEncoder):
 CAS_SENTENCE = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence"
 CAS_TOKEN = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token"
 CAS_PARAGRAPH = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph"
+CAS_MARGINALIUM = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph" # TODO: find a better fit
+CAS_HEADER = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Heading"

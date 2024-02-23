@@ -2,10 +2,12 @@
 import csv
 import dataclasses
 import json
+import re
 import subprocess
 import sys
 from dataclasses import dataclass, field
 from datetime import datetime
+from pathlib import Path
 from typing import Tuple, List, Dict, Any
 
 import hydra
@@ -15,7 +17,7 @@ from cassis.typesystem import TYPE_NAME_STRING
 from dataclasses_json import dataclass_json
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLScan, Coords
+from pagexml.model.physical_document_model import PageXMLScan
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from pycaprio.core.mappings import InceptionFormat
@@ -24,8 +26,8 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN
-from globalise_tools.tools import is_paragraph, is_marginalium, paragraph_text
+from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MARGINALIUM, CAS_HEADER
+from globalise_tools.tools import is_paragraph, is_marginalium, paragraph_text, is_header, is_signature
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -36,6 +38,7 @@ spacy_core = "nl_core_news_lg"
 class DocumentMetadata:
     document_id: str
     internal_id: str
+    quality_check: str
     title: str
     year_creation_or_dispatch: str
     inventory_number: str
@@ -44,10 +47,15 @@ class DocumentMetadata:
     scan_range: str
     scan_start: str
     scan_end: str
-    no_of_scans: int
-    no_of_pages: int
+    no_of_scans: str
+    no_of_pages: str
     GM_id: str
+    tanap_id: str
+    tanap_description: str
     remarks: str
+    marginalia: str
+    partOf500_filename: str
+    partOf500_folio: str
     first_scan_nr: int = field(init=False)
     last_scan_nr: int = field(init=False)
     hana_nr: str = field(init=False)
@@ -55,8 +63,14 @@ class DocumentMetadata:
     pagexml_ids: List[str] = field(init=False)
 
     def __post_init__(self):
-        self.no_of_pages = int(self.no_of_pages)
-        self.no_of_scans = int(self.no_of_scans)
+        if self.no_of_pages:
+            self.no_of_pages = int(self.no_of_pages)
+        else:
+            self.no_of_pages = 1
+        if self.no_of_scans:
+            self.no_of_scans = int(self.no_of_scans)
+        else:
+            self.no_of_scans = 1
         (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
         self.hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
         self.external_id = self._external_id()
@@ -105,9 +119,12 @@ def main(cfg: DictConfig) -> None:
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     inception_client, project_id = init_inception_client(cfg)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
+    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
     with textrepo_client as trc, inception_client as inc, provenance_client as prc:
         file_type = get_xmi_file_type(trc)
-        for dm in metadata:
+        for dm in quality_checked_metadata:
+            inventory_id = dm.inventory_number
+            Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
             links = {'textrepo_links': {}}
             document_identifier = create_or_update_tr_document(dm, trc)
             links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
@@ -115,6 +132,7 @@ def main(cfg: DictConfig) -> None:
             xmi_path, xmi_provenance = generate_xmi(
                 textrepo_client=trc,
                 document_id=dm.external_id,
+                inventory_id=inventory_id,
                 nlp=nlp,
                 pagexml_ids=dm.pagexml_ids,
                 links=links,
@@ -137,9 +155,12 @@ def main(cfg: DictConfig) -> None:
             trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
             document_id_idx[dm.external_id] = version_identifier.document_id
 
-            name = f'{dm.external_id} - {dm.year_creation_or_dispatch} - {cut_off(dm.title, 100)}'
-            response = inc.create_project_document(project_id=project_id, file_path=xmi_path, name=name,
-                                                   file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1)
+            response = inc.create_project_document(
+                project_id=project_id,
+                file_path=xmi_path,
+                name=inception_document_name(dm),
+                file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1
+            )
             idoc_id = response.body['id']
             inception_view = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
             links['inception_view'] = inception_view
@@ -157,45 +178,87 @@ def main(cfg: DictConfig) -> None:
     store_results(results)
 
 
-def extract_paragraph_text(scan_doc: PageXMLScan, start_offset: int) -> Tuple[str, List[Tuple[int, int]], List[Coords]]:
-    paragraph_ranges = []
-    paragraph_coords = []
-    text = ""
-    offset = start_offset
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        logger.info(f"text_region: {tr.id}")
-        logger.info(f"type: {tr.type[-1]}")
-        line_text = [l.text for l in tr.lines]
-        for t in line_text:
-            logger.info(f"line: {t}")
+def inception_document_name(dm):
+    if dm.year_creation_or_dispatch:
+        year = dm.year_creation_or_dispatch
+    else:
+        year = "<year unknown>"
+    if dm.title:
+        title = cut_off(dm.title, 100)
+    else:
+        title = "<no title>"
+    name = f'{dm.external_id} - {year} - {title}'
+    return name
 
-        if is_paragraph(tr) or is_marginalium(tr):
-            lines = []
-            for line in tr.lines:
-                if line.text:
-                    lines.append(line.text)
-            ptext = paragraph_text(lines)
-            text += ptext
-            text_len = len(text)
-            paragraph_ranges.append((offset, start_offset + text_len))
-            offset = start_offset + text_len
-            paragraph_coords.append(tr.coords)
-            logger.info(f"para: {ptext}")
-        logger.info("")
-    return text, paragraph_ranges, paragraph_coords
+
+def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
+    headers, marginalia, paragraphs = extract_text(scan_doc)
+
+    marginalia_ranges = []
+    header_range = None
+    paragraph_ranges = []
+    offset = 0
+    text = ""
+    for m in marginalia:
+        text += m
+        text_len = len(text)
+        marginalia_ranges.append((offset, text_len))
+        offset = text_len
+    if headers:
+        h = headers[0]
+        text += f"\n{h}\n"
+        text_len = len(text)
+        header_range = (offset + 1, text_len - 1)
+        offset = text_len
+    for m in paragraphs:
+        text += m
+        text_len = len(text)
+        paragraph_ranges.append((offset, text_len))
+        offset = text_len
+    if '  ' in text:
+        logger.error('double space in text')
+    return text, marginalia_ranges, header_range, paragraph_ranges
+
+
+_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+
+
+def joined_lines(tr):
+    lines = []
+    for line in tr.lines:
+        if line.text:
+            lines.append(line.text)
+    ptext = paragraph_text(lines)
+    return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
+
+
+def store_document_text(inventory_id, document_id, marginalia, headers, paragraphs):
+    document_text = "# marginalia\n"
+    document_text += "\n".join(marginalia)
+    document_text += "\n\n# header\n"
+    if headers:
+        document_text += headers[0]
+    document_text += "\n\n# paragraphs\n"
+    document_text += "\n".join(paragraphs)
+
+    path = f"out/{inventory_id}/{document_id}.txt"
+    logger.info(f"=> {path}")
+    with open(path, 'w') as f:
+        f.write(document_text)
 
 
 def generate_xmi(
         textrepo_client: TextRepoClient,
         document_id: str,
+        inventory_id: str,
         nlp: Language,
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
         links: Dict[str, Any]
 ) -> Tuple[str, ProvenanceData]:
-    logger.info(f"<= {typesystem_xml}")
     provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
 
+    logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
 
@@ -212,17 +275,23 @@ def generate_xmi(
 
     SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
     TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
-    # ParagraphAnnotation = cas.typesystem.get_type(
-    #     CAS_PARAGRAPH)
+    ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
+    MarginaliumAnnotation = cas.typesystem.get_type(CAS_MARGINALIUM)
+    HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
+
     typesystem_path = "out/typesystem.xml"
     logger.info(f"=> {typesystem_path}")
     typesystem.to_xml(typesystem_path)
 
     scan_links = {}
 
+    document_marginalia = []
+    document_headers = []
+    document_paragraphs = []
+
     for external_id in pagexml_ids:
         page_links = {}
-        page_xml_path = download_page_xml(external_id, textrepo_client)
+        page_xml_path = download_page_xml(inventory_id, external_id, textrepo_client)
         version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
         version_location = textrepo_client.version_uri(version_identifier.id)
         provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
@@ -230,48 +299,87 @@ def generate_xmi(
         iiif_url = get_iiif_url(external_id, textrepo_client)
         logger.info(f"iiif_url={iiif_url}")
         page_links['iiif_url'] = iiif_url
-        page_links['paragraph_iiif_urls'] = []
-        page_links['sentences'] = []
         logger.info(f"<= {page_xml_path}")
         scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-        start_offset = len(cas.sofa_string)
-        paragraph_text, paragraph_ranges, paragraph_coords = extract_paragraph_text(
-            scan_doc=scan_doc,
-            start_offset=start_offset
-        )
-
-        if not paragraph_text:
-            logger.warning(f"no paragraph text found in {page_xml_path}")
-        else:
-            cas.sofa_string += paragraph_text
-            doc = nlp(paragraph_text)
-            for sentence in doc.sents:
-                page_links['sentences'].append(sentence.text_with_ws)
-                sentence_start_char = start_offset + sentence.start_char
-                sentence_end_char = start_offset + sentence.end_char
-                # cas.add(
-                #     SentenceAnnotation(begin=sentence_start_char, end=sentence_end_char))
-                for token in [t for t in sentence if t.text != "\n"]:
-                    begin = start_offset + token.idx
-                    end = begin + len(token.text)
-                    cas.add(TokenAnnotation(begin=begin, end=end))
-
-            for pr, coords in zip(paragraph_ranges, paragraph_coords):
-                xywh = ",".join([str(coords.x), str(coords.y), str(coords.w), str(coords.h)])
-                paragraph_iiif_url = iiif_url.replace("full", xywh)
-                cas.add(SentenceAnnotation(begin=pr[0], end=pr[1]))
-                cas.add(ParagraphAnnotation(begin=pr[0], end=pr[1], type_='paragraph', iiif_url=iiif_url))
-                page_links['paragraph_iiif_urls'].append(paragraph_iiif_url)
-
+        page_marginalia, page_headers, page_paragraphs = extract_text(scan_doc)
+        document_marginalia.extend(page_marginalia)
+        document_headers.extend(page_headers)
+        document_paragraphs.extend(page_paragraphs)
         scan_links[external_id] = page_links
+
+    store_document_text(inventory_id, document_id, document_marginalia, document_headers, document_paragraphs)
+    marginalia_ranges = []
+    header_range = None
+    paragraph_ranges = []
+    offset = 0
+    document_text = ""
+    for m in document_marginalia:
+        document_text += m
+        text_len = len(document_text)
+        marginalia_ranges.append((offset, text_len))
+        offset = text_len
+    if document_headers:
+        h = document_headers[0]
+        document_text += f"\n{h}\n"
+        text_len = len(document_text)
+        header_range = (offset + 1, text_len - 1)
+        offset = text_len
+    for m in document_paragraphs:
+        document_text += m
+        text_len = len(document_text)
+        paragraph_ranges.append((offset, text_len))
+        offset = text_len
+    if '  ' in document_text:
+        logger.error('double space in text')
+
+    cas.sofa_string = document_text
+    doc = nlp(document_text)
+    for sentence in doc.sents:
+        for token in [t for t in sentence if t.text != "\n"]:
+            begin = token.idx
+            end = begin + len(token.text)
+            cas.add(TokenAnnotation(begin=begin, end=end))
+
+    ranges = marginalia_ranges
+    if header_range:
+        ranges.append(header_range)
+    ranges.extend(paragraph_ranges)
+    for r in ranges:
+        cas.add(SentenceAnnotation(begin=r[0], end=r[1]))
 
     links['scan_links'] = scan_links
 
-    xmi_path = f"out/{document_id}.xmi"
+    xmi_path = f"out/{inventory_id}/{document_id}.xmi"
     logger.info(f"=> {xmi_path}")
     cas.to_xmi(xmi_path, pretty_print=True)
 
     return xmi_path, provenance
+
+
+def extract_text(scan_doc) -> (List[str], List[str], List[str]):
+    paragraphs = []
+    headers = []
+    marginalia = []
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        logger.info(f"text_region: {tr.id}")
+        logger.info(f"type: {tr.type[-1]}")
+        line_text = [l.text for l in tr.lines]
+        for t in line_text:
+            logger.info(f"line: {t}")
+        if is_marginalium(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                marginalia.append(ptext)
+        if is_header(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                headers.append(ptext)
+        if is_paragraph(tr) or is_signature(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                paragraphs.append(ptext)
+        logger.info("")
+    return marginalia, headers, paragraphs
 
 
 def get_iiif_url(external_id, textrepo_client):
@@ -280,9 +388,9 @@ def get_iiif_url(external_id, textrepo_client):
     return f"{scan_url}/full/max/0/default.jpg"
 
 
-def download_page_xml(external_id, textrepo_client):
+def download_page_xml(inventory_id, external_id, textrepo_client):
     pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-    page_xml_path = f"out/{external_id}.xml"
+    page_xml_path = f"out/{inventory_id}/{external_id}.xml"
     logger.info(f"=> {page_xml_path}")
     with open(page_xml_path, "w") as f:
         f.write(pagexml)
@@ -305,19 +413,18 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-def store_xmi(dm, xmi):
-    xmi_path = f"out/{dm.external_id}.xmi"
-    logger.info(f"=> {xmi_path}")
-    with open(xmi_path, 'w') as f:
-        f.write(xmi)
-
-
 def read_document_selection(cfg) -> List[DocumentMetadata]:
     logger.info(f"<= {cfg.selection_file}")
     with open(cfg.selection_file, encoding='utf8') as f:
-        reader = csv.DictReader(f)
-        metadata = [DocumentMetadata.from_dict(row) for row in reader]
-    return metadata
+        f.readline()
+        reader = csv.DictReader(f, fieldnames=[
+            "document_id", "internal_id", "quality_check", "title", "year_creation_or_dispatch", "inventory_number",
+            "folio_or_page", "folio_or_page_range", "scan_range", "scan_start", "scan_end", "no_of_scans",
+            "no_of_pages", "GM_id", "tanap_id", "tanap_description", "remarks", "marginalia",
+            "partOf500_filename", "partOf500_folio"])
+        all_metadata = [DocumentMetadata.from_dict(row) for row in reader]
+    # return [m for m in all_metadata if m.quality_check == 'TRUE']
+    return all_metadata
 
 
 def init_inception_client(cfg) -> (InceptionClient, int):
@@ -365,7 +472,12 @@ def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoCli
     client.set_document_metadata(document_id=document_id, key='no_of_scans', value=str(metadata.no_of_scans))
     client.set_document_metadata(document_id=document_id, key='no_of_pages', value=str(metadata.no_of_pages))
     client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
+    client.set_document_metadata(document_id=document_id, key='tanap_id', value=metadata.tanap_id)
+    client.set_document_metadata(document_id=document_id, key='tanap_description', value=metadata.tanap_description)
     client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
+    client.set_document_metadata(document_id=document_id, key='marginalia', value=metadata.marginalia)
+    client.set_document_metadata(document_id=document_id, key='partOf500_filename', value=metadata.partOf500_filename)
+    client.set_document_metadata(document_id=document_id, key='partOf500_folio', value=metadata.partOf500_folio)
     return document_identifier
 
 

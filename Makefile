@@ -43,8 +43,16 @@ test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv 
 	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
 
 .PHONY: test-inception-annotations
-test-inception-annotations: out/*/web_annotations.json data/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations.py conf/test.yaml
-	poetry run ./scripts/gt-convert-inception-annotations.py -cd conf -cn test.yaml
+test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations-2024.py conf/test.yaml
+	poetry run ./scripts/gt-convert-inception-annotations-2024.py -cd conf -cn test.yaml
+
+.PHONY: test-xmi-generation
+test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/test.yaml
+	poetry run ./scripts/gt-import-document.py -cd conf -cn test.yaml
+
+.PHONY: prod-xmi-generation
+prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
+	poetry run ./scripts/gt-import-document.py -cd conf -cn prod.yaml
 
 .PHONY: install
 install:
@@ -59,17 +67,38 @@ watch-mongodb-data-space:
 process-manifests:
 	poetry run ./scripts/gt-process-manifests.py
 
+.PHONY: run-inception
+run-inception:
+	cd ~/workspaces/globalise/inception-local/ && docker-compose up --detach && open http://localhost:8088/
+
+.PHONY: stop-inception
+stop-inception:
+	cd ~/workspaces/globalise/inception-local/ && docker-compose down
+
+.PHONY: browse-globalise-inception
+browse-globalise-inception:
+	open https://text-annotation.huc.knaw.nl/
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
 	@echo
 	@echo "Please use \`make <target>', where <target> is one of:"
-	@echo "  install                	to install the necessary requirements"
+	@echo "  install                    - to install the necessary requirements"
+	@echo "  install-spacy-model        - to load the 'nl_core_news_lg' language model used by spacy"
 #	@echo "  extract-all            		to extract text and annotations from all document directories"
-#	@echo "  web-annotations        		to generate the web-annotations"
-	@echo "  test-untangle          	to generate and upload segmented text and web-annotations using test settings"
-	@echo "  test-missive-annotations	to generate general missive web-annotations using test settings"
-	@echo "  test-inception-annotations	to generate document web-annotations from the inception export using test settings"
-	@echo "  sample                 	to extract a sample of web annotations where every type is represented"
-	@echo "  install-spacy-model    	to load the 'nl_core_news_lg' language model used by spacy"
+	@echo "  web-annotations            - to generate the web-annotations"
+	@echo
+	@echo "  run-inception              - to start a local inception"
+	@echo "  stop-inception             - to stop the local inception"
+	@echo
+	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
+	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
+	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
+	@echo "  test-xmi-generation        - to generate xmi using test settings"
+	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo
+	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
+	@echo
+	@echo "  browse-globalise-inception - to open the globalise inception in a browser"
 	@echo

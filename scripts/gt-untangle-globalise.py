@@ -7,7 +7,6 @@ import sys
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
-from pathlib import Path
 from random import shuffle
 from typing import Tuple, List, Dict, Any, Optional
 
@@ -131,19 +130,19 @@ def main(cfg: DictConfig) -> None:
 
     scan_url_mapping = read_scan_url_mapping()
 
-    metadata = read_all_metadata()
-    # metadata = read_na_file_metadata(cfg.documents_file)
+    # metadata = read_all_metadata()
+    metadata = read_na_file_metadata(cfg.documents_file)
     # base_provenance = generate_base_provenance(cfg)
     base_provenance = None
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    # with open('data/na_file_selection.json') as f:
-    #     na_file_id_selection = set(json.load(f))
+    with open('data/na_file_selection.json') as f:
+        na_file_id_selection = set(json.load(f))
     # # ic(list(na_file_id_selection)[0])
     # # ic(metadata[0].external_id)
-    # dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
-    dm_selection = [m for m in metadata if m.external_id not in processed]
+    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
+    # dm_selection = [m for m in metadata if m.external_id not in processed]
     shuffle(dm_selection)
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
@@ -513,7 +512,7 @@ def read_na_file_metadata(selection_file: str) -> List[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
-        metadata = [to_document_metadata(row) for row in reader]
+        metadata = [to_document_metadata(row) for row in reader if row['Quality Check'] == 'TRUE']
     return metadata
 
 
