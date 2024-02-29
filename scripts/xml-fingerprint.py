@@ -6,48 +6,49 @@ import xmltodict
 from loguru import logger
 
 
-def as_paths(d, prefix, elements_with_lists, element_attributes: dict):
+def get_paths(xml_dict: dict, prefix: str, elements_with_lists: List[str], element_attributes: dict) -> List[str]:
     paths = []
-    elements = [k for k in d.keys() if not k.startswith('@')]
-    attributes = [k[1:] for k in d.keys() if k.startswith('@')]
+    attributes = [k[1:] for k in xml_dict.keys() if k.startswith('@')]
     root_element = prefix.split('.')[-1]
-    if attributes:
-        if root_element not in element_attributes:
-            element_attributes[root_element] = set()
-        element_attributes[root_element].update(attributes)
 
-    if elements:
-        for e in elements:
-            paths.append(f"{prefix}.{e}"[1:])
-            if isinstance(d[e], dict):
-                paths.extend(as_paths(d[e], f"{prefix}.{e}", elements_with_lists, element_attributes))
-            elif isinstance(d[e], list):
-                elements_with_lists.append(e)
-                for i in d[e]:
-                    if isinstance(i, dict):
-                        paths.extend(as_paths(i, f"{prefix}.{e}", elements_with_lists, element_attributes))
-            elif isinstance(d[e], str):
-                pass
-            else:
-                print(type(d[e]))
+    if attributes:
+        element_attributes.setdefault(root_element, set()).update(attributes)
+
+    for key, value in xml_dict.items():
+        if not key.startswith('@'):
+            path = f"{prefix}.{key}"[1:]
+            paths.append(path)
+
+            if isinstance(value, dict):
+                paths.extend(get_paths(value, f"{prefix}.{key}", elements_with_lists, element_attributes))
+            elif isinstance(value, list):
+                elements_with_lists.append(key)
+                for item in value:
+                    if isinstance(item, dict):
+                        paths.extend(get_paths(item, f"{prefix}.{key}", elements_with_lists, element_attributes))
+
     return paths
 
 
-def xml_fingerprint(xml_dicts: List[Dict[str, any]]):
+def xml_fingerprint(xml_dicts: List[Dict[str, any]]) -> tuple:
     elements_with_lists = []
     element_attributes = {}
     unsorted_paths = []
+
     for xml in xml_dicts:
-        unsorted_paths.extend(as_paths(xml, "", elements_with_lists, element_attributes))
-    paths = set(sorted(unsorted_paths))
-    elements_with_lists_set = set(sorted(elements_with_lists))
+        unsorted_paths.extend(get_paths(xml, "", elements_with_lists, element_attributes))
+
+    paths = sorted(set(unsorted_paths))
+    elements_with_lists_set = sorted(set(elements_with_lists))
+
     new_paths = []
-    for path in sorted(paths):
-        for e in elements_with_lists_set:
-            path = path.replace(f".{e}.", f".{e}[].")
-            if path.endswith(f".{e}"):
-                path = path + "[]"
+    for path in paths:
+        for element in elements_with_lists_set:
+            path = path.replace(f".{element}.", f".{element}[].")
+            if path.endswith(f".{element}"):
+                path += "[]"
         new_paths.append(path)
+
     return new_paths, element_attributes
 
 
