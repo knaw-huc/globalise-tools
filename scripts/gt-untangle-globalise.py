@@ -512,7 +512,8 @@ def read_na_file_metadata(selection_file: str) -> List[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
-        metadata = [to_document_metadata(row) for row in reader if row['Quality Check'] == 'TRUE']
+        metadata = [to_document_metadata(row) for row in reader]
+        # metadata = [to_document_metadata(row) for row in reader if row['Quality Check'] == 'TRUE']
     return metadata
 
 

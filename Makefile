@@ -67,6 +67,10 @@ watch-mongodb-data-space:
 process-manifests:
 	poetry run ./scripts/gt-process-manifests.py
 
+.PHONY: test-paragraph-extraction
+test-paragraph-extraction:
+		poetry run ./scripts/gt-extract-paragraph-text.py
+
 .PHONY: run-inception
 run-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker-compose up --detach && open http://localhost:8088/
@@ -97,6 +101,8 @@ help:
 	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo
+	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
 	@echo
 	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
 	@echo

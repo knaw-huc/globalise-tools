@@ -1158,6 +1158,19 @@ docs = ["docutils", "sphinx (>=5.0)"]
 test = ["pyannotate", "pytest"]
 
 [[package]]
+name = "intervaltree"
+version = "3.1.0"
+description = "Editable interval tree data structure for Python 2 and 3"
+optional = false
+python-versions = "*"
+files = [
+    {file = "intervaltree-3.1.0.tar.gz", hash = "sha256:902b1b88936918f9b2a19e0e5eb7ccb430ae45cde4f39ea4b36932920d33952d"},
+]
+
+[package.dependencies]
+sortedcontainers = ">=2.0,<3.0"
+
+[[package]]
 name = "jinja2"
 version = "3.1.3"
 description = "A very fast and expressive template engine."
@@ -3553,4 +3566,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<3.12"
-content-hash = "22e664dcd0687948406e85bfc99de92c3ce1f62147aa018e14864dad00980dfa"
+content-hash = "a3bb15c4b2a33895c4a2c4359057f061331c44317e06abdca31e21fcf1db909a"

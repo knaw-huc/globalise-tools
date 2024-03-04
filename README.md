@@ -47,3 +47,15 @@ Attributes:
   TextRegion: custom, id
   TextStyle: xHeight
   Word: id
+
+data/textrepo-data.csv : externalid,versionid,scanurl uit textrepo
+
+- in /Volumes/ASMT 2105 Media/globalise/pagexml/2023-*/1.04.02/all-xml-files.lst een lijst van de xml bestanden
+- er is een discrepantie: 
+- 4802212 pagexml voor 2023-05
+- 4784993 pagexml voor 2023-09
+
+- alle pagexml verdelen in documenten:
+- - op https://github.com/globalise-huygens/annotation/tree/main/2024 staan csv's met scanranges voor sommige documenten
+- - voor overige pagexml: per inv.nr.
+- 
