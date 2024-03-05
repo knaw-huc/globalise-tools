@@ -430,7 +430,7 @@ class WebAnnotationFactory:
         }
 
 
-def read_misssive_metadata(meta_path):
+def read_missive_metadata(meta_path):
     with open(meta_path) as f:
         reader = csv.DictReader(f)
         documents = [Document.from_dict(d) for d in reader]
@@ -441,8 +441,18 @@ def make_id_prefix(scan_doc: PageXMLScan) -> str:
     return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
 
 
-def page_annotation(id_prefix: str, page_id: str, path: str, offset: int, total_size: int,
-                    document_id: str) -> Annotation:
+def page_annotation(
+        id_prefix: str,
+        page_id: str,
+        scan_doc_metadata: Dict[str, Any],
+        path: str,
+        offset: int,
+        total_size: int,
+        document_id: str
+) -> Annotation:
+    parts = page_id.split("_")
+    n = parts[-1]
+    inv_nr = parts[-2]
     return Annotation(
         type=PAGE_TYPE,
         id=make_page_id(id_prefix),
@@ -450,11 +460,18 @@ def page_annotation(id_prefix: str, page_id: str, path: str, offset: int, total_
         offset=offset,
         length=total_size,
         metadata={
+            "type": "PageMetadata",
             "document": document_id,
-            "n": page_id.split("_")[-1],
             "file": path,
-            "na_url": na_url(path),
-            "tr_url": tr_url(path)
+            "inventoryNumber": inv_nr,
+            "n": n,
+            "eDepotId": scan_doc_metadata['@externalRef'],
+            "creator": scan_doc_metadata['Creator'],
+            "created": scan_doc_metadata['Created'],
+            "lastChange": scan_doc_metadata['LastChange'],
+            "comment": scan_doc_metadata['Comment'],
+            "naUrl": na_url(path),
+            "trUrl": tr_url(path)
         }
     )
 
@@ -467,9 +484,11 @@ def text_region_annotation(text_region: PXTextRegion, id_prefix: str, offset: in
         offset=offset,
         length=length,
         metadata={
+            "type": "TextRegionMetadata",
             "coords": text_region.coords,
             "text": text_region.text,
-            "px:structureType": text_region.structure_type
+            "px:structureType": text_region.structure_type,
+            "inventoryNumber": (text_region.page_id.split("_")[-2])
         }
     )
 
@@ -482,8 +501,10 @@ def text_line_annotation(text_line: PXTextLine, id_prefix, offset, length) -> An
         offset=offset,
         length=length,
         metadata={
+            "type": "TextMetadata",
             "text": text_line.text,
-            "coords": text_line.coords
+            "coords": text_line.coords,
+            "inventoryNumber": (text_line.page_id.split("_")[-2])
         }
     )
 
@@ -496,6 +517,7 @@ def word_annotation(id_prefix, stripped, text, w) -> Annotation:
         offset=len(text),
         length=len(stripped),
         metadata={
+            "type": "WordMetadata",
             "text": stripped,
             "coords": [pxw.coords for pxw in w.px_words]
         }
@@ -510,6 +532,7 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
         offset=par_offset,
         length=par_length,
         metadata={
+            "type": "ParagraphMetadata",
             "text": text
         }
     )
@@ -523,9 +546,10 @@ def token_annotation(base_name, page_id, token_num, offset, token_length, token_
         offset=offset,
         length=token_length,
         metadata={
+            "type": "TokenMetadata",
             "text": token_text,
-            "sentence_num": sentence_num,
-            "token_num": token_num
+            "sentenceNum": sentence_num,
+            "tokenNum": token_num
         }
     )
 
@@ -576,7 +600,7 @@ def text_region_type_is(text_region, type):
     return text_region.type[-1] == type
 
 
-def is_marginalium(text_region: PageXMLTextRegion) -> bool:
+def is_marginalia(text_region: PageXMLTextRegion) -> bool:
     return text_region_type_is(text_region, "marginalia")
 
 

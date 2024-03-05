@@ -13,6 +13,8 @@ from intervaltree import IntervalTree
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
 
+from globalise_tools.model import LogicalAnchorRange
+
 general_text_region_types = ['physical_structure_doc', 'pagexml_doc', 'text_region']
 spacy_core = "nl_core_news_lg"
 word_break_chars = '„'
@@ -20,14 +22,6 @@ word_break_chars = '„'
 
 # logger.info(f"loading spacy core {spacy_core}")
 # nlp = spacy.load(spacy_core)
-
-
-@dataclass
-class LogicalAnchorRange:
-    begin_logical_anchor: int
-    begin_char_offset: int
-    end_logical_anchor: int
-    end_char_offset: int
 
 
 @logger.catch

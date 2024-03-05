@@ -1,101 +1,85 @@
 #!/usr/bin/env python3
 import csv
+import glob
 import json
 import os
 import subprocess
 import sys
 import time
-from dataclasses import dataclass, field
+from collections import defaultdict
 from datetime import datetime
 from random import shuffle
-from typing import Tuple, List, Dict, Any, Optional
+from typing import Tuple, List, Dict, Any
 
 import hydra
-from dataclasses_json import dataclass_json
+import pagexml.helper.pagexml_helper as pxh
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan, Coords
+from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
 from textrepo.client import TextRepoClient
 from uri import URI
 
 import globalise_tools.tools as gt
-from globalise_tools.model import AnnotationEncoder, WebAnnotation
+from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
+    LogicalAnchorRange, SegmentedTextType
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
-
-@dataclass
-class SimpleAnnotation:
-    type: str
-    first_anchor: int
-    last_anchor: int
-    text: str
-    coords: Optional[Coords]
-    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
+word_break_chars = '„'
 
 
-@dataclass_json
-@dataclass
-class DocumentMetadata:
-    inventory_number: str
-    scan_range: str
-    scan_start: str
-    scan_end: str
-    no_of_scans: int
-    first_scan_nr: int = field(init=False)
-    last_scan_nr: int = field(init=False)
-    nl_hana_nr: str = field(init=False)
-    external_id: str = field(init=False)
-    pagexml_ids: List[str] = field(init=False)
+@hydra.main(version_base=None)
+@logger.catch
+def main(cfg: DictConfig) -> None:
+    # logger.level('warning')
+    results = {}
+    processed = load_processed_files()
 
-    def __post_init__(self):
-        # self.no_of_pages = int(self.no_of_pages)
-        self.no_of_scans = int(self.no_of_scans)
-        (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
-        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
-        self.external_id = self._external_id()
-        self.pagexml_ids = self._pagexml_ids()
+    scan_url_mapping = read_scan_url_mapping()
 
-    def _scan_nr_range(self) -> (int, int):
-        (first_str, last_str) = self.scan_range.split('-')
-        first = int(first_str)
-        last = int(last_str)
-        return first, last
+    # metadata = read_all_metadata()
+    metadata = read_na_file_metadata(cfg.documents_file)
+    # base_provenance = generate_base_provenance(cfg)
+    base_provenance = None
+    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    check_file_types(textrepo_client)
+    provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    def _external_id(self) -> str:
-        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+    with open('data/na_file_selection.json') as f:
+        na_file_id_selection = set(json.load(f))
+    # # ic(list(na_file_id_selection)[0])
+    # # ic(metadata[0].external_id)
+    available_inv_nrs = get_available_inv_nrs()
+    # dm_selection = [m for m in metadata if
+    #                 m.nl_hana_nr in na_file_id_selection and m.external_id not in processed and m.inventory_number in available_inv_nrs]
+    dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs][0:1]
+    # dm_selection = [m for m in metadata if m.external_id not in processed and m.inventory_number in available_inv_nrs]
+    shuffle(dm_selection)
+    # dm_selection.sort(key=lambda x: x.no_of_scans)
+    # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
+    # dm_selection = metadata
+    webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
 
-    def _pagexml_ids(self) -> List[str]:
-        return [f"{self.nl_hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
+    total = len(dm_selection)
+    with textrepo_client as trc, provenance_client as prc:
+        for i, document_metadata in enumerate(dm_selection):
+            logger.info(f"processing {document_metadata.external_id} [{i + 1}/{total}]")
+            before = time.perf_counter()
+            annotations_stored = process_na_file(document_metadata, base_provenance, prc, trc, webannotation_factory,
+                                                 scan_url_mapping, results)
+            after = time.perf_counter()
+            diff = after - before
+            logger.debug(f"done in {diff} s = {diff / document_metadata.no_of_scans} s/pagexml")
+            if annotations_stored and not results[document_metadata.external_id]['errors']:
+                processed.add(document_metadata.external_id)
+                with open("out/processed.json", "w") as f:
+                    json.dump(list(processed), fp=f)
 
 
-@dataclass_json
-@dataclass
-class DocumentMetadata2:
-    inventory_number: str
-    pagexml_ids: List[str]
-    first_scan_nr: int = field(init=False)
-    last_scan_nr: int = field(init=False)
-    no_of_scans: int = field(init=False)
-    nl_hana_nr: str = field(init=False)
-    scan_range: str = field(init=False)
-    scan_start: str = field(init=False)
-    scan_end: str = field(init=False)
-    external_id: str = field(init=False)
-
-    def __post_init__(self):
-        self.no_of_scans = len(self.pagexml_ids)
-        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
-        self.scan_start = self.pagexml_ids[0].split('_')[-1]
-        self.scan_end = self.pagexml_ids[-1].split('_')[-1]
-        self.first_scan_nr = int(self.scan_start)
-        self.last_scan_nr = int(self.scan_end)
-        self.external_id = self._external_id()
-        self.scan_range = f"{self.first_scan_nr}-{self.last_scan_nr}"
-
-    def _external_id(self) -> str:
-        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+def get_available_inv_nrs():
+    inv_nr_paths = glob.glob("/Users/bram/workspaces/globalise/pagexml/*/")
+    return set([p.split('/')[-2] for p in inv_nr_paths])
 
 
 def read_all_metadata():
@@ -121,50 +105,6 @@ def read_scan_url_mapping() -> Dict[str, str]:
     return scan_url_mapping
 
 
-@hydra.main(version_base=None)
-@logger.catch
-def main(cfg: DictConfig) -> None:
-    # logger.level('warning')
-    results = {}
-    processed = load_processed_files()
-
-    scan_url_mapping = read_scan_url_mapping()
-
-    # metadata = read_all_metadata()
-    metadata = read_na_file_metadata(cfg.documents_file)
-    # base_provenance = generate_base_provenance(cfg)
-    base_provenance = None
-    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
-    provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-
-    with open('data/na_file_selection.json') as f:
-        na_file_id_selection = set(json.load(f))
-    # # ic(list(na_file_id_selection)[0])
-    # # ic(metadata[0].external_id)
-    dm_selection = [m for m in metadata if m.nl_hana_nr in na_file_id_selection and m.external_id not in processed]
-    # dm_selection = [m for m in metadata if m.external_id not in processed]
-    shuffle(dm_selection)
-    # dm_selection.sort(key=lambda x: x.no_of_scans)
-    # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
-    # dm_selection = metadata
-    webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
-
-    total = len(dm_selection)
-    with textrepo_client as trc, provenance_client as prc:
-        for i, dm in enumerate(dm_selection):
-            logger.info(f"processing {dm.external_id} [{i + 1}/{total}]")
-            before = time.perf_counter()
-            annotations_stored = process_na_file(base_provenance, dm, prc, trc, webannotation_factory, results,
-                                                 scan_url_mapping)
-            after = time.perf_counter()
-            diff = after - before
-            logger.debug(f"done in {diff} s = {diff / dm.no_of_scans} s/pagexml")
-            if annotations_stored and not results[dm.external_id]['errors']:
-                processed.add(dm.external_id)
-                with open("out/processed.json", "w") as f:
-                    json.dump(list(processed), fp=f)
-
-
 def load_processed_files():
     processed_file = "out/processed.json"
     if os.path.exists(processed_file):
@@ -177,13 +117,13 @@ def load_processed_files():
 
 
 def process_na_file(
-        base_provenance: ProvenanceData,
         document_metadata: DocumentMetadata,
+        base_provenance: ProvenanceData,
         prov_client: ProvenanceClient,
         tr_client: TextRepoClient,
         waf: WebAnnotationFactory,
-        results: Dict[str, any],
-        scan_url_mapping: Dict[str, str]
+        scan_url_mapping: Dict[str, str],
+        results: Dict[str, any]
 ) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
@@ -192,29 +132,19 @@ def process_na_file(
     links['textrepo_links']['document'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}"
     links['textrepo_links']['metadata'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}/metadata"
 
-    segmented_text, text_provenance, annotations = untangle_na_file(document_id=document_metadata.nl_hana_nr,
-                                                                    textrepo_client=tr_client,
-                                                                    pagexml_ids=document_metadata.pagexml_ids,
-                                                                    base_provenance=base_provenance, links=links,
-                                                                    scan_url_mapping=scan_url_mapping)
-    version_identifier = tr_client.import_version(
-        external_id=document_metadata.external_id,
-        type_name='segmented_text',
-        contents=json.dumps(segmented_text, ensure_ascii=False),
-        as_latest_version=True
+    physical_segmented_text, logical_segmented_text, text_provenance, annotations = untangle_na_file(
+        document_id=document_metadata.nl_hana_nr,
+        textrepo_client=tr_client,
+        pagexml_ids=document_metadata.pagexml_ids,
+        base_provenance=base_provenance, links=links,
+        scan_url_mapping=scan_url_mapping
     )
-    links['textrepo_links']['file'] = f"{tr_client.base_uri}/rest/files/{version_identifier.file_id}"
-
-    version_uri = f"{tr_client.base_uri}/rest/versions/{version_identifier.version_id}"
-    links['textrepo_links']['version'] = version_uri
-
-    # text_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
-
-    links['textrepo_links']['contents'] = (f"{tr_client.base_uri}/task/find/{document_metadata.external_id}"
-                                           f"/file/contents?type=segmented_text")
-
-    file_name = f'{document_metadata.nl_hana_nr}.json'
-    tr_client.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
+    physical_version_identifier = store_segmented_text(physical_segmented_text, SegmentedTextType.PHYSICAL,
+                                                       document_metadata, tr_client,
+                                                       links)
+    logical_version_identifier = store_segmented_text(logical_segmented_text, SegmentedTextType.LOGICAL,
+                                                      document_metadata, tr_client,
+                                                      links)
     # # provenance = dataclasses.replace(
     # #     base_provenance,
     # #     sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
@@ -231,7 +161,7 @@ def process_na_file(
 
     if annotations:
         for a in annotations:
-            a.segmented_version_id = version_identifier.version_id
+            a.segmented_version_id = physical_version_identifier.version_id
             a.begin_anchor = a.offset
             a.end_anchor = a.offset + a.length - 1
 
@@ -239,12 +169,38 @@ def process_na_file(
         web_annotations.insert(
             0,
             document_web_annotation(annotations, document_metadata.nl_hana_nr, waf,
-                                    version_identifier.version_id,
+                                    physical_version_identifier.version_id,
                                     document_metadata.inventory_number)
         )
 
         export_web_annotations(document_metadata, web_annotations)
     return len(annotations) > 0
+
+
+def store_segmented_text(segmented_text, segmented_text_type: SegmentedTextType, document_metadata, tr_client, links):
+    if segmented_text_type == SegmentedTextType.PHYSICAL:
+        type_name = 'segmented_text'
+        prefix = 'physical'
+    else:
+        type_name = 'logical_segmented_text'
+        prefix = 'logical'
+
+    version_identifier = tr_client.import_version(
+        external_id=document_metadata.external_id,
+        type_name=type_name,
+        contents=json.dumps(segmented_text, ensure_ascii=False),
+        as_latest_version=True
+    )
+    links['textrepo_links'][prefix] = {}
+    links['textrepo_links'][prefix]['file'] = f"{tr_client.base_uri}/rest/files/{version_identifier.file_id}"
+    version_uri = f"{tr_client.base_uri}/rest/versions/{version_identifier.version_id}"
+    links['textrepo_links'][prefix]['version'] = version_uri
+    # text_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
+    links['textrepo_links'][prefix]['contents'] = (f"{tr_client.base_uri}/task/find/{document_metadata.external_id}"
+                                                   f"/file/contents?type={type_name}")
+    file_name = f'{document_metadata.nl_hana_nr}-{prefix}.json'
+    tr_client.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
+    return version_identifier
 
 
 def to_web_annotation(annotation: Annotation,
@@ -281,6 +237,7 @@ def document_web_annotation(
             "metadata": {
                 "type": "na:FileMetadata",
                 "file": document_id,
+                "inventoryNumber": document_id.split("_")[-1],
                 "manifest": manifest_url
             }
         },
@@ -323,38 +280,53 @@ def is_paragraph(text_region: PageXMLTextRegion) -> bool:
     return text_region.type[-1] == "paragraph"
 
 
-def is_magrginalium(text_region: PageXMLTextRegion) -> bool:
+def is_marginalia(text_region: PageXMLTextRegion) -> bool:
     return text_region.type[-1] == "marginalia"
 
 
-def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) -> Tuple[List[str], List[Annotation]]:
+general_text_region_types = ['physical_structure_doc', 'pagexml_doc', 'text_region']
+
+
+def defining_text_region_type(types) -> str:
+    return "/".join([t for t in types if t not in general_text_region_types])
+
+
+def untangle_scan_doc(
+        scan_doc: PageXMLScan,
+        scan_start_anchor: int,
+        path: str,
+        line_ids_to_anchors: Dict[str, int],
+        logical_anchor_range_for_line_anchor: Dict[str, LogicalAnchorRange],
+        paragraphs: List[str]
+) -> Tuple[List[str], List[str], List[Annotation]]:
     scan_lines = []
+    scan_paragraphs = []
     scan_annotations = []
     id_prefix = gt.make_id_prefix(scan_doc)
-
     for tr in scan_doc.get_text_regions_in_reading_order():
         tr_start_anchor = scan_start_anchor + len(scan_lines)
         tr_lines = []
-        for line in tr.lines:
-            if line.text:
-                line_start_anchor = tr_start_anchor + len(tr_lines)
-                tr_lines.append(line)
-                # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
-                #                                      last_anchor=line_start_anchor, coords=line.coords,
-                #                                      metadata={'id': line.id})
-                px_line = gt.PXTextLine(
-                    id=line.id,
-                    text_region_id=tr.id,
-                    page_id=page_id(scan_doc),
-                    coords=line.coords,
-                    first_word_id=None,
-                    last_word_id=None,
-                    text=line.text,
-                )
-                scan_annotations.append(
-                    gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix,
-                                            offset=tr_start_anchor + len(tr_lines) - 1, length=1)
-                )
+        lines_with_text = [l for l in tr.lines if l.text]
+        for line in lines_with_text:
+            line_ids_to_anchors[line.id] = scan_start_anchor + len(tr_lines)
+            line_start_anchor = tr_start_anchor + len(tr_lines)
+            tr_lines.append(line)
+            # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
+            #                                      last_anchor=line_start_anchor, coords=line.coords,
+            #                                      metadata={'id': line.id})
+            px_line = gt.PXTextLine(
+                id=line.id,
+                text_region_id=tr.id,
+                page_id=page_id(scan_doc),
+                coords=line.coords,
+                first_word_id=None,
+                last_word_id=None,
+                text=line.text,
+            )
+            scan_annotations.append(
+                gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix,
+                                        offset=tr_start_anchor + len(tr_lines) - 1, length=1)
+            )
         if tr_lines:
             px_textregion = gt.PXTextRegion(
                 id=tr.id,
@@ -365,7 +337,7 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
                 first_word_id=None,
                 last_word_id=None,
                 segment_length=len(tr_lines),
-                structure_type=tr.type[-1],
+                structure_type=defining_text_region_type(tr.type),
                 text=" ".join([trl.text for trl in tr_lines])
             )
             scan_annotations.append(
@@ -373,6 +345,21 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
                                           length=len(tr_lines))
             )
             scan_lines.extend([trl.text for trl in tr_lines])
+            tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
+            para_anchor = len(paragraphs)
+            for line_range in line_ranges:
+                line_anchor = line_ids_to_anchors[line_range['line_id']]
+                start = line_range['start']
+                end = line_range['end']
+                logical_anchor_range_for_line_anchor[line_anchor] = LogicalAnchorRange(
+                    begin_logical_anchor=para_anchor,
+                    begin_char_offset=start,
+                    end_logical_anchor=para_anchor,
+                    end_char_offset=end
+                )
+                if start > end:
+                    logger.error(f"start {start} > end {end}")
+            paragraphs.append(tr_text)
 
     if not scan_lines:
         logger.warning(f"no paragraph text found in {scan_doc.id}")
@@ -381,12 +368,13 @@ def untangle_scan_doc(scan_doc: PageXMLScan, scan_start_anchor: int, path: str) 
     scan_annotations.append(
         gt.page_annotation(id_prefix=id_prefix,
                            page_id=page_id(scan_doc),
+                           scan_doc_metadata=scan_doc.metadata,
                            path=path,
                            offset=scan_start_anchor,
                            total_size=len(scan_lines),
                            document_id=scan_doc.id)
     )
-    return scan_lines, scan_annotations
+    return scan_lines, scan_paragraphs, scan_annotations
 
 
 def page_id(scan_doc):
@@ -400,7 +388,7 @@ def untangle_na_file(
         base_provenance: ProvenanceData,
         links: Dict[str, Any],
         scan_url_mapping: Dict[str, str]
-) -> Tuple[Dict[str, any], ProvenanceData, List[Annotation]]:
+) -> Tuple[Dict[str, any], Dict[str, any], ProvenanceData, List[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
 
@@ -408,6 +396,9 @@ def untangle_na_file(
     output_directory = f'out/{document_id}'
     os.makedirs(output_directory, exist_ok=True)
     document_lines = []
+    line_ids_to_anchors = {}
+    logical_anchor_range_for_line_anchor = defaultdict(lambda: LogicalAnchorRange(0, 0, 0, 0))
+    document_paragraphs = []
     document_annotations = []
     total = len(pagexml_ids)
     logger.info(f"processing {total} pagexmls...")
@@ -416,7 +407,8 @@ def untangle_na_file(
         tries = 0
         done = False
         while not done:
-            page_xml_path, page_xml, error = download_page_xml(external_id, textrepo_client, output_directory)
+            # page_xml_path, page_xml, error = download_page_xml(external_id, textrepo_client, output_directory)
+            page_xml_path, page_xml, error = read_page_xml(external_id)
             if error and tries < 10:
                 logger.error(f"Error={error}")
                 tries += 1
@@ -444,20 +436,35 @@ def untangle_na_file(
                 # logger.info(f"<= {page_xml_path}")
                 scan_doc: PageXMLScan = parse_pagexml_file(pagexml_file=page_xml_path, pagexml_data=page_xml)
                 start_offset = len(document_lines)
-                scan_lines, scan_annotations = untangle_scan_doc(
+                scan_lines, scan_paragraphs, scan_annotations = untangle_scan_doc(
                     scan_doc=scan_doc,
                     scan_start_anchor=start_offset,
-                    path=page_xml_path.split('/')[-1]
+                    path=page_xml_path.split('/')[-1],
+                    line_ids_to_anchors=line_ids_to_anchors,
+                    paragraphs=document_paragraphs,
+                    logical_anchor_range_for_line_anchor=logical_anchor_range_for_line_anchor
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
+                document_paragraphs.extend(scan_paragraphs)
                 # scan_links[external_id] = page_links
                 # os.remove(page_xml_path)
 
     document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
     # links['scan_links'] = scan_links
-    segmented_text = {"_ordered_segments": document_lines}
-    return segmented_text, provenance, document_annotations
+    physical_segmented_text = {"_ordered_segments": document_lines}
+    logical_segmented_text = {"_ordered_segments": document_paragraphs}
+    return physical_segmented_text, logical_segmented_text, provenance, document_annotations
+
+
+def read_page_xml(external_id):
+    inv_nr = external_id.split('_')[-2]
+    page_xml_dir = "/Users/bram/workspaces/globalise/pagexml"
+    page_xml_path = f"{page_xml_dir}/{inv_nr}/{external_id}.xml"
+    with open(page_xml_path) as f:
+        page_xml = f.read()
+    error = []
+    return page_xml_path, page_xml, error
 
 
 def get_iiif_url(external_id, textrepo_client):
@@ -538,6 +545,13 @@ def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoCli
     # client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
     # client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
     return document_identifier
+
+
+def check_file_types(trc):
+    name = "logical_segmented_text"
+    available_type_names = [t.name for t in trc.read_file_types()]
+    if name not in available_type_names:
+        trc.create_file_type(name=name, mimetype="application/json")
 
 
 if __name__ == '__main__':

@@ -1,8 +1,9 @@
 import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
+from enum import Enum
 from json import JSONEncoder
-from typing import Dict, Any, List
+from typing import Dict, Any, List, Optional
 
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
@@ -83,7 +84,7 @@ class WebAnnotation:
 
     def wrapped(self):
         anno_uuid = uuid.uuid4()
-        dict = {
+        anno_dict = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": f"urn:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
@@ -98,8 +99,8 @@ class WebAnnotation:
             "target": self.target
         }
         if self.custom:
-            dict.update(self.custom)
-        return dict
+            anno_dict.update(self.custom)
+        return anno_dict
 
 
 @dataclass
@@ -133,5 +134,91 @@ class AnnotationEncoder(JSONEncoder):
 CAS_SENTENCE = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Sentence"
 CAS_TOKEN = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Token"
 CAS_PARAGRAPH = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph"
-CAS_MARGINALIUM = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph" # TODO: find a better fit
+CAS_MARGINALIUM = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Paragraph"  # TODO: find a better fit
 CAS_HEADER = "de.tudarmstadt.ukp.dkpro.core.api.segmentation.type.Heading"
+
+
+@dataclass
+class SimpleAnnotation:
+    type: str
+    first_anchor: int
+    last_anchor: int
+    text: str
+    coords: Optional[Coords]
+    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
+
+
+@dataclass_json
+@dataclass
+class DocumentMetadata:
+    inventory_number: str
+    scan_range: str
+    scan_start: str
+    scan_end: str
+    no_of_scans: int
+    first_scan_nr: int = field(init=False)
+    last_scan_nr: int = field(init=False)
+    nl_hana_nr: str = field(init=False)
+    external_id: str = field(init=False)
+    pagexml_ids: List[str] = field(init=False)
+
+    def __post_init__(self):
+        # self.no_of_pages = int(self.no_of_pages)
+        self.no_of_scans = int(self.no_of_scans)
+        (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
+        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
+        self.external_id = self._external_id()
+        self.pagexml_ids = self._pagexml_ids()
+
+    def _scan_nr_range(self) -> (int, int):
+        (first_str, last_str) = self.scan_range.split('-')
+        first = int(first_str)
+        last = int(last_str)
+        return first, last
+
+    def _external_id(self) -> str:
+        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+
+    def _pagexml_ids(self) -> List[str]:
+        return [f"{self.nl_hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
+
+
+@dataclass_json
+@dataclass
+class DocumentMetadata2:
+    inventory_number: str
+    pagexml_ids: List[str]
+    first_scan_nr: int = field(init=False)
+    last_scan_nr: int = field(init=False)
+    no_of_scans: int = field(init=False)
+    nl_hana_nr: str = field(init=False)
+    scan_range: str = field(init=False)
+    scan_start: str = field(init=False)
+    scan_end: str = field(init=False)
+    external_id: str = field(init=False)
+
+    def __post_init__(self):
+        self.no_of_scans = len(self.pagexml_ids)
+        self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
+        self.scan_start = self.pagexml_ids[0].split('_')[-1]
+        self.scan_end = self.pagexml_ids[-1].split('_')[-1]
+        self.first_scan_nr = int(self.scan_start)
+        self.last_scan_nr = int(self.scan_end)
+        self.external_id = self._external_id()
+        self.scan_range = f"{self.first_scan_nr}-{self.last_scan_nr}"
+
+    def _external_id(self) -> str:
+        return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
+
+
+@dataclass
+class LogicalAnchorRange:
+    begin_logical_anchor: int
+    begin_char_offset: int
+    end_logical_anchor: int
+    end_char_offset: int
+
+
+class SegmentedTextType(Enum):
+    PHYSICAL = 1,
+    LOGICAL = 2

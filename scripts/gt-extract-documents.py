@@ -185,7 +185,7 @@ def main(cfg: DictConfig) -> None:
     meta_path = "data/metadata_1618-1793_2022-08-30.csv"
 
     metadata = read_document_metadata(cfg.documents_file)
-    missive_data = gt.read_misssive_metadata(meta_path)
+    missive_data = gt.read_missive_metadata(meta_path)
 
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
     annorepo_client = AnnoRepoClient(cfg.annorepo.base_uri)

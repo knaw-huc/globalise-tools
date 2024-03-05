@@ -27,7 +27,7 @@ from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MARGINALIUM, CAS_HEADER
-from globalise_tools.tools import is_paragraph, is_marginalium, paragraph_text, is_header, is_signature
+from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -366,7 +366,7 @@ def extract_text(scan_doc) -> (List[str], List[str], List[str]):
         line_text = [l.text for l in tr.lines]
         for t in line_text:
             logger.info(f"line: {t}")
-        if is_marginalium(tr):
+        if is_marginalia(tr):
             ptext = joined_lines(tr)
             if ptext:
                 marginalia.append(ptext)
