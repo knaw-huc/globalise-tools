@@ -166,8 +166,9 @@ def process_na_file(
             a.physical_span.begin_anchor = a.physical_span.offset
             a.physical_span.end_anchor = a.physical_span.offset + a.physical_span.length - 1
             a.logical_span.textrepo_version_id = logical_version_identifier.version_id
-            a.logical_span.begin_anchor = a.logical_span.offset
-            a.logical_span.end_anchor = a.logical_span.offset + a.logical_span.length - 1
+            if not a.logical_span.char_start:
+                a.logical_span.begin_anchor = a.logical_span.offset
+                a.logical_span.end_anchor = a.logical_span.offset + a.logical_span.length - 1
 
         web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
         web_annotations.insert(
@@ -316,7 +317,7 @@ def untangle_scan_doc(
         physical_start_anchor: int,
         path: str,
         line_ids_to_anchors: Dict[str, int],
-        logical_anchor_range_for_line_anchor: Dict[str, LogicalAnchorRange],
+        logical_anchor_range_for_line_id: Dict[str, LogicalAnchorRange],
         paragraphs: List[str]
 ) -> tuple[list[Union[str, Any]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
@@ -329,28 +330,10 @@ def untangle_scan_doc(
         lines_with_text = [line for line in tr.lines if line.text]
         for line in lines_with_text:
             line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
-            line_start_anchor = tr_start_anchor + len(tr_lines)
             tr_lines.append(line)
             # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
             #                                      last_anchor=line_start_anchor, coords=line.coords,
             #                                      metadata={'id': line.id})
-            px_line = gt.PXTextLine(
-                id=line.id,
-                text_region_id=tr.id,
-                page_id=page_id(scan_doc),
-                coords=line.coords,
-                first_word_id=None,
-                last_word_id=None,
-                text=line.text,
-            )
-            scan_annotations.append(
-                gt.text_line_annotation(
-                    text_line=px_line,
-                    id_prefix=id_prefix,
-                    physical_span=gt.TextSpan(offset=line_start_anchor, length=1),
-                    logical_span=gt.TextSpan(offset=logical_start_anchor, length=1)
-                )
-            )
         if tr_lines:
             px_textregion = gt.PXTextRegion(
                 id=tr.id,
@@ -366,17 +349,17 @@ def untangle_scan_doc(
             )
             scan_annotations.append(
                 gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix,
-                                          physical_span=gt.TextSpan(),
-                                          logical_span=gt.TextSpan())
+                                          physical_span=gt.TextSpan(offset=physical_start_anchor,
+                                                                    length=len(tr_lines)),
+                                          logical_span=gt.TextSpan(offset=logical_start_anchor, length=1))
             )
             scan_lines.extend([trl.text for trl in tr_lines])
             tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
             para_anchor = len(paragraphs)
             for line_range in line_ranges:
-                line_anchor = line_ids_to_anchors[line_range['line_id']]
                 start = line_range['start']
                 end = line_range['end']
-                logical_anchor_range_for_line_anchor[line_anchor] = LogicalAnchorRange(
+                logical_anchor_range_for_line_id[line_range['line_id']] = LogicalAnchorRange(
                     begin_logical_anchor=para_anchor,
                     begin_char_offset=start,
                     end_logical_anchor=para_anchor,
@@ -385,6 +368,30 @@ def untangle_scan_doc(
                 if start > end:
                     logger.error(f"start {start} > end {end}")
             paragraphs.append(tr_text)
+
+            for n, line in enumerate(tr_lines):
+                line_start_anchor = tr_start_anchor + n
+                logical_anchor_range = logical_anchor_range_for_line_id[line.id]
+                px_line = gt.PXTextLine(
+                    id=line.id,
+                    text_region_id=tr.id,
+                    page_id=page_id(scan_doc),
+                    coords=line.coords,
+                    first_word_id=None,
+                    last_word_id=None,
+                    text=line.text,
+                )
+                scan_annotations.append(
+                    gt.text_line_annotation(
+                        text_line=px_line,
+                        id_prefix=id_prefix,
+                        physical_span=gt.TextSpan(offset=line_start_anchor, length=1),
+                        logical_span=gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
+                                                 char_start=logical_anchor_range.begin_char_offset,
+                                                 end_anchor=logical_anchor_range.end_logical_anchor,
+                                                 char_end=logical_anchor_range.end_char_offset)
+                    )
+                )
 
     if not scan_lines:
         logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
@@ -424,7 +431,7 @@ def untangle_na_file(
     os.makedirs(output_directory, exist_ok=True)
     document_lines = []
     line_ids_to_anchors = {}
-    logical_anchor_range_for_line_anchor = defaultdict(lambda: LogicalAnchorRange(0, 0, 0, 0))
+    logical_anchor_range_for_line_id = defaultdict(lambda: LogicalAnchorRange(0, 0, 0, 0))
     document_paragraphs = []
     document_annotations = []
     total = len(pagexml_ids)
@@ -469,7 +476,7 @@ def untangle_na_file(
                     path=page_xml_path.split('/')[-1],
                     line_ids_to_anchors=line_ids_to_anchors,
                     paragraphs=document_paragraphs,
-                    logical_anchor_range_for_line_anchor=logical_anchor_range_for_line_anchor
+                    logical_anchor_range_for_line_id=logical_anchor_range_for_line_id
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
