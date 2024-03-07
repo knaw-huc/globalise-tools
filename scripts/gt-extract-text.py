@@ -6,13 +6,14 @@ import json
 import os
 from typing import List, AnyStr, Dict, Any, Tuple
 
-import globalise_tools.tools as gt
 import pagexml.parser as pxp
 import spacy
-from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
 from icecream import ic
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
+
+import globalise_tools.tools as gt
+from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
 
 spacy_core = "nl_core_news_lg"
 
@@ -71,7 +72,7 @@ def process_pagexml(path: str, document_id: str):
         last_word_range = px_word_range_idx[text_region.last_word_id]
         length = last_word_range[1] - offset
         annotations.append(
-            gt.text_region_annotation(text_region, id_prefix, offset, length)
+            gt.text_region_annotation(text_region, id_prefix)
         )
 
     for text_line in px_text_lines:
@@ -262,7 +263,7 @@ def add_anchor_range(all_annotations: List[gt.Annotation], tokens: List[GTToken]
     for a in all_annotations:
         char_range_begin = a.offset
         char_range_end = a.offset + a.length
-        a.begin_anchor, a.end_anchor = segment_range(tokens, char_range_begin, char_range_end)
+        a.physical_begin_anchor, a.physical_end_anchor = segment_range(tokens, char_range_begin, char_range_end)
 
 
 def doc_annotation(base_name: str):
@@ -310,7 +311,7 @@ def add_document_web_annotation(all_annotations, base_name, document_id, web_ann
     manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
     textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
     segmented_version_id = tr_versions[base_name].segmented
-    end_anchor = max([a.end_anchor for a in all_annotations])
+    end_anchor = max([a.physical_end_anchor for a in all_annotations])
     web_annotations.append(WebAnnotation(
         body={
             "id": f"urn:globalise:document:{document_id}",
@@ -320,11 +321,16 @@ def add_document_web_annotation(all_annotations, base_name, document_id, web_ann
                 "manifest": manifest_url
             }
         },
-        target=[webannotation_factory.text_anchor_selector_target(textrepo_base_url=textrepo_base_url,
-                                                                  segmented_version_id=segmented_version_id,
-                                                                  begin_anchor=0, end_anchor=end_anchor),
-                gt.cutout_target(textrepo_base_url=textrepo_base_url, segmented_version_id=segmented_version_id,
-                                 begin_anchor=0, end_anchor=end_anchor)]
+        target=[
+            webannotation_factory.physical_text_anchor_selector_target(
+                segmented_version_id=segmented_version_id,
+                begin_anchor=0, end_anchor=end_anchor
+            ),
+            webannotation_factory.physical_text_cutout_target(
+                segmented_version_id=segmented_version_id,
+                begin_anchor=0, end_anchor=end_anchor
+            )
+        ]
     ))
 
 
@@ -352,7 +358,7 @@ def process_pagexml_files(pagexml_files: List[str], document_id: str):
 
 def add_tr_versions(all_annotations, external_id):
     for a in all_annotations:
-        a.segmented_version_id = tr_versions[external_id].segmented
+        a.physical_segmented_version_id = tr_versions[external_id].segmented
         a.txt_version_id = tr_versions[external_id].txt
 
 

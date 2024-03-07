@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from random import shuffle
-from typing import Tuple, List, Dict, Any
+from typing import Tuple, List, Dict, Any, Union
 
 import hydra
 import pagexml.helper.pagexml_helper as pxh
@@ -136,7 +136,8 @@ def process_na_file(
         document_id=document_metadata.nl_hana_nr,
         textrepo_client=tr_client,
         pagexml_ids=document_metadata.pagexml_ids,
-        base_provenance=base_provenance, links=links,
+        base_provenance=base_provenance,
+        links=links,
         scan_url_mapping=scan_url_mapping
     )
     physical_version_identifier = store_segmented_text(physical_segmented_text, SegmentedTextType.PHYSICAL,
@@ -161,16 +162,18 @@ def process_na_file(
 
     if annotations:
         for a in annotations:
-            a.segmented_version_id = physical_version_identifier.version_id
-            a.begin_anchor = a.offset
-            a.end_anchor = a.offset + a.length - 1
+            a.physical_span.textrepo_version_id = physical_version_identifier.version_id
+            a.physical_span.begin_anchor = a.physical_span.offset
+            a.physical_span.end_anchor = a.physical_span.offset + a.physical_span.length - 1
+            a.logical_span.textrepo_version_id = logical_version_identifier.version_id
+            a.logical_span.begin_anchor = a.logical_span.offset
+            a.logical_span.end_anchor = a.logical_span.offset + a.logical_span.length - 1
 
         web_annotations = [to_web_annotation(a, webannotation_factory=waf) for a in annotations]
         web_annotations.insert(
             0,
-            document_web_annotation(annotations, document_metadata.nl_hana_nr, waf,
-                                    physical_version_identifier.version_id,
-                                    document_metadata.inventory_number)
+            document_web_annotation(annotations, document_metadata.nl_hana_nr, document_metadata.inventory_number, waf,
+                                    physical_version_identifier.version_id, logical_version_identifier.version_id)
         )
 
         export_web_annotations(document_metadata, web_annotations)
@@ -218,16 +221,12 @@ def to_web_annotation(annotation: Annotation,
     return WebAnnotation(body=body, target=targets)
 
 
-def document_web_annotation(
-        all_annotations: List[Annotation],
-        document_id: str,
-        webannotation_factory: WebAnnotationFactory,
-        segmented_version_id: str,
-        inventory_number: str
-) -> WebAnnotation:
+def document_web_annotation(all_annotations: List[Annotation], document_id: str, inventory_number: str,
+                            webannotation_factory: WebAnnotationFactory, physical_segmented_version_id: str,
+                            logical_segmented_version_id: str) -> WebAnnotation:
     manifest_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
-    textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
-    end_anchor = max([a.end_anchor for a in all_annotations])
+    physical_end_anchor = max([a.physical_span.end_anchor for a in all_annotations])
+    logical_end_anchor = max([a.logical_span.end_anchor for a in all_annotations])
     return WebAnnotation(
         body={
             "@context": {"na": "https://knaw-huc.github.io/ns/nationaal-archief#",
@@ -237,15 +236,36 @@ def document_web_annotation(
             "metadata": {
                 "type": "na:FileMetadata",
                 "file": document_id,
-                "inventoryNumber": document_id.split("_")[-1],
+                "inventoryNumber": inventory_number,
                 "manifest": manifest_url
             }
         },
-        target=[webannotation_factory.text_anchor_selector_target(textrepo_base_url=textrepo_base_url,
-                                                                  segmented_version_id=segmented_version_id,
-                                                                  begin_anchor=0, end_anchor=end_anchor),
-                gt.cutout_target(textrepo_base_url=textrepo_base_url, segmented_version_id=segmented_version_id,
-                                 begin_anchor=0, end_anchor=end_anchor)]
+        target=[
+            webannotation_factory.physical_text_anchor_selector_target(
+                text_span=gt.TextSpan(
+                    textrepo_version_id=physical_segmented_version_id,
+                    begin_anchor=0,
+                    end_anchor=physical_end_anchor
+                )),
+            webannotation_factory.physical_text_cutout_target(
+                text_span=gt.TextSpan(
+                    textrepo_version_id=physical_segmented_version_id,
+                    begin_anchor=0,
+                    end_anchor=physical_end_anchor
+                )),
+            webannotation_factory.logical_text_anchor_selector_target(
+                text_span=gt.TextSpan(
+                    textrepo_version_id=logical_segmented_version_id,
+                    begin_anchor=0,
+                    end_anchor=logical_end_anchor
+                )),
+            webannotation_factory.logical_text_cutout_target(
+                text_span=gt.TextSpan(
+                    textrepo_version_id=logical_segmented_version_id,
+                    begin_anchor=0,
+                    end_anchor=logical_end_anchor
+                ))
+        ]
     )
 
 
@@ -293,22 +313,22 @@ def defining_text_region_type(types) -> str:
 
 def untangle_scan_doc(
         scan_doc: PageXMLScan,
-        scan_start_anchor: int,
+        physical_start_anchor: int,
         path: str,
         line_ids_to_anchors: Dict[str, int],
         logical_anchor_range_for_line_anchor: Dict[str, LogicalAnchorRange],
         paragraphs: List[str]
-) -> Tuple[List[str], List[str], List[Annotation]]:
+) -> tuple[list[Union[str, Any]], list[Annotation]]:
+    logical_start_anchor = len(paragraphs)
     scan_lines = []
-    scan_paragraphs = []
     scan_annotations = []
     id_prefix = gt.make_id_prefix(scan_doc)
     for tr in scan_doc.get_text_regions_in_reading_order():
-        tr_start_anchor = scan_start_anchor + len(scan_lines)
+        tr_start_anchor = physical_start_anchor + len(scan_lines)
         tr_lines = []
-        lines_with_text = [l for l in tr.lines if l.text]
+        lines_with_text = [line for line in tr.lines if line.text]
         for line in lines_with_text:
-            line_ids_to_anchors[line.id] = scan_start_anchor + len(tr_lines)
+            line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
             line_start_anchor = tr_start_anchor + len(tr_lines)
             tr_lines.append(line)
             # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
@@ -324,8 +344,12 @@ def untangle_scan_doc(
                 text=line.text,
             )
             scan_annotations.append(
-                gt.text_line_annotation(text_line=px_line, id_prefix=id_prefix,
-                                        offset=tr_start_anchor + len(tr_lines) - 1, length=1)
+                gt.text_line_annotation(
+                    text_line=px_line,
+                    id_prefix=id_prefix,
+                    physical_span=gt.TextSpan(offset=line_start_anchor, length=1),
+                    logical_span=gt.TextSpan(offset=logical_start_anchor, length=1)
+                )
             )
         if tr_lines:
             px_textregion = gt.PXTextRegion(
@@ -341,8 +365,9 @@ def untangle_scan_doc(
                 text=" ".join([trl.text for trl in tr_lines])
             )
             scan_annotations.append(
-                gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix, offset=tr_start_anchor,
-                                          length=len(tr_lines))
+                gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix,
+                                          physical_span=gt.TextSpan(),
+                                          logical_span=gt.TextSpan())
             )
             scan_lines.extend([trl.text for trl in tr_lines])
             tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
@@ -362,19 +387,21 @@ def untangle_scan_doc(
             paragraphs.append(tr_text)
 
     if not scan_lines:
-        logger.warning(f"no paragraph text found in {scan_doc.id}")
+        logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
         scan_lines.append("")
+        paragraphs.append("")
 
     scan_annotations.append(
         gt.page_annotation(id_prefix=id_prefix,
                            page_id=page_id(scan_doc),
                            scan_doc_metadata=scan_doc.metadata,
                            path=path,
-                           offset=scan_start_anchor,
-                           total_size=len(scan_lines),
+                           physical_span=gt.TextSpan(offset=physical_start_anchor, length=len(scan_lines)),
+                           logical_span=gt.TextSpan(offset=logical_start_anchor,
+                                                    length=len(paragraphs) - logical_start_anchor),
                            document_id=scan_doc.id)
     )
-    return scan_lines, scan_paragraphs, scan_annotations
+    return scan_lines, scan_annotations
 
 
 def page_id(scan_doc):
@@ -436,9 +463,9 @@ def untangle_na_file(
                 # logger.info(f"<= {page_xml_path}")
                 scan_doc: PageXMLScan = parse_pagexml_file(pagexml_file=page_xml_path, pagexml_data=page_xml)
                 start_offset = len(document_lines)
-                scan_lines, scan_paragraphs, scan_annotations = untangle_scan_doc(
+                scan_lines, scan_annotations = untangle_scan_doc(
                     scan_doc=scan_doc,
-                    scan_start_anchor=start_offset,
+                    physical_start_anchor=start_offset,
                     path=page_xml_path.split('/')[-1],
                     line_ids_to_anchors=line_ids_to_anchors,
                     paragraphs=document_paragraphs,
@@ -446,11 +473,11 @@ def untangle_na_file(
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
-                document_paragraphs.extend(scan_paragraphs)
                 # scan_links[external_id] = page_links
                 # os.remove(page_xml_path)
 
-    document_annotations.sort(key=lambda a: f"{a.page_id} {a.offset:06d} {(1000 - a.length):06d}")
+    document_annotations.sort(
+        key=lambda a: f"{a.page_id} {a.physical_span.offset:06d} {(1000 - a.physical_span.length):06d}")
     # links['scan_links'] = scan_links
     physical_segmented_text = {"_ordered_segments": document_lines}
     logical_segmented_text = {"_ordered_segments": document_paragraphs}

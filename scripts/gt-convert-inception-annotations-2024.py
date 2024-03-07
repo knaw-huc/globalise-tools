@@ -5,11 +5,9 @@ import os.path
 from typing import Dict, Any
 
 import hydra
-from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 
-import globalise_tools.tools as gt
 from globalise_tools.model import WebAnnotation, AnnotationEncoder
 from globalise_tools.tools import WebAnnotationFactory
 
@@ -85,14 +83,12 @@ def main(cfg: DictConfig) -> None:
                         "metadata": metadata
                     },
                     target=[
-                        webannotation_factory.text_anchor_selector_target(
-                            textrepo_base_url=cfg.textrepo.base_uri,
+                        webannotation_factory.physical_text_anchor_selector_target(
                             segmented_version_id=segmented_version_id,
                             begin_anchor=begin_anchor,
                             end_anchor=end_anchor
                         ),
-                        gt.cutout_target(
-                            textrepo_base_url=cfg.textrepo.base_uri,
+                        webannotation_factory.physical_text_cutout_target(
                             segmented_version_id=segmented_version_id,
                             begin_anchor=begin_anchor,
                             end_anchor=end_anchor

@@ -1,6 +1,6 @@
 import csv
 from dataclasses import dataclass, field
-from typing import List, Any, Tuple, Dict
+from typing import List, Any, Tuple, Dict, Union
 
 from dataclasses_json import dataclass_json
 from loguru import logger
@@ -19,8 +19,8 @@ class PXTextRegion:
     coords: Coords
     first_line_id: str
     last_line_id: str
-    first_word_id: str
-    last_word_id: str
+    first_word_id: Union[str, None]
+    last_word_id: Union[str, None]
     segment_length: int
     structure_type: str
     text: str
@@ -33,8 +33,8 @@ class PXTextLine:
     text_region_id: str
     page_id: str
     coords: Coords
-    first_word_id: str
-    last_word_id: str
+    first_word_id: Union[str, None]
+    last_word_id: Union[str, None]
     text: str
 
 
@@ -58,18 +58,35 @@ class DisplayWord:
 
 @dataclass_json
 @dataclass(eq=True)
+class TextSpan:
+    offset: int = 0
+    length: int = 0
+    begin_anchor: int = 0
+    end_anchor: int = 0
+    char_start: int = None
+    char_end: int = None
+    textrepo_version_id: str = ""
+
+
+@dataclass_json
+@dataclass(eq=True)
 class Annotation:
     type: str
     id: str
     page_id: str
-    offset: int
-    length: int
-    segmented_version_id: str = ""
-    begin_anchor: int = 0
-    end_anchor: int = 0
-    txt_version_id: str = ""
-    char_start: int = 0
-    char_end: int = 0
+    physical_span: TextSpan = TextSpan()
+    logical_span: TextSpan = TextSpan()
+    # offset: int
+    # length: int
+    # physical_segmented_version_id: str = ""
+    # physical_begin_anchor: int = 0
+    # physical_end_anchor: int = 0
+    # logical_segmented_version_id: str = ""
+    # logical_begin_anchor: int = 0
+    # logical_end_anchor: int = 0
+    # txt_version_id: str = ""
+    # char_start: int = 0
+    # char_end: int = 0
     metadata: dict[str, Any] = field(default_factory=dict, hash=False)
 
 
@@ -81,6 +98,208 @@ class IdDispenser:
     def next(self):
         self.counter += 1
         return f"{self.prefix}{self.counter}"
+
+
+class WebAnnotationFactory:
+    ANNO_CONTEXT = "https://knaw-huc.github.io/ns/huc-di-tt.jsonld"
+
+    def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str):
+        self.iiif_base_url_idx = {}
+        self.textrepo_base_uri = textrepo_base_uri
+        self._init_iiif_base_url_idx(iiif_mapping_file)
+        self._iiif_mapping_file = iiif_mapping_file
+
+    @logger.catch
+    def annotation_targets(self, annotation: Annotation):
+        targets = []
+        page_id = annotation.page_id
+        canvas_url = get_canvas_url(page_id)
+        if "coords" in annotation.metadata:
+            coords = annotation.metadata["coords"]
+            if isinstance(coords, Coords):
+                coords = [coords]
+            targets.extend(self._make_image_targets(page_id, coords))
+            xywh_list = [self._to_xywh(c) for c in coords]
+            points = [c.points for c in coords]
+            canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
+            targets.append(canvas_target)
+        if annotation.type == PAGE_TYPE:
+            iiif_base_url = self._get_iiif_base_url(page_id)
+            iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+            targets.extend([
+                {
+                    "source": iiif_url,
+                    "type": "Image"
+                },
+                {
+                    '@context': self.ANNO_CONTEXT,
+                    'source': canvas_url,
+                    'type': "Canvas",
+                }
+            ])
+        targets.extend(
+            self._make_text_targets(annotation=annotation)
+        )
+        return targets
+
+    @staticmethod
+    def _to_xywh(coords: Coords):
+        return f"{coords.left},{coords.top},{coords.width},{coords.height}"
+
+    def _init_iiif_base_url_idx(self, path: str):
+        logger.info(f"<= {path}...")
+        with open(path) as f:
+            reader = csv.DictReader(f)
+            for row in reader:
+                self.iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
+        logger.info("... done")
+
+    def _make_image_targets(self, page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
+        targets = []
+        iiif_base_url = self._get_iiif_base_url(page_id)
+        iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
+        selectors = []
+        for c in coords:
+            xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
+            selector = {
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh={xywh}"
+            }
+            selectors.append(selector)
+
+            target = {
+                "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
+                "type": "Image"
+            }
+            targets.append(target)
+
+        svg_target = self._image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
+        selectors.append(svg_target['selector'])
+        target = {
+            "source": iiif_url,
+            "type": "Image",
+            "selector": selectors
+        }
+        targets.append(target)
+
+        return targets
+
+    def _get_iiif_base_url(self, page_id: str) -> str:
+        if page_id not in self.iiif_base_url_idx:
+            logger.error(f"{page_id} not found in {self._iiif_mapping_file}")
+        return self.iiif_base_url_idx[page_id]
+
+    def _make_text_targets(self, annotation: Annotation):
+        _physical_text_anchor_selector_target = self.physical_text_anchor_selector_target(annotation.physical_span)
+        _physical_cutout_target = self.physical_text_cutout_target(annotation.physical_span)
+        _logical_text_anchor_selector_target = self.logical_text_anchor_selector_target(annotation.logical_span)
+        _logical_cutout_target = self.logical_text_cutout_target(annotation.logical_span)
+        # fragment_selector_target = {
+        #     'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
+        #     'type': "Text",
+        #     "selector": {
+        #         "type": "FragmentSelector",
+        #         "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
+        #         "value": f"char={annotation.char_start},{annotation.char_end}",
+        #     }
+        # }
+        # TODO: move target verification here
+        return [_physical_text_anchor_selector_target, _physical_cutout_target,
+                _logical_text_anchor_selector_target, _logical_cutout_target]
+
+    def physical_text_anchor_selector_target(self, text_span: TextSpan) -> Dict[str, Any]:
+        return self._text_anchor_selector_target("Text", text_span)
+
+    def logical_text_anchor_selector_target(self, text_span: TextSpan) -> Dict[str, Any]:
+        return self._text_anchor_selector_target("LogicalText", text_span)
+
+    def _text_anchor_selector_target(self, target_type: str, text_span: TextSpan) -> Dict[str, Any]:
+        target = {
+            'source': f"{self.textrepo_base_uri}/rest/versions/{text_span.textrepo_version_id}/contents",
+            'type': target_type,
+            "selector": {
+                '@context': self.ANNO_CONTEXT,
+                "type": "TextAnchorSelector",
+                "start": text_span.begin_anchor,
+                "end": text_span.end_anchor
+            }
+        }
+        if text_span.begin_anchor > text_span.end_anchor:
+            logger.error(
+                f"{target_type}: text_span.begin_anchor {text_span.begin_anchor} > text_span.end_anchor {text_span.end_anchor}")
+        if text_span.char_start and text_span.char_end:
+            target['selector']['charStart'] = text_span.char_start
+            target['selector']['charEnd'] = text_span.char_end
+            if text_span.begin_anchor == text_span.end_anchor and text_span.char_start > text_span.char_end:
+                logger.error(
+                    f"{target_type}: text_span start {text_span.begin_anchor}/{text_span.char_start} > text_span end {text_span.end_anchor}/{text_span.char_end}")
+
+        return target
+
+    def physical_text_cutout_target(self, text_span: TextSpan) -> Dict[str, str]:
+        return self._text_cutout_target("Text", text_span)
+
+    def logical_text_cutout_target(self, text_span: TextSpan) -> Dict[str, str]:
+        return self._text_cutout_target("LogicalText", text_span)
+
+    def _text_cutout_target(self, target_type: str, text_span: TextSpan) -> Dict[str, str]:
+        if text_span.char_start and text_span.char_end:
+            return {
+                'source': f"{self.textrepo_base_uri}/view/versions/{text_span.textrepo_version_id}/segments/index/"
+                          f"{text_span.begin_anchor}/{text_span.char_start}/{text_span.end_anchor}/{text_span.char_end}",
+                'type': target_type
+            }
+        else:
+            return {
+                'source': f"{self.textrepo_base_uri}/view/versions/{text_span.textrepo_version_id}/segments/"
+                          f"index/{text_span.begin_anchor}/{text_span.end_anchor}",
+                'type': target_type
+            }
+
+    def _canvas_target(self, canvas_url: str, xywh_list: List[str] = None,
+                       coords_list: List[List[Tuple[int, int]]] = None) -> dict:
+        selectors = []
+        if xywh_list:
+            for xywh in xywh_list:
+                selectors.append({
+                    "@context": "http://iiif.io/api/annex/openannotation/context.json",
+                    "type": "iiif:ImageApiSelector",
+                    "region": xywh
+                })
+        if coords_list:
+            selectors.append(self._svg_selector(coords_list))
+        return {
+            '@context': self.ANNO_CONTEXT,
+            'source': canvas_url,
+            'type': "Canvas",
+            'selector': selectors
+        }
+
+    def _image_target_wth_svg_selector(self, iiif_url: str,
+                                       coords_list: List) -> dict:
+        return {
+            'source': iiif_url,
+            'type': "Image",
+            'selector': self._svg_selector(coords_list)
+        }
+
+    @staticmethod
+    def _svg_selector(coords_list):
+        path_defs = []
+        height = 0
+        width = 0
+        for coords in coords_list:
+            height = max(height, max([c[1] for c in coords]))
+            width = max(width, max([c[0] for c in coords]))
+            path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+            path_def = 'M' + path_def[1:]
+            path_defs.append(path_def)
+        path = f"""<path d="{' '.join(path_defs)}"/>"""
+        return {
+            'type': "SvgSelector",
+            'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""
+        }
 
 
 def na_url(file_path):
@@ -195,7 +414,8 @@ def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_re
         else:
             first_word_id_in_text_region = None
             last_word_id_in_text_region = None
-            tr_text = tr.text if tr.text else " ".join([l.text for l in text_lines[first_line_index:last_line_index]])
+            tr_text = tr.text if tr.text else " ".join(
+                [line.text for line in text_lines[first_line_index:last_line_index]])
 
         text_regions.append(
             PXTextRegion(id=tr.id,
@@ -206,7 +426,8 @@ def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_re
                          first_word_id=first_word_id_in_text_region,
                          last_word_id=last_word_id_in_text_region,
                          segment_length=(last_line_index - first_line_index + 1),
-                         text=tr_text)
+                         text=tr_text,
+                         structure_type=tr.type[-1])
         )
 
 
@@ -243,191 +464,12 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
         )
 
 
-def cutout_target(textrepo_base_url: str,
-                  segmented_version_id: str,
-                  begin_anchor: int,
-                  end_anchor: int) -> Dict[str, str]:
-    return {
-        'source': f"{textrepo_base_url}/view/versions/{segmented_version_id}/segments/"
-                  f"index/{begin_anchor}/{end_anchor}",
-        'type': "Text"
-    }
-
-
 def get_canvas_url(page_id):
     parts = page_id.split('_')
     inventory_number = parts[-2]
     page_num = int(parts[-1])
     canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
     return canvas_url
-
-
-class WebAnnotationFactory:
-    ANNO_CONTEXT = "https://knaw-huc.github.io/ns/huc-di-tt.jsonld"
-
-    def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str):
-        self.iiif_base_url_idx = {}
-        self.textrepo_base_uri = textrepo_base_uri
-        self._init_iiif_base_url_idx(iiif_mapping_file)
-        self._iiif_mapping_file = iiif_mapping_file
-
-    @logger.catch
-    def annotation_targets(self, annotation: Annotation):
-        targets = []
-        page_id = annotation.page_id
-        canvas_url = get_canvas_url(page_id)
-        if "coords" in annotation.metadata:
-            coords = annotation.metadata["coords"]
-            if isinstance(coords, Coords):
-                coords = [coords]
-            targets.extend(self._make_image_targets(page_id, coords))
-            xywh_list = [self._to_xywh(c) for c in coords]
-            points = [c.points for c in coords]
-            canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
-            targets.append(canvas_target)
-        if annotation.type == "px:Page":
-            iiif_base_url = self._get_iiif_base_url(page_id)
-            iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
-            targets.extend([
-                {
-                    "source": iiif_url,
-                    "type": "Image"
-                },
-                {
-                    '@context': self.ANNO_CONTEXT,
-                    'source': canvas_url,
-                    'type': "Canvas",
-                }
-            ])
-        targets.extend(
-            self._make_text_targets(textrepo_base_url=self.textrepo_base_uri,
-                                    annotation=annotation)
-        )
-        return targets
-
-    @staticmethod
-    def _to_xywh(coords: Coords):
-        return f"{coords.left},{coords.top},{coords.width},{coords.height}"
-
-    def _init_iiif_base_url_idx(self, path: str):
-        logger.info(f"<= {path}...")
-        with open(path) as f:
-            reader = csv.DictReader(f)
-            for row in reader:
-                self.iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
-        logger.info("... done")
-
-    def _make_image_targets(self, page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
-        targets = []
-        iiif_base_url = self._get_iiif_base_url(page_id)
-        iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
-        selectors = []
-        for c in coords:
-            xywh = f"{c.box['x']},{c.box['y']},{c.box['w']},{c.box['h']}"
-            selector = {
-                "type": "FragmentSelector",
-                "conformsTo": "http://www.w3.org/TR/media-frags/",
-                "value": f"xywh={xywh}"
-            }
-            selectors.append(selector)
-
-            target = {
-                "source": f"{iiif_base_url}/{xywh}/max/0/default.jpg",
-                "type": "Image"
-            }
-            targets.append(target)
-
-        svg_target = self._image_target_wth_svg_selector(iiif_url, [c.points for c in coords])
-        selectors.append(svg_target['selector'])
-        target = {
-            "source": iiif_url,
-            "type": "Image",
-            "selector": selectors
-        }
-        targets.append(target)
-
-        return targets
-
-    def _get_iiif_base_url(self, page_id: str) -> str:
-        if page_id not in self.iiif_base_url_idx:
-            logger.error(f"{page_id} not found in {self._iiif_mapping_file}")
-        return self.iiif_base_url_idx[page_id]
-
-    def _make_text_targets(self, textrepo_base_url, annotation: Annotation):
-        _text_anchor_selector_target = self.text_anchor_selector_target(textrepo_base_url,
-                                                                        annotation.segmented_version_id,
-                                                                        annotation.begin_anchor, annotation.end_anchor)
-        _cutout_target = cutout_target(textrepo_base_url,
-                                       annotation.segmented_version_id,
-                                       annotation.begin_anchor,
-                                       annotation.end_anchor)
-        # fragment_selector_target = {
-        #     'source': f"{textrepo_base_url}/rest/versions/{annotation.txt_version_id}/contents",
-        #     'type': "Text",
-        #     "selector": {
-        #         "type": "FragmentSelector",
-        #         "conformsTo": "http://tools.ietf.org/rfc/rfc5147",
-        #         "value": f"char={annotation.char_start},{annotation.char_end}",
-        #     }
-        # }
-        return [_text_anchor_selector_target, _cutout_target]
-
-    def text_anchor_selector_target(self, textrepo_base_url: str, segmented_version_id: str, begin_anchor: int,
-                                    end_anchor: int) -> Dict[str, Any]:
-        return {
-            'source': f"{textrepo_base_url}/rest/versions/{segmented_version_id}/contents",
-            'type': "Text",
-            "selector": {
-                '@context': self.ANNO_CONTEXT,
-                "type": "TextAnchorSelector",
-                "start": begin_anchor,
-                "end": end_anchor
-            }
-        }
-
-    def _canvas_target(self, canvas_url: str, xywh_list: List[str] = None,
-                       coords_list: List[List[Tuple[int, int]]] = None) -> dict:
-        selectors = []
-        if xywh_list:
-            for xywh in xywh_list:
-                selectors.append({
-                    "@context": "http://iiif.io/api/annex/openannotation/context.json",
-                    "type": "iiif:ImageApiSelector",
-                    "region": xywh
-                })
-        if coords_list:
-            selectors.append(self._svg_selector(coords_list))
-        return {
-            '@context': self.ANNO_CONTEXT,
-            'source': canvas_url,
-            'type': "Canvas",
-            'selector': selectors
-        }
-
-    def _image_target_wth_svg_selector(self, iiif_url: str,
-                                       coords_list: List) -> dict:
-        return {
-            'source': iiif_url,
-            'type': "Image",
-            'selector': self._svg_selector(coords_list)
-        }
-
-    @staticmethod
-    def _svg_selector(coords_list):
-        path_defs = []
-        height = 0
-        width = 0
-        for coords in coords_list:
-            height = max(height, max([c[1] for c in coords]))
-            width = max(width, max([c[0] for c in coords]))
-            path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
-            path_def = 'M' + path_def[1:]
-            path_defs.append(path_def)
-        path = f"""<path d="{' '.join(path_defs)}"/>"""
-        return {
-            'type': "SvgSelector",
-            'value': f"""<svg height="{height}" width="{width}">{path}</svg>"""
-        }
 
 
 def read_missive_metadata(meta_path):
@@ -446,8 +488,8 @@ def page_annotation(
         page_id: str,
         scan_doc_metadata: Dict[str, Any],
         path: str,
-        offset: int,
-        total_size: int,
+        physical_span: TextSpan,
+        logical_span: TextSpan,
         document_id: str
 ) -> Annotation:
     parts = page_id.split("_")
@@ -457,8 +499,8 @@ def page_annotation(
         type=PAGE_TYPE,
         id=make_page_id(id_prefix),
         page_id=page_id,
-        offset=offset,
-        length=total_size,
+        physical_span=physical_span,
+        logical_span=logical_span,
         metadata={
             "type": "PageMetadata",
             "document": document_id,
@@ -476,13 +518,18 @@ def page_annotation(
     )
 
 
-def text_region_annotation(text_region: PXTextRegion, id_prefix: str, offset: int, length: int) -> Annotation:
+def text_region_annotation(
+        text_region: PXTextRegion,
+        id_prefix: str,
+        physical_span: TextSpan,
+        logical_span: TextSpan
+) -> Annotation:
     return Annotation(
         type="px:TextRegion",
         id=make_textregion_id(id_prefix, text_region.id),
         page_id=text_region.page_id,
-        offset=offset,
-        length=length,
+        physical_span=physical_span,
+        logical_span=logical_span,
         metadata={
             "type": "TextRegionMetadata",
             "coords": text_region.coords,
@@ -493,13 +540,18 @@ def text_region_annotation(text_region: PXTextRegion, id_prefix: str, offset: in
     )
 
 
-def text_line_annotation(text_line: PXTextLine, id_prefix, offset, length) -> Annotation:
+def text_line_annotation(
+        text_line: PXTextLine,
+        id_prefix: str,
+        physical_span: TextSpan,
+        logical_span: TextSpan
+) -> Annotation:
     return Annotation(
         type="px:TextLine",
         id=make_textline_id(id_prefix, text_line.id),
         page_id=text_line.page_id,
-        offset=offset,
-        length=length,
+        physical_span=physical_span,
+        logical_span=logical_span,
         metadata={
             "type": "TextMetadata",
             "text": text_line.text,
@@ -514,8 +566,8 @@ def word_annotation(id_prefix, stripped, text, w) -> Annotation:
         type="tt:Word",
         id=make_word_id(id_prefix, w),
         page_id=w.px_words[0].page_id,
-        offset=len(text),
-        length=len(stripped),
+        # offset=len(text),
+        # length=len(stripped),
         metadata={
             "type": "WordMetadata",
             "text": stripped,
@@ -529,8 +581,8 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
         type="tt:Paragraph",
         id=f"urn:globalise:{base_name}:paragraph:{par_num}",
         page_id=page_id,
-        offset=par_offset,
-        length=par_length,
+        # offset=par_offset,
+        # length=par_length,
         metadata={
             "type": "ParagraphMetadata",
             "text": text
@@ -543,8 +595,8 @@ def token_annotation(base_name, page_id, token_num, offset, token_length, token_
         type="tt:Token",
         id=f"urn:globalise:{base_name}:token:{token_num}",
         page_id=page_id,
-        offset=offset,
-        length=token_length,
+        # offset=offset,
+        # length=token_length,
         metadata={
             "type": "TokenMetadata",
             "text": token_text,
@@ -596,8 +648,8 @@ def is_paragraph(text_region: PageXMLTextRegion) -> bool:
     return text_region_type_is(text_region, "paragraph")
 
 
-def text_region_type_is(text_region, type):
-    return text_region.type[-1] == type
+def text_region_type_is(text_region, text_region_type):
+    return text_region.type[-1] == text_region_type
 
 
 def is_marginalia(text_region: PageXMLTextRegion) -> bool:

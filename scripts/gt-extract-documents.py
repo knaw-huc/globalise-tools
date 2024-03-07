@@ -84,7 +84,7 @@ def parse_pagexml(path: str, document_id: str, segment_offset: int) -> (List[str
     tr_segment_offset = segment_offset
     for text_region in px_text_regions:
         annotations.append(
-            gt.text_region_annotation(text_region, id_prefix, tr_segment_offset, text_region.segment_length)
+            gt.text_region_annotation(text_region, id_prefix)
         )
         tr_segment_offset += text_region.segment_length
 
