@@ -1,0 +1,108 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Web Annotation Visualization</title>
+</head>
+<body>
+<h1>body.type: px:TextLine</h1>
+
+<img width="99%" src="https://service.archief.nl/iip/1a/4e/f5/c5/46/82/47/4b/ae/32/25/d7/85/cd/8d/d2/21166127-d920-4fe8-acd8-440098c4af73.jp2/844,2620,1873,196/max/0/default.jpg"/>
+
+<h2>line segments (Text target source)</h2>
+<iframe width="99%" src="https://globalise.tt.di.huc.knaw.nl/textrepo/view/versions/ce70089e-2a91-4ae1-9997-e06509f24786/segments/index/15615/15615"></iframe>
+
+<h2>paragraph segments (LogicalText target source)</h2>
+<iframe width="99%" src="https://globalise.tt.di.huc.knaw.nl/textrepo/view/versions/4bdf1845-382c-4503-a25f-c421c8b77643/segments/index/2728/891/2728/938"></iframe>
+
+<h2>Web Annotation:</h2>
+<pre>{
+  "@context": "http://www.w3.org/ns/anno.jsonld",
+  "id": "urn:globalise:annotation:cbb16a73-b731-4b20-8ff8-79d806def156",
+  "type": "Annotation",
+  "motivation": "classifying",
+  "generated": "2024-03-08T00:09:09.588907",
+  "generator": {
+    "id": "https://github.com/knaw-huc/loghi-htr",
+    "type": "Software",
+    "name": "Loghi"
+  },
+  "body": {
+    "id": "urn:globalise:NL-HaNA_1.04.02_9000_0475:textline:ca4232f6-c89e-4359-b5b7-97f9f65ea37d",
+    "type": "px:TextLine",
+    "metadata": {
+      "type": "TextMetadata",
+      "inventoryNumber": "9000"
+    }
+  },
+  "target": [
+    {
+      "source": "https://service.archief.nl/iip/1a/4e/f5/c5/46/82/47/4b/ae/32/25/d7/85/cd/8d/d2/21166127-d920-4fe8-acd8-440098c4af73.jp2/844,2620,1873,196/max/0/default.jpg",
+      "type": "Image"
+    },
+    {
+      "source": "https://service.archief.nl/iip/1a/4e/f5/c5/46/82/47/4b/ae/32/25/d7/85/cd/8d/d2/21166127-d920-4fe8-acd8-440098c4af73.jp2/full/max/0/default.jpg",
+      "type": "Image",
+      "selector": [
+        {
+          "type": "FragmentSelector",
+          "conformsTo": "http://www.w3.org/TR/media-frags/",
+          "value": "xywh=844,2620,1873,196"
+        },
+        {
+          "type": "SvgSelector",
+          "value": "<svg height=\"2816\" width=\"2717\"><path d=\"M844 2641 L947 2633 L982 2668 L1002 2652 L1118 2652 L1142 2676 L1162 2680 L1298 2681 L1361 2621 L2113 2620 L2204 2624 L2221 2640 L2512 2644 L2544 2664 L2717 2668 L2717 2733 L2680 2733 L2665 2741 L2085 2741 L2064 2726 L2049 2726 L1785 2730 L1725 2734 L1701 2753 L1569 2753 L1546 2734 L990 2738 L970 2757 L918 2757 L862 2812 L844 2816 Z\"/></svg>"
+        }
+      ]
+    },
+    {
+      "@context": "https://knaw-huc.github.io/ns/huc-di-tt.jsonld",
+      "source": "https://data.globalise.huygens.knaw.nl/manifests/inventories/9000.json/canvas/p475",
+      "type": "Canvas",
+      "selector": [
+        {
+          "@context": "http://iiif.io/api/annex/openannotation/context.json",
+          "type": "iiif:ImageApiSelector",
+          "region": "844,2620,1873,196"
+        },
+        {
+          "type": "SvgSelector",
+          "value": "<svg height=\"2816\" width=\"2717\"><path d=\"M844 2641 L947 2633 L982 2668 L1002 2652 L1118 2652 L1142 2676 L1162 2680 L1298 2681 L1361 2621 L2113 2620 L2204 2624 L2221 2640 L2512 2644 L2544 2664 L2717 2668 L2717 2733 L2680 2733 L2665 2741 L2085 2741 L2064 2726 L2049 2726 L1785 2730 L1725 2734 L1701 2753 L1569 2753 L1546 2734 L990 2738 L970 2757 L918 2757 L862 2812 L844 2816 Z\"/></svg>"
+        }
+      ]
+    },
+    {
+      "source": "https://globalise.tt.di.huc.knaw.nl/textrepo/rest/versions/ce70089e-2a91-4ae1-9997-e06509f24786/contents",
+      "type": "Text",
+      "selector": {
+        "@context": "https://knaw-huc.github.io/ns/huc-di-tt.jsonld",
+        "type": "TextAnchorSelector",
+        "start": 15615,
+        "end": 15615
+      }
+    },
+    {
+      "source": "https://globalise.tt.di.huc.knaw.nl/textrepo/view/versions/ce70089e-2a91-4ae1-9997-e06509f24786/segments/index/15615/15615",
+      "type": "Text"
+    },
+    {
+      "source": "https://globalise.tt.di.huc.knaw.nl/textrepo/rest/versions/4bdf1845-382c-4503-a25f-c421c8b77643/contents",
+      "type": "LogicalText",
+      "selector": {
+        "@context": "https://knaw-huc.github.io/ns/huc-di-tt.jsonld",
+        "type": "TextAnchorSelector",
+        "start": 2728,
+        "end": 2728,
+        "charStart": 891,
+        "charEnd": 938
+      }
+    },
+    {
+      "source": "https://globalise.tt.di.huc.knaw.nl/textrepo/view/versions/4bdf1845-382c-4503-a25f-c421c8b77643/segments/index/2728/891/2728/938",
+      "type": "LogicalText"
+    }
+  ]
+}</pre>
+
+</body>
+</html>

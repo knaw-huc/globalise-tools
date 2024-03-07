@@ -166,7 +166,7 @@ def process_na_file(
             a.physical_span.begin_anchor = a.physical_span.offset
             a.physical_span.end_anchor = a.physical_span.offset + a.physical_span.length - 1
             a.logical_span.textrepo_version_id = logical_version_identifier.version_id
-            if not a.logical_span.char_start:
+            if not a.type == 'px:TextLine':
                 a.logical_span.begin_anchor = a.logical_span.offset
                 a.logical_span.end_anchor = a.logical_span.offset + a.logical_span.length - 1
 
@@ -349,9 +349,9 @@ def untangle_scan_doc(
             )
             scan_annotations.append(
                 gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix,
-                                          physical_span=gt.TextSpan(offset=physical_start_anchor,
+                                          physical_span=gt.TextSpan(offset=tr_start_anchor,
                                                                     length=len(tr_lines)),
-                                          logical_span=gt.TextSpan(offset=logical_start_anchor, length=1))
+                                          logical_span=gt.TextSpan(offset=len(paragraphs), length=1))
             )
             scan_lines.extend([trl.text for trl in tr_lines])
             tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
@@ -381,15 +381,17 @@ def untangle_scan_doc(
                     last_word_id=None,
                     text=line.text,
                 )
+                physical_span = gt.TextSpan(offset=line_start_anchor, length=1)
+                logical_span = gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
+                                           char_start=logical_anchor_range.begin_char_offset,
+                                           end_anchor=logical_anchor_range.end_logical_anchor,
+                                           char_end=logical_anchor_range.end_char_offset)
                 scan_annotations.append(
                     gt.text_line_annotation(
                         text_line=px_line,
                         id_prefix=id_prefix,
-                        physical_span=gt.TextSpan(offset=line_start_anchor, length=1),
-                        logical_span=gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
-                                                 char_start=logical_anchor_range.begin_char_offset,
-                                                 end_anchor=logical_anchor_range.end_logical_anchor,
-                                                 char_end=logical_anchor_range.end_char_offset)
+                        physical_span=physical_span,
+                        logical_span=logical_span
                     )
                 )
 
