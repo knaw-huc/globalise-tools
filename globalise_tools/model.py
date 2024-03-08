@@ -216,7 +216,7 @@ class LogicalAnchorRange:
     begin_logical_anchor: int
     begin_char_offset: int
     end_logical_anchor: int
-    end_char_offset: int
+    end_char_offset_exclusive: int
 
 
 class SegmentedTextType(Enum):

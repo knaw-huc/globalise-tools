@@ -82,7 +82,7 @@ def untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_fo
                 begin_logical_anchor=para_anchor,
                 begin_char_offset=start,
                 end_logical_anchor=para_anchor,
-                end_char_offset=end
+                end_char_offset_exclusive=end
             )
             if start > end:
                 logger.error(f"start {start} > end {end}")
@@ -92,10 +92,10 @@ def untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_fo
 def check_logical_to_physical(lines, paragraphs, logical_anchor_range_for_line_anchor):
     for k, v in logical_anchor_range_for_line_anchor.items():
         line_text = lines[k]
-        para_substring = paragraphs[v.begin_logical_anchor][v.begin_char_offset:v.end_char_offset]
+        para_substring = paragraphs[v.begin_logical_anchor][v.begin_char_offset:v.end_char_offset_exclusive]
         print(f"{k}: '{v}'")
         print(f"line {k:10}: '{line_text}'")
-        prefix = f"para {v.begin_logical_anchor}[{v.begin_char_offset}:{v.end_char_offset}]"
+        prefix = f"para {v.begin_logical_anchor}[{v.begin_char_offset}:{v.end_char_offset_exclusive}]"
         print(
             f"{prefix:15}: '{para_substring}'")
         print()

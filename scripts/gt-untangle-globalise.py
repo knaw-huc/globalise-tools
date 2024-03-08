@@ -26,7 +26,7 @@ from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMeta
     LogicalAnchorRange, SegmentedTextType
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
-word_break_chars = '„'
+word_break_chars = '„¬'
 
 
 @hydra.main(version_base=None)
@@ -363,7 +363,7 @@ def untangle_scan_doc(
                     begin_logical_anchor=para_anchor,
                     begin_char_offset=start,
                     end_logical_anchor=para_anchor,
-                    end_char_offset=end
+                    end_char_offset_exclusive=end -1
                 )
                 if start > end:
                     logger.error(f"start {start} > end {end}")
@@ -385,7 +385,7 @@ def untangle_scan_doc(
                 logical_span = gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
                                            char_start=logical_anchor_range.begin_char_offset,
                                            end_anchor=logical_anchor_range.end_logical_anchor,
-                                           char_end=logical_anchor_range.end_char_offset)
+                                           char_end_exclusive=logical_anchor_range.end_char_offset_exclusive)
                 scan_annotations.append(
                     gt.text_line_annotation(
                         text_line=px_line,

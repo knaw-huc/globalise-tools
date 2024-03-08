@@ -64,7 +64,7 @@ class TextSpan:
     begin_anchor: int = 0
     end_anchor: int = 0
     char_start: int = None
-    char_end: int = None
+    char_end_exclusive: int = None
     textrepo_version_id: str = ""
 
 
@@ -228,12 +228,12 @@ class WebAnnotationFactory:
         if text_span.begin_anchor > text_span.end_anchor:
             logger.error(
                 f"{target_type}: text_span.begin_anchor {text_span.begin_anchor} > text_span.end_anchor {text_span.end_anchor}")
-        if text_span.char_start and text_span.char_end:
+        if text_span.char_start and text_span.char_end_exclusive:
             target['selector']['charStart'] = text_span.char_start
-            target['selector']['charEnd'] = text_span.char_end
-            if text_span.begin_anchor == text_span.end_anchor and text_span.char_start > text_span.char_end:
+            target['selector']['charEnd'] = text_span.char_end_exclusive
+            if text_span.begin_anchor == text_span.end_anchor and text_span.char_start > text_span.char_end_exclusive + 1:
                 logger.error(
-                    f"{target_type}: text_span start {text_span.begin_anchor}/{text_span.char_start} > text_span end {text_span.end_anchor}/{text_span.char_end}")
+                    f"{target_type}: text_span start {text_span.begin_anchor}/{text_span.char_start} > text_span end {text_span.end_anchor}/{text_span.char_end_exclusive}")
 
         return target
 
@@ -244,10 +244,10 @@ class WebAnnotationFactory:
         return self._text_cutout_target("LogicalText", text_span)
 
     def _text_cutout_target(self, target_type: str, text_span: TextSpan) -> Dict[str, str]:
-        if text_span.char_start and text_span.char_end:
+        if text_span.char_start and text_span.char_end_exclusive:
             return {
                 'source': f"{self.textrepo_base_uri}/view/versions/{text_span.textrepo_version_id}/segments/index/"
-                          f"{text_span.begin_anchor}/{text_span.char_start}/{text_span.end_anchor}/{text_span.char_end}",
+                          f"{text_span.begin_anchor}/{text_span.char_start}/{text_span.end_anchor}/{text_span.char_end_exclusive}",
                 'type': target_type
             }
         else:
