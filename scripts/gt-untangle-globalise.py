@@ -8,6 +8,7 @@ import sys
 import time
 from collections import defaultdict
 from datetime import datetime
+from itertools import groupby
 from random import shuffle
 from typing import Tuple, List, Dict, Any, Union
 
@@ -270,11 +271,16 @@ def document_web_annotation(all_annotations: List[Annotation], document_id: str,
     )
 
 
-def export_web_annotations(document_metadata, web_annotations):
-    path = f"out/{document_metadata.nl_hana_nr}/web_annotations.json"
-    logger.debug(f"=> {path}")
-    with open(path, "w") as f:
-        json.dump(web_annotations, fp=f, indent=4, ensure_ascii=False, cls=AnnotationEncoder)
+def export_web_annotations(document_metadata, web_annotations: List[WebAnnotation]):
+    root_path = f"out/{document_metadata.nl_hana_nr}"
+    sorted_annotations = sorted(web_annotations, key=lambda a: a.body['type'])
+    grouped_annotations = groupby(sorted_annotations, key=lambda a: a.body['type'])
+    for body_type, annotations_grouper in grouped_annotations:
+        out_path = f"{root_path}/{body_type.lower().replace(':', '_')}_annotations.json"
+        annotations = [a for a in annotations_grouper]
+        logger.info(f"{len(annotations)} {body_type} annotations to {out_path}")
+        with open(out_path, 'w') as f:
+            json.dump(annotations, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
 
 
 def generate_base_provenance(cfg) -> ProvenanceData:
@@ -363,7 +369,7 @@ def untangle_scan_doc(
                     begin_logical_anchor=para_anchor,
                     begin_char_offset=start,
                     end_logical_anchor=para_anchor,
-                    end_char_offset_exclusive=end -1
+                    end_char_offset_exclusive=end - 1
                 )
                 if start > end:
                     logger.error(f"start {start} > end {end}")
