@@ -55,8 +55,8 @@ def main(cfg: DictConfig) -> None:
     available_inv_nrs = get_available_inv_nrs()
     # dm_selection = [m for m in metadata if
     #                 m.nl_hana_nr in na_file_id_selection and m.external_id not in processed and m.inventory_number in available_inv_nrs]
-    dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs]
-    # dm_selection = [m for m in metadata if m.external_id not in processed and m.inventory_number in available_inv_nrs]
+    # dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs]
+    dm_selection = [m for m in metadata if m.external_id not in processed and m.inventory_number in available_inv_nrs]
     shuffle(dm_selection)
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
@@ -512,9 +512,12 @@ def read_page_xml(external_id):
     inv_nr = external_id.split('_')[-2]
     page_xml_dir = "/Users/bram/workspaces/globalise/pagexml"
     page_xml_path = f"{page_xml_dir}/{inv_nr}/{external_id}.xml"
-    with open(page_xml_path) as f:
-        page_xml = f.read()
     error = []
+    if os.path.isfile(page_xml_path):
+        with open(page_xml_path) as f:
+            page_xml = f.read()
+    else:
+        error.append(f"file not found: {page_xml_path}")
     return page_xml_path, page_xml, error
 
 
