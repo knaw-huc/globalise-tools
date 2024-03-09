@@ -25,6 +25,7 @@ from uri import URI
 import globalise_tools.tools as gt
 from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
     LogicalAnchorRange, SegmentedTextType
+from globalise_tools.nav_provider import NavProvider
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
 word_break_chars = '„¬'
@@ -54,13 +55,14 @@ def main(cfg: DictConfig) -> None:
     available_inv_nrs = get_available_inv_nrs()
     # dm_selection = [m for m in metadata if
     #                 m.nl_hana_nr in na_file_id_selection and m.external_id not in processed and m.inventory_number in available_inv_nrs]
-    dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs][0:1]
+    dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs]
     # dm_selection = [m for m in metadata if m.external_id not in processed and m.inventory_number in available_inv_nrs]
     shuffle(dm_selection)
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
     webannotation_factory = WebAnnotationFactory(cfg.iiif_mapping_file, cfg.textrepo.base_uri)
+    nav_provider = NavProvider()
 
     total = len(dm_selection)
     with textrepo_client as trc, provenance_client as prc:
@@ -68,7 +70,7 @@ def main(cfg: DictConfig) -> None:
             logger.info(f"processing {document_metadata.external_id} [{i + 1}/{total}]")
             before = time.perf_counter()
             annotations_stored = process_na_file(document_metadata, base_provenance, prc, trc, webannotation_factory,
-                                                 scan_url_mapping, results)
+                                                 scan_url_mapping, results, nav_provider=nav_provider)
             after = time.perf_counter()
             diff = after - before
             logger.debug(f"done in {diff} s = {diff / document_metadata.no_of_scans} s/pagexml")
@@ -124,7 +126,8 @@ def process_na_file(
         tr_client: TextRepoClient,
         waf: WebAnnotationFactory,
         scan_url_mapping: Dict[str, str],
-        results: Dict[str, any]
+        results: Dict[str, any],
+        nav_provider: NavProvider
 ) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
@@ -139,7 +142,8 @@ def process_na_file(
         pagexml_ids=document_metadata.pagexml_ids,
         base_provenance=base_provenance,
         links=links,
-        scan_url_mapping=scan_url_mapping
+        scan_url_mapping=scan_url_mapping,
+        nav_provider=nav_provider
     )
     physical_version_identifier = store_segmented_text(physical_segmented_text, SegmentedTextType.PHYSICAL,
                                                        document_metadata, tr_client,
@@ -238,6 +242,7 @@ def document_web_annotation(all_annotations: List[Annotation], document_id: str,
             "metadata": {
                 "type": "na:FileMetadata",
                 "file": document_id,
+                "na:File": document_id,
                 "inventoryNumber": inventory_number,
                 "manifest": manifest_url
             }
@@ -324,7 +329,8 @@ def untangle_scan_doc(
         path: str,
         line_ids_to_anchors: Dict[str, int],
         logical_anchor_range_for_line_id: Dict[str, LogicalAnchorRange],
-        paragraphs: List[str]
+        paragraphs: List[str],
+        nav_provider: NavProvider
 ) -> tuple[list[Union[str, Any]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
     scan_lines = []
@@ -414,7 +420,8 @@ def untangle_scan_doc(
                            physical_span=gt.TextSpan(offset=physical_start_anchor, length=len(scan_lines)),
                            logical_span=gt.TextSpan(offset=logical_start_anchor,
                                                     length=len(paragraphs) - logical_start_anchor),
-                           document_id=scan_doc.id)
+                           document_id=scan_doc.id,
+                           nav_provider=nav_provider)
     )
     return scan_lines, scan_annotations
 
@@ -429,7 +436,8 @@ def untangle_na_file(
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
         links: Dict[str, Any],
-        scan_url_mapping: Dict[str, str]
+        scan_url_mapping: Dict[str, str],
+        nav_provider: NavProvider()
 ) -> Tuple[Dict[str, any], Dict[str, any], ProvenanceData, List[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
@@ -484,7 +492,8 @@ def untangle_na_file(
                     path=page_xml_path.split('/')[-1],
                     line_ids_to_anchors=line_ids_to_anchors,
                     paragraphs=document_paragraphs,
-                    logical_anchor_range_for_line_id=logical_anchor_range_for_line_id
+                    logical_anchor_range_for_line_id=logical_anchor_range_for_line_id,
+                    nav_provider=nav_provider
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)

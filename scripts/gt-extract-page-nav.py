@@ -1,10 +1,13 @@
 #!/usr/bin/env python3
 import glob
 import json
+import os
 from typing import List, Dict
 
 import progressbar
 from loguru import logger
+
+from globalise_tools.nav_provider import index_path_for_inv_nr
 
 
 @logger.catch
@@ -50,7 +53,9 @@ def process_manifest(path):
     pagexml_ids = [i["label"]['en'][0] for i in manifest['items']]
     nav_idx = generate_prev_next_map(pagexml_ids)
 
-    path = f"out/page_nav_idx_{inv_nr}.json"
+    path = index_path_for_inv_nr(inv_nr)
+    dir_path = "/".join(path.split('/')[:-1])
+    os.makedirs(dir_path, exist_ok=True)
     # logger.info(f"=> {path}")
     with open(path, 'w') as f:
         json.dump(nav_idx, fp=f, indent=4)

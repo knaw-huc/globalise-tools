@@ -7,6 +7,7 @@ from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion
 
 from globalise_tools.model import Document, WebAnnotation
+from globalise_tools.nav_provider import NavProvider
 
 PAGE_TYPE = "px:Page"
 
@@ -490,31 +491,35 @@ def page_annotation(
         path: str,
         physical_span: TextSpan,
         logical_span: TextSpan,
-        document_id: str
+        document_id: str,
+        nav_provider: NavProvider()
 ) -> Annotation:
     parts = page_id.split("_")
     n = parts[-1]
     inv_nr = parts[-2]
+    page_id = ".".join(document_id.split('.')[:-1])  # remove file extension
+    metadata = {
+        "type": "PageMetadata",
+        "document": page_id,
+        "file": path,
+        "inventoryNumber": inv_nr,
+        "n": n,
+        "eDepotId": scan_doc_metadata['@externalRef'],
+        "creator": scan_doc_metadata['Creator'],
+        "created": scan_doc_metadata['Created'],
+        "lastChange": scan_doc_metadata['LastChange'],
+        "comment": scan_doc_metadata['Comment'],
+        "naUrl": na_url(path),
+        "trUrl": tr_url(path)
+    }
+    metadata.update(nav_provider.nav_fields(page_id))
     return Annotation(
         type=PAGE_TYPE,
         id=make_page_id(id_prefix),
         page_id=page_id,
         physical_span=physical_span,
         logical_span=logical_span,
-        metadata={
-            "type": "PageMetadata",
-            "document": document_id,
-            "file": path,
-            "inventoryNumber": inv_nr,
-            "n": n,
-            "eDepotId": scan_doc_metadata['@externalRef'],
-            "creator": scan_doc_metadata['Creator'],
-            "created": scan_doc_metadata['Created'],
-            "lastChange": scan_doc_metadata['LastChange'],
-            "comment": scan_doc_metadata['Comment'],
-            "naUrl": na_url(path),
-            "trUrl": tr_url(path)
-        }
+        metadata=metadata
     )
 
 

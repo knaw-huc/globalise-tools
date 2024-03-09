@@ -1,7 +1,6 @@
 #!/usr/bin/env python3
 import glob
 import json
-import os.path
 import sys
 from collections import defaultdict
 from itertools import groupby

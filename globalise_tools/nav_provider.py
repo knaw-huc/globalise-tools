@@ -14,7 +14,7 @@ class NavProvider:
 
     def load_index(self, inv_nr):
         self.inv_nr = inv_nr
-        self.index_path = f'out/page_nav_idx_{inv_nr}.json'
+        self.index_path = index_path_for_inv_nr(inv_nr)
         if os.path.exists(self.index_path):
             with open(self.index_path) as f:
                 self.index = json.load(f)
@@ -52,3 +52,7 @@ class NavProvider:
             nav['prev'] = f'{base}_{(i - 1):04d}'
         nav['next'] = f'{base}_{(i + 1):04d}'
         return nav
+
+
+def index_path_for_inv_nr(inv_nr):
+    return f'out/NL-HaNA_1.04.02_{inv_nr}/page_nav_idx.json'
