@@ -18,7 +18,7 @@ from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
-from textrepo.client import TextRepoClient
+from textrepo.client import TextRepoClient, DocumentIdentifier
 from uri import URI
 
 import globalise_tools.tools as gt
@@ -130,7 +130,7 @@ def process_na_file(
 ) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
-    document_identifier = create_or_update_tr_document(document_metadata, tr_client)
+    document_identifier = create_or_update_tr_document(tr_client, document_metadata)
 
     links['textrepo_links']['document'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}"
     links['textrepo_links']['metadata'] = f"{tr_client.base_uri}/rest/documents/{document_identifier.id}/metadata"
@@ -144,12 +144,10 @@ def process_na_file(
         scan_url_mapping=scan_url_mapping,
         nav_provider=nav_provider
     )
-    physical_version_identifier = store_segmented_text(physical_segmented_text, SegmentedTextType.PHYSICAL,
-                                                       document_metadata, tr_client,
-                                                       links)
-    logical_version_identifier = store_segmented_text(logical_segmented_text, SegmentedTextType.LOGICAL,
-                                                      document_metadata, tr_client,
-                                                      links)
+    physical_version_identifier = store_segmented_text(tr_client, physical_segmented_text, SegmentedTextType.PHYSICAL,
+                                                       document_metadata, links)
+    logical_version_identifier = store_segmented_text(tr_client, logical_segmented_text, SegmentedTextType.LOGICAL,
+                                                      document_metadata, links)
     # # provenance = dataclasses.replace(
     # #     base_provenance,
     # #     sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
@@ -185,7 +183,7 @@ def process_na_file(
     return len(annotations) > 0
 
 
-def store_segmented_text(segmented_text, segmented_text_type: SegmentedTextType, document_metadata, tr_client, links):
+def store_segmented_text(tr_client, segmented_text, segmented_text_type: SegmentedTextType, document_metadata, links):
     if segmented_text_type == SegmentedTextType.PHYSICAL:
         type_name = 'segmented_text'
         prefix = 'physical'
@@ -530,7 +528,7 @@ def read_page_xml(external_id):
     return page_xml_path, page_xml, error
 
 
-def get_iiif_url(external_id, textrepo_client):
+def get_iiif_url(textrepo_client: TextRepoClient, external_id):
     document_metadata = textrepo_client.find_document_metadata(external_id)
     meta = document_metadata[1]
     if 'scan_url' in meta:
@@ -542,10 +540,11 @@ def get_iiif_url(external_id, textrepo_client):
         return ""
 
 
-def download_page_xml(external_id, textrepo_client, output_directory: str):
+def download_page_xml(textrepo_client: TextRepoClient, external_id, output_directory: str):
     error = None
     page_xml_path = f"{output_directory}/{external_id}.xml"
     # if not Path(page_xml_path).is_file():
+    page_xml = ""
     try:
         page_xml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
         # logger.info(f"=> {page_xml_path}")
@@ -587,7 +586,7 @@ def read_na_file_metadata(selection_file: str) -> List[DocumentMetadata]:
     return metadata
 
 
-def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
+def create_or_update_tr_document(client: TextRepoClient, metadata: DocumentMetadata) -> DocumentIdentifier:
     document_identifier = client.read_document_by_external_id(metadata.external_id)
     if not document_identifier:
         document_identifier = client.create_document(external_id=metadata.external_id)
