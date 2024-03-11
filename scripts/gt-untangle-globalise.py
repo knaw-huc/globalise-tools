@@ -9,7 +9,6 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import groupby
-from random import shuffle
 from typing import Tuple, List, Dict, Any, Union
 
 import hydra
@@ -48,8 +47,8 @@ def main(cfg: DictConfig) -> None:
     check_file_types(textrepo_client)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    with open('data/na_file_selection.json') as f:
-        na_file_id_selection = set(json.load(f))
+    # with open('data/na_file_selection.json') as f:
+    #     na_file_id_selection = set(json.load(f))
     # # ic(list(na_file_id_selection)[0])
     # # ic(metadata[0].external_id)
     available_inv_nrs = get_available_inv_nrs()
@@ -57,7 +56,7 @@ def main(cfg: DictConfig) -> None:
     #                 m.nl_hana_nr in na_file_id_selection and m.external_id not in processed and m.inventory_number in available_inv_nrs]
     # dm_selection = [m for m in metadata if m.inventory_number in available_inv_nrs]
     dm_selection = [m for m in metadata if m.external_id not in processed and m.inventory_number in available_inv_nrs]
-    shuffle(dm_selection)
+    # shuffle(dm_selection)
     # dm_selection.sort(key=lambda x: x.no_of_scans)
     # dm_selection = sorted(metadata, key=lambda x: x.no_of_scans)[10:15]
     # dm_selection = metadata
@@ -337,34 +336,15 @@ def untangle_scan_doc(
     scan_annotations = []
     id_prefix = gt.make_id_prefix(scan_doc)
     for tr in scan_doc.get_text_regions_in_reading_order():
-        tr_start_anchor = physical_start_anchor + len(scan_lines)
         tr_lines = []
         lines_with_text = [line for line in tr.lines if line.text]
         for line in lines_with_text:
             line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
             tr_lines.append(line)
-            # simple_annotation = SimpleAnnotation(type='TextLine', text=line.text, first_anchor=line_start_anchor,
-            #                                      last_anchor=line_start_anchor, coords=line.coords,
-            #                                      metadata={'id': line.id})
         if tr_lines:
-            px_textregion = gt.PXTextRegion(
-                id=tr.id,
-                page_id=page_id(scan_doc),
-                coords=tr.coords,
-                first_line_id=tr_lines[0].id,
-                last_line_id=tr_lines[-1].id,
-                first_word_id=None,
-                last_word_id=None,
-                segment_length=len(tr_lines),
-                structure_type=defining_text_region_type(tr.type),
-                text=" ".join([trl.text for trl in tr_lines])
-            )
-            scan_annotations.append(
-                gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix,
-                                          physical_span=gt.TextSpan(offset=tr_start_anchor,
-                                                                    length=len(tr_lines)),
-                                          logical_span=gt.TextSpan(offset=len(paragraphs), length=1))
-            )
+            # tr_start_anchor = physical_start_anchor + len(scan_lines)
+            # scan_annotations.append(
+            #     make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
             scan_lines.extend([trl.text for trl in tr_lines])
             tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
             para_anchor = len(paragraphs)
@@ -381,34 +361,13 @@ def untangle_scan_doc(
                     logger.error(f"start {start} > end {end}")
             paragraphs.append(tr_text)
 
-            for n, line in enumerate(tr_lines):
-                line_start_anchor = tr_start_anchor + n
-                logical_anchor_range = logical_anchor_range_for_line_id[line.id]
-                px_line = gt.PXTextLine(
-                    id=line.id,
-                    text_region_id=tr.id,
-                    page_id=page_id(scan_doc),
-                    coords=line.coords,
-                    first_word_id=None,
-                    last_word_id=None,
-                    text=line.text,
-                )
-                physical_span = gt.TextSpan(offset=line_start_anchor, length=1)
-                logical_span = gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
-                                           char_start=logical_anchor_range.begin_char_offset,
-                                           end_anchor=logical_anchor_range.end_logical_anchor,
-                                           char_end_exclusive=logical_anchor_range.end_char_offset_exclusive)
-                scan_annotations.append(
-                    gt.text_line_annotation(
-                        text_line=px_line,
-                        id_prefix=id_prefix,
-                        physical_span=physical_span,
-                        logical_span=logical_span
-                    )
-                )
+            # scan_annotations.extend(
+            #     make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
+            #                           tr_start_anchor)
+            # )
 
     if not scan_lines:
-        logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
+        # logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
         scan_lines.append("")
         paragraphs.append("")
 
@@ -424,6 +383,55 @@ def untangle_scan_doc(
                            nav_provider=nav_provider)
     )
     return scan_lines, scan_annotations
+
+
+def make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor):
+    px_textregion = gt.PXTextRegion(
+        id=tr.id,
+        page_id=page_id(scan_doc),
+        coords=tr.coords,
+        first_line_id=tr_lines[0].id,
+        last_line_id=tr_lines[-1].id,
+        first_word_id=None,
+        last_word_id=None,
+        segment_length=len(tr_lines),
+        structure_type=defining_text_region_type(tr.type),
+        text=" ".join([trl.text for trl in tr_lines])
+    )
+    return gt.text_region_annotation(text_region=px_textregion, id_prefix=id_prefix,
+                                     physical_span=gt.TextSpan(offset=tr_start_anchor, length=len(tr_lines)),
+                                     logical_span=gt.TextSpan(offset=len(paragraphs), length=1))
+
+
+def make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
+                          tr_start_anchor):
+    line_annotations = []
+    for n, line in enumerate(tr_lines):
+        line_start_anchor = tr_start_anchor + n
+        logical_anchor_range = logical_anchor_range_for_line_id[line.id]
+        px_line = gt.PXTextLine(
+            id=line.id,
+            text_region_id=tr.id,
+            page_id=page_id(scan_doc),
+            coords=line.coords,
+            first_word_id=None,
+            last_word_id=None,
+            text=line.text,
+        )
+        physical_span = gt.TextSpan(offset=line_start_anchor, length=1)
+        logical_span = gt.TextSpan(begin_anchor=logical_anchor_range.begin_logical_anchor,
+                                   char_start=logical_anchor_range.begin_char_offset,
+                                   end_anchor=logical_anchor_range.end_logical_anchor,
+                                   char_end_exclusive=logical_anchor_range.end_char_offset_exclusive)
+        line_annotations.append(
+            gt.text_line_annotation(
+                text_line=px_line,
+                id_prefix=id_prefix,
+                physical_span=physical_span,
+                logical_span=logical_span
+            )
+        )
+    return line_annotations
 
 
 def page_id(scan_doc):
@@ -455,18 +463,18 @@ def untangle_na_file(
     for external_id in pagexml_ids:
         page_links = {}
         tries = 0
-        done = False
-        while not done:
-            # page_xml_path, page_xml, error = download_page_xml(external_id, textrepo_client, output_directory)
-            page_xml_path, page_xml, error = read_page_xml(external_id)
-            if error and tries < 10:
-                logger.error(f"Error={error}")
-                tries += 1
-                logger.warning(f"error returned on downloading {external_id}, retry in {tries} seconds")
-                time.sleep(tries)
-                done = False
-            else:
-                done = True
+        # done = False
+        # while not done:
+        # page_xml_path, page_xml, error = download_page_xml(external_id, textrepo_client, output_directory)
+        page_xml_path, page_xml, error = read_page_xml(external_id)
+        # if error and tries < 10:
+        #     logger.error(f"Error={error}")
+        #     tries += 1
+        #     logger.warning(f"error returned on downloading {external_id}, retry in {tries} seconds")
+        #     time.sleep(tries)
+        #     done = False
+        # else:
+        #     done = True
 
         if error:
             links['errors'].append(error)
@@ -518,6 +526,7 @@ def read_page_xml(external_id):
             page_xml = f.read()
     else:
         error.append(f"file not found: {page_xml_path}")
+        page_xml = ""
     return page_xml_path, page_xml, error
 
 
