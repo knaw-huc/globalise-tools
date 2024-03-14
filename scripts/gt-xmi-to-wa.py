@@ -103,6 +103,11 @@ def get_arguments():
                         type=str,
                         required=True
                         )
+    parser.add_argument("-o",
+                        "--output-dir",
+                        help="The directory to write the output files in",
+                        type=str
+                        )
     parser.add_argument("xmi_path",
                         help="The XMI files to use",
                         type=str,
@@ -112,19 +117,21 @@ def get_arguments():
 
 
 @logger.catch
-def extract_web_annotations(xmi_paths: List[str], typesystem_path: str):
+def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
+    if not output_dir:
+        output_dir = "."
     xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
         basename = xmi_path.split('/')[-1].replace('.xmi', '')
         xp = xpf.get_xmi_processor(xmi_path)
         nea = xp.get_named_entity_annotations()
 
-        json_path = f"out/{basename}_web-annotations.json"
+        json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
         with open(json_path, 'w') as f:
             json.dump(nea, f)
 
-        txt_path = f"out/{basename}_plain-text.txt"
+        txt_path = f"{output_dir}/{basename}_plain-text.txt"
         logger.info(f"=> {txt_path}")
         with open(txt_path, 'w') as f:
             f.write(xp.text)
@@ -133,4 +140,4 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str):
 if __name__ == '__main__':
     args = get_arguments()
     if args.xmi_path:
-        extract_web_annotations(args.xmi_path, args.type_system)
+        extract_web_annotations(args.xmi_path, args.type_system, args.output_dir)
