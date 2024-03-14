@@ -29,13 +29,23 @@ class XMIProcessor:
         # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
 
     def _get_prefix(self, a) -> str:
-        prefix_begin = max(0, a.begin - self.max_fix_len)
-        prefix = self.text[prefix_begin:a.begin].lstrip().replace('\n', ' ')
+        extended_prefix_begin = max(0, a.begin - self.max_fix_len * 2)
+        extended_prefix = self.text[extended_prefix_begin:a.begin].lstrip().replace('\n', ' ')
+        first_space_index = extended_prefix.rfind(' ', 0, self.max_fix_len)
+        if first_space_index != -1:
+            prefix = extended_prefix[first_space_index + 1:]
+        else:
+            prefix = extended_prefix
         return prefix
 
     def _get_suffix(self, a) -> str:
-        suffix_end = min(self.text_len, a.end + self.max_fix_len)
-        suffix = self.text[a.end:suffix_end].rstrip().replace('\n', ' ')
+        extended_suffix_end = min(self.text_len, a.end + self.max_fix_len * 2)
+        extended_suffix = self.text[a.end:extended_suffix_end].rstrip().replace('\n', ' ')
+        last_space_index = extended_suffix.rfind(' ', 0, self.max_fix_len)
+        if last_space_index != -1:
+            suffix = extended_suffix[:last_space_index]
+        else:
+            suffix = extended_suffix
         return suffix
 
     def _as_web_annotation(self, nea):
