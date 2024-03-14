@@ -97,6 +97,12 @@ def get_arguments():
     parser = argparse.ArgumentParser(
         description="Extract Web Annotations from XMI files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-t",
+                        "--type-system",
+                        help="The TypeSystem.xml to use",
+                        type=str,
+                        required=True
+                        )
     parser.add_argument("xmi_path",
                         help="The XMI files to use",
                         type=str,
@@ -106,9 +112,8 @@ def get_arguments():
 
 
 @logger.catch
-def extract_web_annotations(xmi_paths: List[str]):
-    base = '/Users/bram/workspaces/globalise'
-    xpf = XMIProcessorFactory(f'{base}/globalise-tools/data/typesystem.xml')
+def extract_web_annotations(xmi_paths: List[str], typesystem_path: str):
+    xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
         basename = xmi_path.split('/')[-1].replace('.xmi', '')
         xp = xpf.get_xmi_processor(xmi_path)
@@ -128,4 +133,4 @@ def extract_web_annotations(xmi_paths: List[str]):
 if __name__ == '__main__':
     args = get_arguments()
     if args.xmi_path:
-        extract_web_annotations(args.xmi_path)
+        extract_web_annotations(args.xmi_path, args.type_system)
