@@ -5,11 +5,11 @@ from datetime import datetime
 from typing import List
 
 import cassis as cas
-from icecream import ic
 from loguru import logger
 
 
 class XMIProcessor:
+    max_fix_len = 20
 
     def __init__(self, typesystem, xmi_path: str):
         self.typesystem = typesystem
@@ -17,22 +17,26 @@ class XMIProcessor:
         logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
+        self.text = self.cas.get_sofa().sofaString
+        self.text_len = len(self.text)
 
-    def get_sofa_string(self) -> str:
-        return self.cas.get_sofa().sofaString
+    def text(self) -> str:
+        return self.text
 
     def get_named_entity_annotations(self):
         return [self._as_web_annotation(a) for a in self.cas.views[0].get_all_annotations() if
                 a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
         # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
 
-    @staticmethod
-    def _get_prefix(a) -> str:
-        return ""
+    def _get_prefix(self, a) -> str:
+        prefix_begin = max(0, a.begin - self.max_fix_len)
+        prefix = self.text[prefix_begin:a.begin].lstrip().replace('\n', ' ')
+        return prefix
 
-    @staticmethod
-    def _get_suffix(a) -> str:
-        return ""
+    def _get_suffix(self, a) -> str:
+        suffix_end = min(self.text_len, a.end + self.max_fix_len)
+        suffix = self.text[a.end:suffix_end].rstrip().replace('\n', ' ')
+        return suffix
 
     def _as_web_annotation(self, nea):
         anno_id = f"urn:globalise:annotation:{nea.xmiID}"
@@ -56,10 +60,7 @@ class XMIProcessor:
             "target": {
                 "source": "urn:text",
                 "selector": [
-                    {
-                        "type": "TextQuoteSelector",
-                        "exact": nea.get_covered_text()
-                    },
+                    text_quote_selector,
                     {
                         "type": "TextPositionSelector",
                         "start": nea.begin,
@@ -108,11 +109,10 @@ def extract_web_annotations(xmi_paths: List[str]):
         with open(json_path, 'w') as f:
             json.dump(nea, f)
 
-        txt = xp.get_sofa_string()
-        txt_path = f"out/basename}_plain-text.txt"
+        txt_path = f"out/{basename}_plain-text.txt"
         logger.info(f"=> {txt_path}")
         with open(txt_path, 'w') as f:
-            f.write(txt)
+            f.write(xp.text)
 
 
 if __name__ == '__main__':

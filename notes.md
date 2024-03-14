@@ -54,3 +54,15 @@ data/textrepo-data.csv : externalid,versionid,scanurl uit textrepo
 - alle pagexml verdelen in documenten:
 - - op https://github.com/globalise-huygens/annotation/tree/main/2024 staan csv's met scanranges voor sommige documenten
 - - voor overige pagexml: per inv.nr.
+
+
+# script for converting entity annotations in XMI (inception export) to web annotations
+
+@Leon:
+> Ik heb de tags nu ook maar als Concept gemodelleerd. De URI is steeds:
+> https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ + NER tag.
+> Bijvoorbeeld:
+> https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP
+> Die URIs gaan gegarandeerd nog veranderen, maar dan staan ze er vast. Dus, je zou dit soort URIs op kunnen nemen in de annotaties.
+> 
+> De URIs van de eventtypes vind je voor nu in: https://gTraithub.com/globalise-huygens/annotation/blob/main/2023/inception/tagsets/events.json
