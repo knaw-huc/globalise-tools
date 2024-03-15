@@ -7,6 +7,38 @@ from typing import List
 import cassis as cas
 from loguru import logger
 
+ner_data_dict = {
+    'CMTY_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
+                  'label': 'Name of Commodity'},
+    'CMTY_QUAL': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUAL',
+                  'label': 'Commodity qualifier: colors, processing'},
+    'CMTY_QUANT': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUANT',
+                   'label': 'Quantity'},
+    'DATE': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DATE',
+             'label': 'Date'},
+    'DOC': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DOC',
+            'label': 'Document'},
+    'ETH_REL': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
+                'label': 'Ethno-religious appelation or attribute, not derived from location name'},
+    'LOC_ADJ': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
+                'label': 'Derived (adjectival) form of location name'},
+    'LOC_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_NAME',
+                 'label': 'Name of Location'},
+    'ORG': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ORG',
+            'label': 'Organisation name'},
+    'PER_ATTR': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_ATTR',
+                 'label': 'Other persons attributes (than PER or STATUS)'},
+    'PER_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_NAME',
+                 'label': 'Name of Person'},
+    'PRF': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PRF',
+            'label': 'Profession, title'},
+    'SHIP': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP',
+             'label': 'Ship name'},
+    'SHIP_TYPE': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP_TYPE',
+                  'label': 'Ship type'},
+    'STATUS': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
+               'label': '(Civic) status'}}
+
 
 class XMIProcessor:
     max_fix_len = 20
@@ -25,7 +57,7 @@ class XMIProcessor:
 
     def get_named_entity_annotations(self):
         return [self._as_web_annotation(a) for a in self.cas.views[0].get_all_annotations() if
-                a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
+                a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
 
     def _get_prefix(self, a) -> str:
@@ -60,13 +92,28 @@ class XMIProcessor:
         suffix = self._get_suffix(nea)
         if suffix:
             text_quote_selector['suffix'] = suffix
+        entity_id = nea.value
+        entity_uri = ner_data_dict[entity_id]['uri']
+        entity_label = ner_data_dict[entity_id]['label']
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": anno_id,
             "type": "Annotation",
-            "motivation": "tagging",
             "generated": datetime.today().isoformat(),
-            "body": f"https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/{nea.value}",
+            "body": [
+                {
+                    "type": "SpecificResource",
+                    "purpose": "classifying",
+                    "source": {
+                        "id": entity_uri,
+                        "label": entity_label
+                    }
+                },
+                {
+                    "purpose": "identifying",
+
+                }
+            ],
             "target": {
                 "source": "urn:text",
                 "selector": [
