@@ -65,4 +65,4 @@ data/textrepo-data.csv : externalid,versionid,scanurl uit textrepo
 > https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP
 > Die URIs gaan gegarandeerd nog veranderen, maar dan staan ze er vast. Dus, je zou dit soort URIs op kunnen nemen in de annotaties.
 > 
-> De URIs van de eventtypes vind je voor nu in: https://gTraithub.com/globalise-huygens/annotation/blob/main/2023/inception/tagsets/events.json
+> De URIs van de eventtypes vind je voor nu in: https://github.com/globalise-huygens/annotation/blob/main/2023/inception/tagsets/events.json

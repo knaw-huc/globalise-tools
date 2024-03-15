@@ -27,7 +27,7 @@ from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMeta
 from globalise_tools.nav_provider import NavProvider
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
-word_break_chars = '„¬'
+word_break_chars = '„¬-'
 
 
 @hydra.main(version_base=None)
