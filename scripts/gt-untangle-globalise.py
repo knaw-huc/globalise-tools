@@ -43,7 +43,8 @@ def main(cfg: DictConfig) -> None:
     metadata = read_na_file_metadata(cfg.documents_file)
     # base_provenance = generate_base_provenance(cfg)
     base_provenance = None
-    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False,
+                                     timeout_in_seconds=60)
     check_file_types(textrepo_client)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
@@ -314,6 +315,7 @@ def is_marginalia(text_region: PageXMLTextRegion) -> bool:
 
 
 general_text_region_types = ['physical_structure_doc', 'pagexml_doc', 'text_region']
+structure_types_to_ignore = {"catch-word", "signature-mark", "page-number"}
 
 
 def defining_text_region_type(types) -> str:
@@ -334,35 +336,37 @@ def untangle_scan_doc(
     scan_annotations = []
     id_prefix = gt.make_id_prefix(scan_doc)
     for tr in scan_doc.get_text_regions_in_reading_order():
-        tr_lines = []
-        lines_with_text = [line for line in tr.lines if line.text]
-        for line in lines_with_text:
-            line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
-            tr_lines.append(line)
-        if tr_lines:
-            # tr_start_anchor = physical_start_anchor + len(scan_lines)
-            # scan_annotations.append(
-            #     make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
-            scan_lines.extend([trl.text for trl in tr_lines])
-            tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
-            para_anchor = len(paragraphs)
-            for line_range in line_ranges:
-                start = line_range['start']
-                end = line_range['end']
-                logical_anchor_range_for_line_id[line_range['line_id']] = LogicalAnchorRange(
-                    begin_logical_anchor=para_anchor,
-                    begin_char_offset=start,
-                    end_logical_anchor=para_anchor,
-                    end_char_offset_exclusive=end - 1
-                )
-                if start > end:
-                    logger.error(f"start {start} > end {end}")
-            paragraphs.append(tr_text)
+        structure_type = defining_text_region_type(tr.type)
+        if structure_type not in structure_types_to_ignore:
+            tr_lines = []
+            lines_with_text = [line for line in tr.lines if line.text]
+            for line in lines_with_text:
+                line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
+                tr_lines.append(line)
+            if tr_lines:
+                # tr_start_anchor = physical_start_anchor + len(scan_lines)
+                # scan_annotations.append(
+                #     make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
+                scan_lines.extend([trl.text for trl in tr_lines])
+                tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
+                para_anchor = len(paragraphs)
+                for line_range in line_ranges:
+                    start = line_range['start']
+                    end = line_range['end']
+                    logical_anchor_range_for_line_id[line_range['line_id']] = LogicalAnchorRange(
+                        begin_logical_anchor=para_anchor,
+                        begin_char_offset=start,
+                        end_logical_anchor=para_anchor,
+                        end_char_offset_exclusive=end - 1
+                    )
+                    if start > end:
+                        logger.error(f"start {start} > end {end}")
+                paragraphs.append(tr_text)
 
-            # scan_annotations.extend(
-            #     make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
-            #                           tr_start_anchor)
-            # )
+                # scan_annotations.extend(
+                #     make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
+                #                           tr_start_anchor)
+                # )
 
     if not scan_lines:
         # logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
