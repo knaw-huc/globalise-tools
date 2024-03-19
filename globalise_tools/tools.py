@@ -498,13 +498,14 @@ def page_annotation(
     n = parts[-1]
     inv_nr = parts[-2]
     page_id = ".".join(document_id.split('.')[:-1])  # remove file extension
+    externalRef = scan_doc_metadata.get('@externalRef', None)
     metadata = {
         "type": "PageMetadata",
         "document": page_id,
         "file": path,
         "inventoryNumber": inv_nr,
         "n": n,
-        "eDepotId": scan_doc_metadata['@externalRef'],
+        "eDepotId": externalRef,
         "creator": scan_doc_metadata['Creator'],
         "created": scan_doc_metadata['Created'],
         "lastChange": scan_doc_metadata['LastChange'],
@@ -512,6 +513,8 @@ def page_annotation(
         "naUrl": na_url(path),
         "trUrl": tr_url(path)
     }
+    if not externalRef:
+        metadata.pop("eDepotId")
     metadata.update(nav_provider.nav_fields(page_id))
     return Annotation(
         type=PAGE_TYPE,

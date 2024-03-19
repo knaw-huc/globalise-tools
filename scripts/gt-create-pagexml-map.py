@@ -16,7 +16,7 @@ def main() -> None:
         reader = csv.DictReader(f)
         external_ids = [r['external_id'] for r in reader]
     logger.info(f"{len(external_ids)} external ids loaded")
-    grouped = itertools.groupby(external_ids, key=lambda x: x.split('_')[-2])
+    grouped = itertools.groupby(sorted(external_ids), key=lambda x: x.split('_')[-2])
     page_ids_per_inv_nr = {}
     for inventory_number, page_ids in grouped:
         page_ids_per_inv_nr[inventory_number] = [pi for pi in page_ids]
