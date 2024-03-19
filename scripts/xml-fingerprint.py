@@ -62,6 +62,7 @@ def get_arguments():
     return parser.parse_args()
 
 
+@logger.catch
 def show_xml_fingerprints(paths: List[str]):
     pages = []
     for path in paths:

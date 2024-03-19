@@ -11,8 +11,13 @@ from datetime import datetime
 from itertools import groupby
 from typing import Tuple, List, Dict, Any, Union
 
+import globalise_tools.tools as gt
 import hydra
 import pagexml.helper.pagexml_helper as pxh
+from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
+    LogicalAnchorRange, SegmentedTextType
+from globalise_tools.nav_provider import NavProvider
+from globalise_tools.tools import WebAnnotationFactory, Annotation
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
@@ -20,12 +25,6 @@ from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
 from textrepo.client import TextRepoClient, DocumentIdentifier
 from uri import URI
-
-import globalise_tools.tools as gt
-from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
-    LogicalAnchorRange, SegmentedTextType
-from globalise_tools.nav_provider import NavProvider
-from globalise_tools.tools import WebAnnotationFactory, Annotation
 
 word_break_chars = '„¬-'
 
@@ -39,8 +38,8 @@ def main(cfg: DictConfig) -> None:
 
     scan_url_mapping = read_scan_url_mapping()
 
-    # metadata = read_all_metadata()
-    metadata = read_na_file_metadata(cfg.documents_file)
+    metadata = read_all_metadata()
+    # metadata = read_na_file_metadata(cfg.documents_file)
     # base_provenance = generate_base_provenance(cfg)
     base_provenance = None
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False,

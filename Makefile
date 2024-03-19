@@ -10,7 +10,7 @@ data/generale_missiven.csv:
 data/document_metadata.csv:
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
 
-data/pagexml_map.json: data/pagexml-2023-05-30-contents.txt scripts/gt-create-pagexml-map.py
+data/pagexml_map.json: scripts/gt-create-pagexml-map.py data/external_ids.csv
 	poetry run scripts/gt-create-pagexml-map.py
 
 data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py

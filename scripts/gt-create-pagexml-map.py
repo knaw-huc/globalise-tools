@@ -1,18 +1,30 @@
 #!/usr/bin/env python3
+import csv
+import itertools
 import json
 
-from collections import defaultdict
+from loguru import logger
 
-with open('data/pagexml-2023-05-30-contents.txt') as f:
-    lines = f.readlines()
-pagexml_map = defaultdict(list)
-pagexml_ids = set()
-for line in lines:
-    parts = line.strip().split('/')
-    pagexml_id = parts[-1].replace('.xml', '')
-    pagexml_ids.add(pagexml_id)
-for pagexml_id in sorted(list(pagexml_ids)):
-    inv_nr = pagexml_id.split('_')[-2]
-    pagexml_map[inv_nr].append(pagexml_id)
-with open('data/pagexml_map.json', 'w') as f:
-    json.dump(pagexml_map, f)
+external_id_path = "data/external_ids.csv"
+documents_path = "data/pagexml_map.json"
+
+
+@logger.catch
+def main() -> None:
+    logger.info(f"<= {external_id_path}")
+    with open(external_id_path) as f:
+        reader = csv.DictReader(f)
+        external_ids = [r['external_id'] for r in reader]
+    logger.info(f"{len(external_ids)} external ids loaded")
+    grouped = itertools.groupby(external_ids, key=lambda x: x.split('_')[-2])
+    page_ids_per_inv_nr = {}
+    for inventory_number, page_ids in grouped:
+        page_ids_per_inv_nr[inventory_number] = [pi for pi in page_ids]
+
+    logger.info(f"=> {documents_path}")
+    with open(documents_path, "w") as f:
+        json.dump(page_ids_per_inv_nr, f)
+
+
+if __name__ == '__main__':
+    main()
