@@ -33,6 +33,7 @@ from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, i
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
+document_data_path = "out/document_data.json"
 
 
 @dataclass_json
@@ -91,35 +92,267 @@ class DocumentMetadata:
         return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
-document_data_path = "out/document_data.json"
+class DocumentsProcessor:
+    def __init__(self,
+                 textrepo_client: TextRepoClient,
+                 inception_client: InceptionClient,
+                 provenance_client: ProvenanceClient,
+                 base_provenance: ProvenanceData,
+                 project_id: int,
+                 project_name: str,
+                 typesystem):
+        self.textrepo_client = textrepo_client
+        self.inception_client = inception_client
+        self.provenance_client = provenance_client
+        self.base_provenance = base_provenance
 
+        self.xmi_file_type = get_xmi_file_type(self.textrepo_client)
+        self.plain_text_file_type = get_plain_text_file_type(self.textrepo_client)
+        self.document_data = read_document_data()
 
-def read_document_data() -> Dict[str, Dict[str, Any]]:
-    if os.path.exists(document_data_path):
-        logger.info(f"<= {document_data_path}")
-        with open(document_data_path) as f:
-            return json.load(f)
-    return {}
+        logger.info(f"loading {spacy_core}")
+        self.nlp: Language = spacy.load(spacy_core)
 
+        self.itree = IntervalTree()
+        self.document_id_idx = {}
+        self.results = {}
+        self.project_id = project_id
+        self.project_name = project_name
+        self.typesystem = typesystem
 
-def write_document_data(data):
-    logger.info(f"=> {document_data_path}")
-    with open(document_data_path, "w") as f:
-        json.dump(data, fp=f, ensure_ascii=False)
+    def __enter__(self):
+        return self
+
+    def __exit__(self, *args):
+        self.textrepo_client.close()
+        self.inception_client.close()
+        self.provenance_client.close()
+        self.results['document_id_idx'] = self.document_id_idx
+        self._store_results()
+        self._write_document_data()
+
+    def process(self, dm: DocumentMetadata):
+        inventory_id = dm.inventory_number
+        trc = self.textrepo_client
+        Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
+        links = {'textrepo_links': {}}
+        document_identifier = self._create_or_update_tr_document(dm)
+        links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
+        links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
+        xmi_path, xmi_provenance, plain_text = self._generate_xmi(document_id=dm.external_id, inventory_id=inventory_id,
+                                                                  pagexml_ids=dm.pagexml_ids, links=links)
+        with open(xmi_path) as file:
+            contents = file.read()
+        xmi_version_identifier = trc.import_version(
+            external_id=dm.external_id,
+            type_name=self.xmi_file_type.name,
+            contents=contents,
+            as_latest_version=True
+        )
+        txt_version_identifier = trc.import_version(
+            external_id=dm.external_id,
+            type_name=self.plain_text_file_type.name,
+            contents=plain_text,
+            as_latest_version=True
+        )
+        links['textrepo_links']['xmi_file'] = f"{trc.base_uri}/rest/files/{xmi_version_identifier.file_id}"
+        xmi_version_uri = f"{trc.base_uri}/rest/versions/{xmi_version_identifier.version_id}"
+        xmi_provenance.targets.append(ProvenanceResource(resource=URI(xmi_version_uri), relation="primary"))
+        links['textrepo_links']['xmi_version'] = xmi_version_uri
+
+        links['textrepo_links']['txt_file'] = f"{trc.base_uri}/rest/files/{txt_version_identifier.file_id}"
+        txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+        xmi_provenance.targets.append(ProvenanceResource(resource=URI(txt_version_uri), relation="primary"))
+        links['textrepo_links']['txt_version'] = txt_version_uri
+
+        file_name = f'{dm.external_id}.xmi'
+        trc.set_file_metadata(file_id=xmi_version_identifier.file_id, key='file_name', value=file_name)
+        self.document_id_idx[dm.external_id] = xmi_version_identifier.document_id
+
+        response = self.inception_client.create_project_document(
+            project_id=self.project_id,
+            file_path=xmi_path,
+            name=inception_document_name(dm),
+            file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1
+        )
+        idoc_id = response.body['id']
+        inception_view = f"{self.inception_client.base_uri}/p/{self.project_name}/annotate#!d={idoc_id}"
+        links['inception_view'] = inception_view
+
+        provenance = dataclasses.replace(
+            self.base_provenance,
+            sources=[ProvenanceResource(resource=URI(xmi_version_uri), relation='primary')],
+            targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
+        )
+        prc = self.provenance_client
+        xmi_provenance_id = prc.add_provenance(xmi_provenance)
+        provenance_id = prc.add_provenance(provenance)
+        links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
+        self.results[dm.external_id] = links
+        self.document_data[dm.external_id] = {
+            "plain_text_source": f"{txt_version_uri}/contents",
+            "text_intervals": list(self.itree)
+        }
+
+    def _create_or_update_tr_document(self, metadata: DocumentMetadata):
+        client = self.textrepo_client
+        document_identifier = client.read_document_by_external_id(metadata.external_id)
+        if not document_identifier:
+            document_identifier = client.create_document(external_id=metadata.external_id)
+        document_id = document_identifier.id
+        client.set_document_metadata(document_id=document_id, key='title', value=metadata.title)
+        client.set_document_metadata(document_id=document_id, key='year_creation_or_dispatch',
+                                     value=metadata.year_creation_or_dispatch)
+        client.set_document_metadata(document_id=document_id, key='inventory_number',
+                                     value=metadata.inventory_number)
+        client.set_document_metadata(document_id=document_id, key='folio_or_page', value=metadata.folio_or_page)
+        client.set_document_metadata(document_id=document_id, key='folio_or_page_range',
+                                     value=metadata.folio_or_page_range)
+        client.set_document_metadata(document_id=document_id, key='scan_range', value=metadata.scan_range)
+        client.set_document_metadata(document_id=document_id, key='scan_start', value=metadata.scan_start)
+        client.set_document_metadata(document_id=document_id, key='scan_end', value=metadata.scan_end)
+        client.set_document_metadata(document_id=document_id, key='no_of_scans', value=str(metadata.no_of_scans))
+        client.set_document_metadata(document_id=document_id, key='no_of_pages', value=str(metadata.no_of_pages))
+        client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
+        client.set_document_metadata(document_id=document_id, key='tanap_id', value=metadata.tanap_id)
+        client.set_document_metadata(document_id=document_id, key='tanap_description', value=metadata.tanap_description)
+        client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
+        client.set_document_metadata(document_id=document_id, key='marginalia', value=metadata.marginalia)
+        client.set_document_metadata(document_id=document_id, key='partOf500_filename',
+                                     value=metadata.partOf500_filename)
+        client.set_document_metadata(document_id=document_id, key='partOf500_folio', value=metadata.partOf500_folio)
+        return document_identifier
+
+    def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: List[str], links: Dict[str, Any]) -> \
+            tuple[str, ProvenanceData, str]:
+        provenance = dataclasses.replace(self.base_provenance, sources=[], targets=[])
+
+        cas = Cas(typesystem=self.typesystem)
+        cas.sofa_string = ""
+        cas.sofa_mime = "text/plain"
+
+        SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
+        TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
+        ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
+        MarginaliumAnnotation = cas.typesystem.get_type(CAS_MARGINALIUM)
+        HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
+
+        typesystem_path = "out/typesystem.xml"
+        logger.info(f"=> {typesystem_path}")
+        self.typesystem.to_xml(typesystem_path)
+
+        scan_links = {}
+
+        document_marginalia = []
+        document_headers = []
+        document_paragraphs = []
+
+        textrepo_client = self.textrepo_client
+
+        for external_id in pagexml_ids:
+            page_links = {}
+            page_xml_path = download_page_xml(inventory_id, external_id, textrepo_client)
+            version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
+            version_location = textrepo_client.version_uri(version_identifier.id)
+            provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
+
+            iiif_url = get_iiif_url(external_id, textrepo_client)
+            logger.info(f"iiif_url={iiif_url}")
+            page_links['iiif_url'] = iiif_url
+            logger.info(f"<= {page_xml_path}")
+            scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
+            page_marginalia, page_headers, page_paragraphs = extract_text(scan_doc)
+            document_marginalia.extend(page_marginalia)
+            document_headers.extend(page_headers)
+            document_paragraphs.extend(page_paragraphs)
+            scan_links[external_id] = page_links
+
+        store_document_text(inventory_id, document_id, document_marginalia, document_headers, document_paragraphs)
+        marginalia_ranges = []
+        header_range = None
+        paragraph_ranges = []
+        offset = 0
+        document_text = ""
+        for m in document_marginalia:
+            document_text += m
+            text_len = len(document_text)
+            marginalia_ranges.append((offset, text_len))
+            offset = text_len
+        if document_headers:
+            h = document_headers[0]
+            document_text += f"\n{h}\n"
+            text_len = len(document_text)
+            header_range = (offset + 1, text_len - 1)
+            offset = text_len
+        for m in document_paragraphs:
+            document_text += m
+            text_len = len(document_text)
+            paragraph_ranges.append((offset, text_len))
+            offset = text_len
+        if '  ' in document_text:
+            logger.error('double space in text')
+
+        cas.sofa_string = document_text
+        doc = self.nlp(document_text)
+        for sentence in doc.sents:
+            for token in [t for t in sentence if t.text != "\n"]:
+                begin = token.idx
+                end = begin + len(token.text)
+                cas.add(TokenAnnotation(begin=begin, end=end))
+
+        ranges = marginalia_ranges
+        if header_range:
+            ranges.append(header_range)
+        ranges.extend(paragraph_ranges)
+        for r in ranges:
+            cas.add(SentenceAnnotation(begin=r[0], end=r[1]))
+
+        links['scan_links'] = scan_links
+
+        xmi_path = f"out/{inventory_id}/{document_id}.xmi"
+        logger.info(f"=> {xmi_path}")
+        cas.to_xmi(xmi_path, pretty_print=True)
+
+        return xmi_path, provenance, cas.sofa_string
+
+    def _store_results(self):
+        path = "out/results.json"
+        logger.info(f"=> {path}")
+        with open(path, 'w') as f:
+            json.dump(self.results, fp=f, ensure_ascii=False)
+
+    def _write_document_data(self):
+        logger.info(f"=> {document_data_path}")
+        with open(document_data_path, "w") as f:
+            json.dump(self.document_data, fp=f, ensure_ascii=False)
 
 
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
-    itree = IntervalTree()
-    results = {}
-    document_data = read_document_data()
-    document_id_idx = {}
+    base_provenance = make_base_provenance(cfg)
+
+    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
+    inception_client, project_id = init_inception_client(cfg)
+    provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
+
     metadata = read_document_selection(cfg)
+    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
 
-    logger.info(f"loading {spacy_core}")
-    nlp: Language = spacy.load(spacy_core)
+    docs_processor = DocumentsProcessor(
+        textrepo_client=textrepo_client,
+        inception_client=inception_client,
+        provenance_client=provenance_client,
+        base_provenance=base_provenance,
+        project_id=project_id,
+        project_name=cfg.inception.project_name,
+        typesystem=init_typesystem())
+    with docs_processor:
+        for dm in quality_checked_metadata:
+            docs_processor.process(dm)
 
+
+def make_base_provenance(cfg):
     script_args = " ".join(sys.argv[1:])
     commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
     base_provenance = ProvenanceData(
@@ -136,84 +369,27 @@ def main(cfg: DictConfig) -> None:
         sources=[],
         targets=[],
     )
+    return base_provenance
 
-    textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
-    inception_client, project_id = init_inception_client(cfg)
-    provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
-    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
-    with textrepo_client as trc, inception_client as inc, provenance_client as prc:
-        xmi_file_type = get_xmi_file_type(trc)
-        plain_text_file_type = get_plain_text_file_type(trc)
-        for dm in quality_checked_metadata:
-            inventory_id = dm.inventory_number
-            Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
-            links = {'textrepo_links': {}}
-            document_identifier = create_or_update_tr_document(dm, trc)
-            links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
-            links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
-            xmi_path, xmi_provenance, plain_text = generate_xmi(
-                textrepo_client=trc,
-                document_id=dm.external_id,
-                inventory_id=inventory_id,
-                nlp=nlp,
-                pagexml_ids=dm.pagexml_ids,
-                links=links,
-                base_provenance=base_provenance
-            )
-            with open(xmi_path) as file:
-                contents = file.read()
-            xmi_version_identifier = trc.import_version(
-                external_id=dm.external_id,
-                type_name=xmi_file_type.name,
-                contents=contents,
-                as_latest_version=True
-            )
-            txt_version_identifier = trc.import_version(
-                external_id=dm.external_id,
-                type_name=plain_text_file_type.name,
-                contents=plain_text,
-                as_latest_version=True
-            )
-            links['textrepo_links']['xmi_file'] = f"{trc.base_uri}/rest/files/{xmi_version_identifier.file_id}"
-            xmi_version_uri = f"{trc.base_uri}/rest/versions/{xmi_version_identifier.version_id}"
-            xmi_provenance.targets.append(ProvenanceResource(resource=URI(xmi_version_uri), relation="primary"))
-            links['textrepo_links']['xmi_version'] = xmi_version_uri
 
-            links['textrepo_links']['txt_file'] = f"{trc.base_uri}/rest/files/{txt_version_identifier.file_id}"
-            txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-            xmi_provenance.targets.append(ProvenanceResource(resource=URI(txt_version_uri), relation="primary"))
-            links['textrepo_links']['txt_version'] = txt_version_uri
+def init_typesystem():
+    logger.info(f"<= {typesystem_xml}")
+    with open(typesystem_xml, 'rb') as f:
+        typesystem = load_typesystem(f)
+    MarginaliaAnnotation = typesystem.create_type("pagexml.Marginalia")
+    typesystem.create_feature(domainType=MarginaliaAnnotation, name="url", rangeType=TYPE_NAME_STRING)
+    ParagraphAnnotation = typesystem.create_type("webanno.custom.Paragraph")
+    typesystem.create_feature(domainType=ParagraphAnnotation, name="type", rangeType=TYPE_NAME_STRING)
+    typesystem.create_feature(domainType=ParagraphAnnotation, name="iiif_url", rangeType=TYPE_NAME_STRING)
+    return typesystem
 
-            file_name = f'{dm.external_id}.xmi'
-            trc.set_file_metadata(file_id=xmi_version_identifier.file_id, key='file_name', value=file_name)
-            document_id_idx[dm.external_id] = xmi_version_identifier.document_id
 
-            response = inc.create_project_document(
-                project_id=project_id,
-                file_path=xmi_path,
-                name=inception_document_name(dm),
-                file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1
-            )
-            idoc_id = response.body['id']
-            inception_view = f"{inc.base_uri}/p/{cfg.inception.project_name}/annotate#!d={idoc_id}"
-            links['inception_view'] = inception_view
-
-            provenance = dataclasses.replace(
-                base_provenance,
-                sources=[ProvenanceResource(resource=URI(xmi_version_uri), relation='primary')],
-                targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
-            )
-            xmi_provenance_id = prc.add_provenance(xmi_provenance)
-            provenance_id = prc.add_provenance(provenance)
-            links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
-            results[dm.external_id] = links
-            document_data[dm.external_id] = {
-                "plain_text_source": f"{txt_version_uri}/contents",
-                "text_intervals": list(itree)
-            }
-    results['document_id_idx'] = document_id_idx
-    store_results(results)
-    write_document_data(document_data)
+def read_document_data() -> Dict[str, Dict[str, Any]]:
+    if os.path.exists(document_data_path):
+        logger.info(f"<= {document_data_path}")
+        with open(document_data_path) as f:
+            return json.load(f)
+    return {}
 
 
 def inception_document_name(dm):
@@ -285,115 +461,6 @@ def store_document_text(inventory_id, document_id, marginalia, headers, paragrap
         f.write(document_text)
 
 
-def generate_xmi(
-        textrepo_client: TextRepoClient,
-        document_id: str,
-        inventory_id: str,
-        nlp: Language,
-        pagexml_ids: List[str],
-        base_provenance: ProvenanceData,
-        links: Dict[str, Any]
-) -> tuple[str, ProvenanceData, str]:
-    provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
-
-    logger.info(f"<= {typesystem_xml}")
-    with open(typesystem_xml, 'rb') as f:
-        typesystem = load_typesystem(f)
-
-    cas = Cas(typesystem=typesystem)
-    cas.sofa_string = ""
-    cas.sofa_mime = "text/plain"
-
-    MarginaliaAnnotation = typesystem.create_type("pagexml.Marginalia")
-    typesystem.create_feature(domainType=MarginaliaAnnotation, name="url", rangeType=TYPE_NAME_STRING)
-
-    ParagraphAnnotation = typesystem.create_type("webanno.custom.Paragraph")
-    typesystem.create_feature(domainType=ParagraphAnnotation, name="type", rangeType=TYPE_NAME_STRING)
-    typesystem.create_feature(domainType=ParagraphAnnotation, name="iiif_url", rangeType=TYPE_NAME_STRING)
-
-    SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
-    TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
-    ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
-    MarginaliumAnnotation = cas.typesystem.get_type(CAS_MARGINALIUM)
-    HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
-
-    typesystem_path = "out/typesystem.xml"
-    logger.info(f"=> {typesystem_path}")
-    typesystem.to_xml(typesystem_path)
-
-    scan_links = {}
-
-    document_marginalia = []
-    document_headers = []
-    document_paragraphs = []
-
-    for external_id in pagexml_ids:
-        page_links = {}
-        page_xml_path = download_page_xml(inventory_id, external_id, textrepo_client)
-        version_identifier = textrepo_client.find_latest_version(external_id, "pagexml")
-        version_location = textrepo_client.version_uri(version_identifier.id)
-        provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
-
-        iiif_url = get_iiif_url(external_id, textrepo_client)
-        logger.info(f"iiif_url={iiif_url}")
-        page_links['iiif_url'] = iiif_url
-        logger.info(f"<= {page_xml_path}")
-        scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-        page_marginalia, page_headers, page_paragraphs = extract_text(scan_doc)
-        document_marginalia.extend(page_marginalia)
-        document_headers.extend(page_headers)
-        document_paragraphs.extend(page_paragraphs)
-        scan_links[external_id] = page_links
-
-    store_document_text(inventory_id, document_id, document_marginalia, document_headers, document_paragraphs)
-    marginalia_ranges = []
-    header_range = None
-    paragraph_ranges = []
-    offset = 0
-    document_text = ""
-    for m in document_marginalia:
-        document_text += m
-        text_len = len(document_text)
-        marginalia_ranges.append((offset, text_len))
-        offset = text_len
-    if document_headers:
-        h = document_headers[0]
-        document_text += f"\n{h}\n"
-        text_len = len(document_text)
-        header_range = (offset + 1, text_len - 1)
-        offset = text_len
-    for m in document_paragraphs:
-        document_text += m
-        text_len = len(document_text)
-        paragraph_ranges.append((offset, text_len))
-        offset = text_len
-    if '  ' in document_text:
-        logger.error('double space in text')
-
-    cas.sofa_string = document_text
-    doc = nlp(document_text)
-    for sentence in doc.sents:
-        for token in [t for t in sentence if t.text != "\n"]:
-            begin = token.idx
-            end = begin + len(token.text)
-            cas.add(TokenAnnotation(begin=begin, end=end))
-
-    ranges = marginalia_ranges
-    if header_range:
-        ranges.append(header_range)
-    ranges.extend(paragraph_ranges)
-    for r in ranges:
-        cas.add(SentenceAnnotation(begin=r[0], end=r[1]))
-
-    links['scan_links'] = scan_links
-
-    xmi_path = f"out/{inventory_id}/{document_id}.xmi"
-    logger.info(f"=> {xmi_path}")
-    cas.to_xmi(xmi_path, pretty_print=True)
-
-    return xmi_path, provenance, cas.sofa_string
-
-
 def extract_text(scan_doc) -> (List[str], List[str], List[str]):
     paragraphs = []
     headers = []
@@ -435,13 +502,6 @@ def download_page_xml(inventory_id, external_id, textrepo_client):
     return page_xml_path
 
 
-def store_results(results):
-    path = "out/results.json"
-    logger.info(f"=> {path}")
-    with open(path, 'w') as f:
-        json.dump(results, fp=f, ensure_ascii=False)
-
-
 def cut_off(string: str, max_len: int) -> str:
     max_len = max(max_len, 3)
     l = len(string)
@@ -468,14 +528,14 @@ def read_document_selection(cfg) -> List[DocumentMetadata]:
 def init_inception_client(cfg) -> (InceptionClient, int):
     inception_cfg = cfg.inception
     authorization = inception_cfg.get('authorization', None)
-    base = cfg.inception.base_uri
+    base = inception_cfg.base_uri
     if authorization:
-        client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=cfg.inception.oauth2_proxy)
+        client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=inception_cfg.oauth2_proxy)
     else:
-        client = InceptionClient(base_uri=base, user=cfg.inception.user, password=cfg.inception.password)
-    project = client.get_project_by_name(name=cfg.inception.project_name)
+        client = InceptionClient(base_uri=base, user=inception_cfg.user, password=inception_cfg.password)
+    project = client.get_project_by_name(name=inception_cfg.project_name)
     if not project:
-        result = client.create_project(name=cfg.inception.project_name)
+        result = client.create_project(name=inception_cfg.project_name)
         project_id = result.body['id']
     else:
         project_id = project.id
@@ -496,34 +556,6 @@ def get_file_type(client, file_type_name, mimetype):
 
 def get_plain_text_file_type(client: TextRepoClient):
     return get_file_type(client, 'txt', 'text/plain')
-
-
-def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
-    document_identifier = client.read_document_by_external_id(metadata.external_id)
-    if not document_identifier:
-        document_identifier = client.create_document(external_id=metadata.external_id)
-    document_id = document_identifier.id
-    client.set_document_metadata(document_id=document_id, key='title', value=metadata.title)
-    client.set_document_metadata(document_id=document_id, key='year_creation_or_dispatch',
-                                 value=metadata.year_creation_or_dispatch)
-    client.set_document_metadata(document_id=document_id, key='inventory_number',
-                                 value=metadata.inventory_number)
-    client.set_document_metadata(document_id=document_id, key='folio_or_page', value=metadata.folio_or_page)
-    client.set_document_metadata(document_id=document_id, key='folio_or_page_range',
-                                 value=metadata.folio_or_page_range)
-    client.set_document_metadata(document_id=document_id, key='scan_range', value=metadata.scan_range)
-    client.set_document_metadata(document_id=document_id, key='scan_start', value=metadata.scan_start)
-    client.set_document_metadata(document_id=document_id, key='scan_end', value=metadata.scan_end)
-    client.set_document_metadata(document_id=document_id, key='no_of_scans', value=str(metadata.no_of_scans))
-    client.set_document_metadata(document_id=document_id, key='no_of_pages', value=str(metadata.no_of_pages))
-    client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
-    client.set_document_metadata(document_id=document_id, key='tanap_id', value=metadata.tanap_id)
-    client.set_document_metadata(document_id=document_id, key='tanap_description', value=metadata.tanap_description)
-    client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
-    client.set_document_metadata(document_id=document_id, key='marginalia', value=metadata.marginalia)
-    client.set_document_metadata(document_id=document_id, key='partOf500_filename', value=metadata.partOf500_filename)
-    client.set_document_metadata(document_id=document_id, key='partOf500_folio', value=metadata.partOf500_folio)
-    return document_identifier
 
 
 if __name__ == '__main__':

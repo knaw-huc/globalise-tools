@@ -4,11 +4,12 @@ import json
 import os
 import re
 from collections import defaultdict
-from dataclasses import dataclass
 from typing import List, Any
 
 import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as px
+import spacy
+from icecream import ic
 from intervaltree import IntervalTree
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
@@ -19,9 +20,8 @@ general_text_region_types = ['physical_structure_doc', 'pagexml_doc', 'text_regi
 spacy_core = "nl_core_news_lg"
 word_break_chars = '„'
 
-
-# logger.info(f"loading spacy core {spacy_core}")
-# nlp = spacy.load(spacy_core)
+logger.info(f"loading spacy core {spacy_core}")
+nlp = spacy.load(spacy_core)
 
 
 @logger.catch
@@ -115,10 +115,17 @@ def tokenize():
 
     doc = nlp(text)
     for token in doc:
-        itree[token.idx:(token.idx + len(token))] = token
+        itree[token.idx:(token.idx + len(token))] = token.text
     print(text[0:10], sorted(itree[0:10]), sorted(itree.envelop(0, 10)))
     print(text[10:20], sorted(itree[10:20]), sorted(itree.envelop(10, 20)))
     print(text[20:30], sorted(itree[20:30]), sorted(itree.envelop(20, 30)))
+    intervals = list(itree)
+    as_json = json.dumps(intervals)
+    print(as_json)
+    t2 = IntervalTree(intervals)
+    ic(t2[10:20])
+    ic(json.dumps(t2))
+    t2.merge_equals()
 
 
 def store_segmented_text(segments: List[str], store_path: str):
