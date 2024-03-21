@@ -16,6 +16,7 @@ import spacy
 from cassis import *
 from cassis.typesystem import TYPE_NAME_STRING
 from dataclasses_json import dataclass_json
+from intervaltree import IntervalTree
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLScan
@@ -110,6 +111,7 @@ def write_document_data(data):
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
+    itree = IntervalTree()
     results = {}
     document_data = read_document_data()
     document_id_idx = {}
@@ -206,7 +208,8 @@ def main(cfg: DictConfig) -> None:
             links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
             results[dm.external_id] = links
             document_data[dm.external_id] = {
-                "plain_text_source": f"{txt_version_uri}/contents"
+                "plain_text_source": f"{txt_version_uri}/contents",
+                "text_intervals": list(itree)
             }
     results['document_id_idx'] = document_id_idx
     store_results(results)
@@ -398,9 +401,9 @@ def extract_text(scan_doc) -> (List[str], List[str], List[str]):
     for tr in scan_doc.get_text_regions_in_reading_order():
         logger.info(f"text_region: {tr.id}")
         logger.info(f"type: {tr.type[-1]}")
-        line_text = [l.text for l in tr.lines]
-        for t in line_text:
-            logger.info(f"line: {t}")
+        # line_text = [l.text for l in tr.lines]
+        # for t in line_text:
+        #     logger.info(f"line: {t}")
         if is_marginalia(tr):
             ptext = joined_lines(tr)
             if ptext:
