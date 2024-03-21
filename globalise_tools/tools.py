@@ -468,7 +468,7 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
 def get_canvas_url(page_id):
     parts = page_id.split('_')
     inventory_number = parts[-2]
-    page_num = int(parts[-1])
+    page_num = parts[-1].lstrip("0")
     canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
     return canvas_url
 
@@ -514,6 +514,7 @@ def page_annotation(
         "trUrl": tr_url(path)
     }
     if not externalRef:
+        logger.warning(f"{path}: missing 'externalRef' attribute in <Metadata/>")
         metadata.pop("eDepotId")
     metadata.update(nav_provider.nav_fields(page_id))
     return Annotation(
