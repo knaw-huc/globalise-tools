@@ -121,7 +121,8 @@ def main(cfg: DictConfig) -> None:
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
     quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
     with textrepo_client as trc, inception_client as inc, provenance_client as prc:
-        file_type = get_xmi_file_type(trc)
+        xmi_file_type = get_xmi_file_type(trc)
+        plain_text_file_type = get_plain_text_file_type(trc)
         for dm in quality_checked_metadata:
             inventory_id = dm.inventory_number
             Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
@@ -129,7 +130,7 @@ def main(cfg: DictConfig) -> None:
             document_identifier = create_or_update_tr_document(dm, trc)
             links['textrepo_links']['document'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}"
             links['textrepo_links']['metadata'] = f"{trc.base_uri}/rest/documents/{document_identifier.id}/metadata"
-            xmi_path, xmi_provenance = generate_xmi(
+            xmi_path, xmi_provenance, plain_text = generate_xmi(
                 textrepo_client=trc,
                 document_id=dm.external_id,
                 inventory_id=inventory_id,
@@ -140,20 +141,30 @@ def main(cfg: DictConfig) -> None:
             )
             with open(xmi_path) as file:
                 contents = file.read()
-            version_identifier = trc.import_version(
+            xmi_version_identifier = trc.import_version(
                 external_id=dm.external_id,
-                type_name=file_type.name,
+                type_name=xmi_file_type.name,
                 contents=contents,
                 as_latest_version=True
             )
-            links['textrepo_links']['file'] = f"{trc.base_uri}/rest/files/{version_identifier.file_id}"
-            version_uri = f"{trc.base_uri}/rest/versions/{version_identifier.version_id}"
-            xmi_provenance.targets.append(ProvenanceResource(resource=URI(version_uri), relation="primary"))
+            txt_version_identifier = trc.import_version(
+                external_id=dm.external_id,
+                type_name=plain_text_file_type.name,
+                contents=plain_text,
+                as_latest_version=True
+            )
+            links['textrepo_links']['xmi_file'] = f"{trc.base_uri}/rest/files/{xmi_version_identifier.file_id}"
+            links['textrepo_links']['txt_file'] = f"{trc.base_uri}/rest/files/{txt_version_identifier.file_id}"
+            xmi_version_uri = f"{trc.base_uri}/rest/versions/{xmi_version_identifier.version_id}"
+            txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+            xmi_provenance.targets.append(ProvenanceResource(resource=URI(xmi_version_uri), relation="primary"))
+            xmi_provenance.targets.append(ProvenanceResource(resource=URI(txt_version_uri), relation="primary"))
 
-            links['textrepo_links']['version'] = version_uri
+            links['textrepo_links']['xmi_version'] = xmi_version_uri
+            links['textrepo_links']['txt_version'] = txt_version_uri
             file_name = f'{dm.external_id}.xmi'
-            trc.set_file_metadata(file_id=version_identifier.file_id, key='file_name', value=file_name)
-            document_id_idx[dm.external_id] = version_identifier.document_id
+            trc.set_file_metadata(file_id=xmi_version_identifier.file_id, key='file_name', value=file_name)
+            document_id_idx[dm.external_id] = xmi_version_identifier.document_id
 
             response = inc.create_project_document(
                 project_id=project_id,
@@ -167,7 +178,7 @@ def main(cfg: DictConfig) -> None:
 
             provenance = dataclasses.replace(
                 base_provenance,
-                sources=[ProvenanceResource(resource=URI(version_uri), relation='primary')],
+                sources=[ProvenanceResource(resource=URI(xmi_version_uri), relation='primary')],
                 targets=[ProvenanceResource(resource=URI(inception_view), relation='primary')],
             )
             xmi_provenance_id = prc.add_provenance(xmi_provenance)
@@ -255,7 +266,7 @@ def generate_xmi(
         pagexml_ids: List[str],
         base_provenance: ProvenanceData,
         links: Dict[str, Any]
-) -> Tuple[str, ProvenanceData]:
+) -> tuple[str, ProvenanceData, str]:
     provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
 
     logger.info(f"<= {typesystem_xml}")
@@ -353,7 +364,7 @@ def generate_xmi(
     logger.info(f"=> {xmi_path}")
     cas.to_xmi(xmi_path, pretty_print=True)
 
-    return xmi_path, provenance
+    return xmi_path, provenance, cas.sofa_string
 
 
 def extract_text(scan_doc) -> (List[str], List[str], List[str]):
@@ -445,12 +456,19 @@ def init_inception_client(cfg) -> (InceptionClient, int):
 
 
 def get_xmi_file_type(client: TextRepoClient):
-    file_type_name = 'xmi'
+    return get_file_type(client, 'xmi', 'application/vnd.xmi+xml')
+
+
+def get_file_type(client, file_type_name, mimetype):
     if client.has_file_type_with_name(file_type_name):
         file_type = client.find_file_type(file_type_name)
     else:
-        file_type = client.create_file_type('xmi', 'application/vnd.xmi+xml')
+        file_type = client.create_file_type(file_type_name, mimetype)
     return file_type
+
+
+def get_plain_text_file_type(client: TextRepoClient):
+    return get_file_type(client, 'txt', 'text/plain')
 
 
 def create_or_update_tr_document(metadata: DocumentMetadata, client: TextRepoClient):
