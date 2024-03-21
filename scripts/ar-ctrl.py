@@ -110,7 +110,6 @@ wa = [
 def access_annorepo(base_uri: str, api_key: str, container_name: str):
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
-
     # container_name = "tmp"
     # container_name = "globalise-demo-1"
     if not arc.has_container(container_name):
