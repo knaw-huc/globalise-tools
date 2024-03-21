@@ -69,7 +69,11 @@ process-manifests:
 
 .PHONY: test-paragraph-extraction
 test-paragraph-extraction:
-		poetry run ./scripts/gt-extract-paragraph-text.py
+	poetry run ./scripts/gt-extract-paragraph-text.py
+
+.PHONY: run-provenance
+run-provenance:
+	cd ~/workspaces/provenance/provenance-server && make run-server
 
 .PHONY: run-inception
 run-inception:
@@ -93,6 +97,7 @@ help:
 #	@echo "  extract-all            		to extract text and annotations from all document directories"
 	@echo "  web-annotations            - to generate the web-annotations"
 	@echo
+	@echo "  run-provenance             - to start a local provenance server"
 	@echo "  run-inception              - to start a local inception"
 	@echo "  stop-inception             - to stop the local inception"
 	@echo
