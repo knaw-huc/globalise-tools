@@ -2,6 +2,7 @@
 import csv
 import dataclasses
 import json
+import os.path
 import re
 import subprocess
 import sys
@@ -89,10 +90,28 @@ class DocumentMetadata:
         return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
+document_data_path = "out/document_data.json"
+
+
+def read_document_data() -> Dict[str, Dict[str, Any]]:
+    if os.path.exists(document_data_path):
+        logger.info(f"<= {document_data_path}")
+        with open(document_data_path) as f:
+            return json.load(f)
+    return {}
+
+
+def write_document_data(data):
+    logger.info(f"=> {document_data_path}")
+    with open(document_data_path, "w") as f:
+        json.dump(data, fp=f, ensure_ascii=False)
+
+
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
     results = {}
+    document_data = read_document_data()
     document_id_idx = {}
     metadata = read_document_selection(cfg)
 
@@ -154,14 +173,15 @@ def main(cfg: DictConfig) -> None:
                 as_latest_version=True
             )
             links['textrepo_links']['xmi_file'] = f"{trc.base_uri}/rest/files/{xmi_version_identifier.file_id}"
-            links['textrepo_links']['txt_file'] = f"{trc.base_uri}/rest/files/{txt_version_identifier.file_id}"
             xmi_version_uri = f"{trc.base_uri}/rest/versions/{xmi_version_identifier.version_id}"
-            txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
             xmi_provenance.targets.append(ProvenanceResource(resource=URI(xmi_version_uri), relation="primary"))
-            xmi_provenance.targets.append(ProvenanceResource(resource=URI(txt_version_uri), relation="primary"))
-
             links['textrepo_links']['xmi_version'] = xmi_version_uri
+
+            links['textrepo_links']['txt_file'] = f"{trc.base_uri}/rest/files/{txt_version_identifier.file_id}"
+            txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+            xmi_provenance.targets.append(ProvenanceResource(resource=URI(txt_version_uri), relation="primary"))
             links['textrepo_links']['txt_version'] = txt_version_uri
+
             file_name = f'{dm.external_id}.xmi'
             trc.set_file_metadata(file_id=xmi_version_identifier.file_id, key='file_name', value=file_name)
             document_id_idx[dm.external_id] = xmi_version_identifier.document_id
@@ -185,8 +205,12 @@ def main(cfg: DictConfig) -> None:
             provenance_id = prc.add_provenance(provenance)
             links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
             results[dm.external_id] = links
+            document_data[dm.external_id] = {
+                "plain_text_source": f"{txt_version_uri}/contents"
+            }
     results['document_id_idx'] = document_id_idx
     store_results(results)
+    write_document_data(document_data)
 
 
 def inception_document_name(dm):
@@ -412,7 +436,7 @@ def store_results(results):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
-        json.dump(results, fp=f)
+        json.dump(results, fp=f, ensure_ascii=False)
 
 
 def cut_off(string: str, max_len: int) -> str:
