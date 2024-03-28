@@ -1,8 +1,9 @@
 #!/usr/bin/env python3
 import argparse
+import hashlib
 import json
 from datetime import datetime
-from typing import List
+from typing import List, Dict, Any
 
 import cassis as cas
 from loguru import logger
@@ -55,8 +56,8 @@ class XMIProcessor:
     def text(self) -> str:
         return self.text
 
-    def get_named_entity_annotations(self):
-        return [self._as_web_annotation(a) for a in self.cas.views[0].get_all_annotations() if
+    def get_named_entity_annotations(self, plain_text_source: str):
+        return [self._as_web_annotation(a, plain_text_source) for a in self.cas.views[0].get_all_annotations() if
                 a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
 
@@ -80,7 +81,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, nea):
+    def _as_web_annotation(self, nea, target_source: str):
         anno_id = f"urn:globalise:annotation:{nea.xmiID}"
         text_quote_selector = {
             "type": "TextQuoteSelector",
@@ -115,7 +116,7 @@ class XMIProcessor:
                 }
             ],
             "target": {
-                "source": "urn:text",
+                "source": target_source,
                 "selector": [
                     text_quote_selector,
                     {
@@ -163,25 +164,36 @@ def get_arguments():
     return parser.parse_args()
 
 
+def read_document_data() -> Dict[str, Any]:
+    path = "data/document_data.json"
+    logger.info("<= {path}")
+    with open(path) as f:
+        return json.load(f)
+
+
 @logger.catch
 def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
     if not output_dir:
         output_dir = "."
+    document_data = read_document_data()
     xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
         basename = xmi_path.split('/')[-1].replace('.xmi', '')
         xp = xpf.get_xmi_processor(xmi_path)
-        nea = xp.get_named_entity_annotations()
 
+        txt_path = f"{output_dir}/{basename}_plain-text.txt"
+        md5 = hashlib.md5(xp.text.encode()).hexdigest()
+        logger.info(f"md5 = {md5}")
+        logger.info(f"=> {txt_path}")
+        with open(txt_path, 'w') as f:
+            f.write(xp.text)
+        plain_text_source = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5][0]
+
+        nea = xp.get_named_entity_annotations(plain_text_source)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
         with open(json_path, 'w') as f:
             json.dump(nea, f)
-
-        txt_path = f"{output_dir}/{basename}_plain-text.txt"
-        logger.info(f"=> {txt_path}")
-        with open(txt_path, 'w') as f:
-            f.write(xp.text)
 
 
 if __name__ == '__main__':

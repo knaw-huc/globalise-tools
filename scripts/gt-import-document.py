@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import csv
 import dataclasses
+import hashlib
 import json
 import os.path
 import re
@@ -19,7 +20,7 @@ from dataclasses_json import dataclass_json
 from intervaltree import IntervalTree
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLScan
+from pagexml.model.physical_document_model import PageXMLScan, Coords
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from pycaprio.core.mappings import InceptionFormat
@@ -28,12 +29,19 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MARGINALIUM, CAS_HEADER
+from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN
 from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
 document_data_path = "out/document_data.json"
+
+
+@dataclass_json
+@dataclass
+class ScanCoords:
+    iiif_base_uri: str
+    coords: Coords
 
 
 @dataclass_json
@@ -93,14 +101,9 @@ class DocumentMetadata:
 
 
 class DocumentsProcessor:
-    def __init__(self,
-                 textrepo_client: TextRepoClient,
-                 inception_client: InceptionClient,
-                 provenance_client: ProvenanceClient,
-                 base_provenance: ProvenanceData,
-                 project_id: int,
-                 project_name: str,
-                 typesystem):
+    def __init__(self, textrepo_client: TextRepoClient, inception_client: InceptionClient,
+                 provenance_client: ProvenanceClient, base_provenance: ProvenanceData, project_id: int,
+                 project_name: str, typesystem):
         self.textrepo_client = textrepo_client
         self.inception_client = inception_client
         self.provenance_client = provenance_client
@@ -172,7 +175,7 @@ class DocumentsProcessor:
         response = self.inception_client.create_project_document(
             project_id=self.project_id,
             file_path=xmi_path,
-            name=inception_document_name(dm),
+            name=self._inception_document_name(dm),
             file_format=InceptionFormat.UIMA_CAS_XMI_XML_1_1
         )
         idoc_id = response.body['id']
@@ -189,10 +192,25 @@ class DocumentsProcessor:
         provenance_id = prc.add_provenance(provenance)
         links['provenance_links'] = [str(xmi_provenance_id.location), str(provenance_id.location)]
         self.results[dm.external_id] = links
+        md5 = hashlib.md5(plain_text.encode()).hexdigest()
         self.document_data[dm.external_id] = {
             "plain_text_source": f"{txt_version_uri}/contents",
+            "plain_text_md5": md5,
             "text_intervals": list(self.itree)
         }
+
+    @staticmethod
+    def _inception_document_name(dm):
+        if dm.year_creation_or_dispatch:
+            year = dm.year_creation_or_dispatch
+        else:
+            year = "<year unknown>"
+        if dm.title:
+            title = cut_off(dm.title, 100)
+        else:
+            title = "<no title>"
+        name = f'{dm.external_id} - {year} - {title}'
+        return name
 
     def _create_or_update_tr_document(self, metadata: DocumentMetadata):
         client = self.textrepo_client
@@ -233,9 +251,9 @@ class DocumentsProcessor:
 
         SentenceAnnotation = cas.typesystem.get_type(CAS_SENTENCE)
         TokenAnnotation = cas.typesystem.get_type(CAS_TOKEN)
-        ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
-        MarginaliumAnnotation = cas.typesystem.get_type(CAS_MARGINALIUM)
-        HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
+        # ParagraphAnnotation = cas.typesystem.get_type(CAS_PARAGRAPH)
+        # MarginaliumAnnotation = cas.typesystem.get_type(CAS_MARGINALIUM)
+        # HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
 
         typesystem_path = "out/typesystem.xml"
         logger.info(f"=> {typesystem_path}")
@@ -339,14 +357,10 @@ def main(cfg: DictConfig) -> None:
     metadata = read_document_selection(cfg)
     quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
 
-    docs_processor = DocumentsProcessor(
-        textrepo_client=textrepo_client,
-        inception_client=inception_client,
-        provenance_client=provenance_client,
-        base_provenance=base_provenance,
-        project_id=project_id,
-        project_name=cfg.inception.project_name,
-        typesystem=init_typesystem())
+    docs_processor = DocumentsProcessor(textrepo_client=textrepo_client, inception_client=inception_client,
+                                        provenance_client=provenance_client, base_provenance=base_provenance,
+                                        project_id=project_id, project_name=cfg.inception.project_name,
+                                        typesystem=init_typesystem())
     with docs_processor:
         for dm in quality_checked_metadata:
             docs_processor.process(dm)
@@ -390,19 +404,6 @@ def read_document_data() -> Dict[str, Dict[str, Any]]:
         with open(document_data_path) as f:
             return json.load(f)
     return {}
-
-
-def inception_document_name(dm):
-    if dm.year_creation_or_dispatch:
-        year = dm.year_creation_or_dispatch
-    else:
-        year = "<year unknown>"
-    if dm.title:
-        title = cut_off(dm.title, 100)
-    else:
-        title = "<no title>"
-    name = f'{dm.external_id} - {year} - {title}'
-    return name
 
 
 def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:

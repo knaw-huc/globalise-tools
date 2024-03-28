@@ -114,7 +114,7 @@ class WebAnnotationFactory:
     def annotation_targets(self, annotation: Annotation):
         targets = []
         page_id = annotation.page_id
-        canvas_url = get_canvas_url(page_id)
+        canvas_url = self._get_canvas_url(page_id)
         if "coords" in annotation.metadata:
             coords = annotation.metadata["coords"]
             if isinstance(coords, Coords):
@@ -125,7 +125,7 @@ class WebAnnotationFactory:
             canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
             targets.append(canvas_target)
         if annotation.type == PAGE_TYPE:
-            iiif_base_url = self._get_iiif_base_url(page_id)
+            iiif_base_url = self.get_iiif_base_url(page_id)
             iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
             targets.extend([
                 {
@@ -147,6 +147,14 @@ class WebAnnotationFactory:
     def _to_xywh(coords: Coords):
         return f"{coords.left},{coords.top},{coords.width},{coords.height}"
 
+    @staticmethod
+    def _get_canvas_url(page_id):
+        parts = page_id.split('_')
+        inventory_number = parts[-2]
+        page_num = parts[-1].lstrip("0")
+        canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
+        return canvas_url
+
     def _init_iiif_base_url_idx(self, path: str):
         logger.info(f"<= {path}...")
         with open(path) as f:
@@ -157,7 +165,7 @@ class WebAnnotationFactory:
 
     def _make_image_targets(self, page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
         targets = []
-        iiif_base_url = self._get_iiif_base_url(page_id)
+        iiif_base_url = self.get_iiif_base_url(page_id)
         iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
         selectors = []
         for c in coords:
@@ -186,7 +194,7 @@ class WebAnnotationFactory:
 
         return targets
 
-    def _get_iiif_base_url(self, page_id: str) -> str:
+    def get_iiif_base_url(self, page_id: str) -> str:
         if page_id not in self.iiif_base_url_idx:
             logger.error(f"{page_id} not found in {self._iiif_mapping_file}")
         return self.iiif_base_url_idx[page_id]
@@ -463,14 +471,6 @@ def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
                        first_word_id=None,
                        last_word_id=None)
         )
-
-
-def get_canvas_url(page_id):
-    parts = page_id.split('_')
-    inventory_number = parts[-2]
-    page_num = parts[-1].lstrip("0")
-    canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
-    return canvas_url
 
 
 def read_missive_metadata(meta_path):
