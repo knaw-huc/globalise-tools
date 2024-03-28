@@ -44,20 +44,28 @@ ner_data_dict = {
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, xmi_path: str):
+    def __init__(self, typesystem, document_data, xmi_path: str):
         self.typesystem = typesystem
+        self.document_data = document_data
         self.xmi_path = xmi_path
         logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
+        md5 = hashlib.md5(self.text.encode()).hexdigest()
+        source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
+        if source_list:
+            self.plain_text_source = source_list[0]
+        else:
+            logger.error(f"No document data found for {xmi_path}, using placeholder target source")
+            self.plain_text_source = "urn:placeholder"
 
     def text(self) -> str:
         return self.text
 
-    def get_named_entity_annotations(self, plain_text_source: str):
-        return [self._as_web_annotation(a, plain_text_source) for a in self.cas.views[0].get_all_annotations() if
+    def get_named_entity_annotations(self):
+        return [self._as_web_annotation(a) for a in self.cas.views[0].get_all_annotations() if
                 a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
 
@@ -81,7 +89,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, nea, target_source: str):
+    def _as_web_annotation(self, nea):
         anno_id = f"urn:globalise:annotation:{nea.xmiID}"
         text_quote_selector = {
             "type": "TextQuoteSelector",
@@ -94,8 +102,9 @@ class XMIProcessor:
         if suffix:
             text_quote_selector['suffix'] = suffix
         entity_id = nea.value
-        entity_uri = ner_data_dict[entity_id]['uri']
-        entity_label = ner_data_dict[entity_id]['label']
+        ner_data = ner_data_dict[entity_id]
+        entity_uri = ner_data['uri']
+        entity_label = ner_data['label']
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": anno_id,
@@ -109,14 +118,14 @@ class XMIProcessor:
                         "id": entity_uri,
                         "label": entity_label
                     }
-                },
-                {
-                    "purpose": "identifying",
-
+                # },
+                # {
+                #     "purpose": "identifying",
+                #
                 }
             ],
             "target": {
-                "source": target_source,
+                "source": self.plain_text_source,
                 "selector": [
                     text_quote_selector,
                     {
@@ -135,9 +144,17 @@ class XMIProcessorFactory:
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
+        self.document_data = self._read_document_data()
 
     def get_xmi_processor(self, xmi_path: str) -> XMIProcessor:
-        return XMIProcessor(self.typesystem, xmi_path)
+        return XMIProcessor(self.typesystem, self.document_data, xmi_path)
+
+    @staticmethod
+    def _read_document_data() -> Dict[str, Any]:
+        path = "data/document_data.json"
+        logger.info(f"<= {path}")
+        with open(path) as f:
+            return json.load(f)
 
 
 @logger.catch
@@ -164,32 +181,21 @@ def get_arguments():
     return parser.parse_args()
 
 
-def read_document_data() -> Dict[str, Any]:
-    path = "data/document_data.json"
-    logger.info("<= {path}")
-    with open(path) as f:
-        return json.load(f)
-
-
 @logger.catch
 def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
     if not output_dir:
         output_dir = "."
-    document_data = read_document_data()
     xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
         basename = xmi_path.split('/')[-1].replace('.xmi', '')
         xp = xpf.get_xmi_processor(xmi_path)
 
         txt_path = f"{output_dir}/{basename}_plain-text.txt"
-        md5 = hashlib.md5(xp.text.encode()).hexdigest()
-        logger.info(f"md5 = {md5}")
         logger.info(f"=> {txt_path}")
         with open(txt_path, 'w') as f:
             f.write(xp.text)
-        plain_text_source = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5][0]
 
-        nea = xp.get_named_entity_annotations(plain_text_source)
+        nea = xp.get_named_entity_annotations()
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
         with open(json_path, 'w') as f:
