@@ -124,18 +124,27 @@ class XMIProcessor:
             }
         ]
         overlapping_intervals = self.itree[nea.begin:nea.end]
-        logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
-        if len(overlapping_intervals)>1:
+        # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
+        if len(overlapping_intervals) > 1:
             logger.warning(">1 overlapping intervals!")
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
-            logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
+            # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
             iiif_base_uri = iv_data["iiif_base_uri"]
             coords = iv_data["coords"]
             xywh = self._to_xywh(coords)
             targets.append({
                 "type": "Image",
                 "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
+            })
+            targets.append({
+                "type": "Image",
+                "source": f"{iiif_base_uri}/full/max/0/default.jpg",
+                "selector": {
+                    "type": "FragmentSelector",
+                    "conformsTo": "http://www.w3.org/TR/media-frags/",
+                    "value": f"xywh={xywh}"
+                }
             })
 
         return {
