@@ -3,9 +3,11 @@ import argparse
 import hashlib
 import json
 from datetime import datetime
-from typing import List, Dict, Any
+from typing import List, Dict, Any, Tuple
 
 import cassis as cas
+from cassis.typesystem import FeatureStructure
+from intervaltree import IntervalTree, Interval
 from loguru import logger
 
 ner_data_dict = {
@@ -54,12 +56,15 @@ class XMIProcessor:
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
-        source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
-        if source_list:
-            self.plain_text_source = source_list[0]
+        data = [d for d in document_data.values() if d['plain_text_md5'] == md5]
+        # source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
+        if data:
+            self.plain_text_source = data[0]['plain_text_source']
+            self.itree = IntervalTree([Interval(*iv) for iv in data[0]['text_intervals']])
         else:
             logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             self.plain_text_source = "urn:placeholder"
+            self.itree = IntervalTree()
 
     def text(self) -> str:
         return self.text
@@ -89,7 +94,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, nea):
+    def _as_web_annotation(self, nea: FeatureStructure):
         anno_id = f"urn:globalise:annotation:{nea.xmiID}"
         text_quote_selector = {
             "type": "TextQuoteSelector",
@@ -105,6 +110,34 @@ class XMIProcessor:
         ner_data = ner_data_dict[entity_id]
         entity_uri = ner_data['uri']
         entity_label = ner_data['label']
+        targets = [
+            {
+                "source": self.plain_text_source,
+                "selector": [
+                    text_quote_selector,
+                    {
+                        "type": "TextPositionSelector",
+                        "start": nea.begin,
+                        "end": nea.end
+                    }
+                ]
+            }
+        ]
+        overlapping_intervals = self.itree[nea.begin:nea.end]
+        logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
+        if len(overlapping_intervals)>1:
+            logger.warning(">1 overlapping intervals!")
+        for iv in sorted(list(overlapping_intervals)):
+            iv_begin, iv_end, iv_data = iv
+            logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
+            iiif_base_uri = iv_data["iiif_base_uri"]
+            coords = iv_data["coords"]
+            xywh = self._to_xywh(coords)
+            targets.append({
+                "type": "Image",
+                "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
+            })
+
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": anno_id,
@@ -118,24 +151,24 @@ class XMIProcessor:
                         "id": entity_uri,
                         "label": entity_label
                     }
-                # },
-                # {
-                #     "purpose": "identifying",
-                #
+                    # },
+                    # {
+                    #     "purpose": "identifying",
+                    #
                 }
             ],
-            "target": {
-                "source": self.plain_text_source,
-                "selector": [
-                    text_quote_selector,
-                    {
-                        "type": "TextPositionSelector",
-                        "start": nea.begin,
-                        "end": nea.end
-                    }
-                ]
-            }
+            "target": targets
         }
+
+    @staticmethod
+    def _to_xywh(coords: List[Tuple[int, int]]):
+        min_x = min([p[0] for p in coords])
+        min_y = min([p[1] for p in coords])
+        max_x = max([p[0] for p in coords])
+        max_y = max([p[1] for p in coords])
+        w = max_x - min_x
+        h = max_y - min_y
+        return f"{min_x},{min_y},{w},{h}"
 
 
 class XMIProcessorFactory:

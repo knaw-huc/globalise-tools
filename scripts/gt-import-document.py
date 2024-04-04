@@ -10,7 +10,7 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import Tuple, List, Dict, Any
+from typing import List, Dict, Any
 
 import hydra
 import spacy
@@ -20,7 +20,7 @@ from dataclasses_json import dataclass_json
 from intervaltree import IntervalTree
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLScan, Coords
+from pagexml.model.physical_document_model import PageXMLScan
 from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
 from pycaprio.core.mappings import InceptionFormat
@@ -29,7 +29,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 from globalise_tools.inception_client import InceptionClient
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN
+from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
 from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
 
 typesystem_xml = 'data/typesystem.xml'
@@ -37,11 +37,10 @@ spacy_core = "nl_core_news_lg"
 document_data_path = "out/document_data.json"
 
 
-@dataclass_json
 @dataclass
-class ScanCoords:
-    iiif_base_uri: str
-    coords: Coords
+class TextRegionSummary:
+    text: str
+    scan_coords: ScanCoords
 
 
 @dataclass_json
@@ -135,6 +134,7 @@ class DocumentsProcessor:
         self._write_document_data()
 
     def process(self, dm: DocumentMetadata):
+        self.itree.clear()
         inventory_id = dm.inventory_number
         trc = self.textrepo_client
         Path(f"out/{inventory_id}").mkdir(parents=True, exist_ok=True)
@@ -277,13 +277,14 @@ class DocumentsProcessor:
             iiif_url = get_iiif_url(external_id, textrepo_client)
             logger.info(f"iiif_url={iiif_url}")
             page_links['iiif_url'] = iiif_url
+            scan_links[external_id] = page_links
+
             logger.info(f"<= {page_xml_path}")
             scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-            page_marginalia, page_headers, page_paragraphs = extract_text(scan_doc)
+            page_marginalia, page_headers, page_paragraphs = extract_text_region_summaries(scan_doc, iiif_url)
             document_marginalia.extend(page_marginalia)
             document_headers.extend(page_headers)
             document_paragraphs.extend(page_paragraphs)
-            scan_links[external_id] = page_links
 
         store_document_text(inventory_id, document_id, document_marginalia, document_headers, document_paragraphs)
         marginalia_ranges = []
@@ -292,20 +293,23 @@ class DocumentsProcessor:
         offset = 0
         document_text = ""
         for m in document_marginalia:
-            document_text += m
+            document_text += m.text
             text_len = len(document_text)
             marginalia_ranges.append((offset, text_len))
+            self.itree[offset:text_len] = m.scan_coords
             offset = text_len
         if document_headers:
             h = document_headers[0]
-            document_text += f"\n{h}\n"
+            document_text += f"\n{h.text}\n"
             text_len = len(document_text)
             header_range = (offset + 1, text_len - 1)
+            self.itree[offset + 1:text_len - 1] = h.scan_coords
             offset = text_len
         for m in document_paragraphs:
-            document_text += m
+            document_text += m.text
             text_len = len(document_text)
             paragraph_ranges.append((offset, text_len))
+            self.itree[offset:text_len] = m.scan_coords
             offset = text_len
         if '  ' in document_text:
             logger.error('double space in text')
@@ -342,7 +346,7 @@ class DocumentsProcessor:
     def _write_document_data(self):
         logger.info(f"=> {document_data_path}")
         with open(document_data_path, "w") as f:
-            json.dump(self.document_data, fp=f, ensure_ascii=False)
+            json.dump(self.document_data, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
 
 
 @hydra.main(version_base=None)
@@ -406,33 +410,33 @@ def read_document_data() -> Dict[str, Dict[str, Any]]:
     return {}
 
 
-def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
-    headers, marginalia, paragraphs = extract_text(scan_doc)
-
-    marginalia_ranges = []
-    header_range = None
-    paragraph_ranges = []
-    offset = 0
-    text = ""
-    for m in marginalia:
-        text += m
-        text_len = len(text)
-        marginalia_ranges.append((offset, text_len))
-        offset = text_len
-    if headers:
-        h = headers[0]
-        text += f"\n{h}\n"
-        text_len = len(text)
-        header_range = (offset + 1, text_len - 1)
-        offset = text_len
-    for m in paragraphs:
-        text += m
-        text_len = len(text)
-        paragraph_ranges.append((offset, text_len))
-        offset = text_len
-    if '  ' in text:
-        logger.error('double space in text')
-    return text, marginalia_ranges, header_range, paragraph_ranges
+# def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
+#     headers, marginalia, paragraphs = extract_text_region_summaries(scan_doc)
+#
+#     marginalia_ranges = []
+#     header_range = None
+#     paragraph_ranges = []
+#     offset = 0
+#     text = ""
+#     for m in marginalia:
+#         text += m.text
+#         text_len = len(text)
+#         marginalia_ranges.append((offset, text_len))
+#         offset = text_len
+#     if headers:
+#         h = headers[0]
+#         text += f"\n{h}\n"
+#         text_len = len(text)
+#         header_range = (offset + 1, text_len - 1)
+#         offset = text_len
+#     for m in paragraphs:
+#         text += m
+#         text_len = len(text)
+#         paragraph_ranges.append((offset, text_len))
+#         offset = text_len
+#     if '  ' in text:
+#         logger.error('double space in text')
+#     return text, marginalia_ranges, header_range, paragraph_ranges
 
 
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
@@ -449,12 +453,12 @@ def joined_lines(tr):
 
 def store_document_text(inventory_id, document_id, marginalia, headers, paragraphs):
     document_text = "# marginalia\n"
-    document_text += "\n".join(marginalia)
+    document_text += "\n".join([m.text for m in marginalia])
     document_text += "\n\n# header\n"
     if headers:
-        document_text += headers[0]
+        document_text += headers[0].text
     document_text += "\n\n# paragraphs\n"
-    document_text += "\n".join(paragraphs)
+    document_text += "\n".join([p.text for p in paragraphs])
 
     path = f"out/{inventory_id}/{document_id}.txt"
     logger.info(f"=> {path}")
@@ -462,7 +466,11 @@ def store_document_text(inventory_id, document_id, marginalia, headers, paragrap
         f.write(document_text)
 
 
-def extract_text(scan_doc) -> (List[str], List[str], List[str]):
+def extract_text_region_summaries(
+        scan_doc: PageXMLScan,
+        iiif_url: str
+) -> (List[TextRegionSummary], List[TextRegionSummary], List[TextRegionSummary]):
+    iiif_base_uri = iiif_url.replace('/full/max/0/default.jpg', '')
     paragraphs = []
     headers = []
     marginalia = []
@@ -475,22 +483,28 @@ def extract_text(scan_doc) -> (List[str], List[str], List[str]):
         if is_marginalia(tr):
             ptext = joined_lines(tr)
             if ptext:
-                marginalia.append(ptext)
-        if is_header(tr):
+                summary = TextRegionSummary(text=ptext,
+                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
+                marginalia.append(summary)
+        elif is_header(tr):
             ptext = joined_lines(tr)
             if ptext:
-                headers.append(ptext)
-        if is_paragraph(tr) or is_signature(tr):
+                summary = TextRegionSummary(text=ptext,
+                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
+                headers.append(summary)
+        elif is_paragraph(tr) or is_signature(tr):
             ptext = joined_lines(tr)
             if ptext:
-                paragraphs.append(ptext)
+                summary = TextRegionSummary(text=ptext,
+                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
+                paragraphs.append(summary)
         logger.info("")
     return marginalia, headers, paragraphs
 
 
 def get_iiif_url(external_id, textrepo_client):
     meta = textrepo_client.find_document_metadata(external_id)[1]
-    scan_url = meta['scan_url']
+    scan_url = meta['scan_url'].replace('/info.json', '')
     return f"{scan_url}/full/max/0/default.jpg"
 
 
@@ -530,6 +544,7 @@ def init_inception_client(cfg) -> (InceptionClient, int):
     inception_cfg = cfg.inception
     authorization = inception_cfg.get('authorization', None)
     base = inception_cfg.base_uri
+    logger.info(f"connecting to INCEpTION server at {base}...")
     if authorization:
         client = InceptionClient(base_uri=base, authorization=authorization, oauth2_proxy=inception_cfg.oauth2_proxy)
     else:

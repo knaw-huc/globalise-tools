@@ -118,11 +118,19 @@ class GTToken:
     offset: int
 
 
+@dataclass_json
+@dataclass
+class ScanCoords:
+    iiif_base_uri: str
+    coords: Coords
+
+
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj):
         if isinstance(obj, gt.Annotation) \
                 or isinstance(obj, gt.PXTextRegion) \
                 or isinstance(obj, gt.PXTextLine) \
+                or isinstance(obj, ScanCoords) \
                 or isinstance(obj, GTToken):
             return obj.to_dict()
         elif isinstance(obj, WebAnnotation):
