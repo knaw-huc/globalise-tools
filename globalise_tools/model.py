@@ -122,6 +122,7 @@ class GTToken:
 @dataclass
 class ScanCoords:
     iiif_base_uri: str
+    canvas_id: str
     coords: Coords
 
 

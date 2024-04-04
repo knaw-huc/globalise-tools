@@ -131,21 +131,12 @@ class XMIProcessor:
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
             iiif_base_uri = iv_data["iiif_base_uri"]
+            canvas_id = iv_data["canvas_id"]
             coords = iv_data["coords"]
             xywh = self._to_xywh(coords)
-            targets.append({
-                "type": "Image",
-                "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
-            })
-            targets.append({
-                "type": "Image",
-                "source": f"{iiif_base_uri}/full/max/0/default.jpg",
-                "selector": {
-                    "type": "FragmentSelector",
-                    "conformsTo": "http://www.w3.org/TR/media-frags/",
-                    "value": f"xywh={xywh}"
-                }
-            })
+            targets.append(self._image_target(iiif_base_uri, xywh))
+            targets.append(self._image_selector_target(iiif_base_uri, xywh))
+            targets.append(self._canvas_target(canvas_id, xywh))
 
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
@@ -167,6 +158,38 @@ class XMIProcessor:
                 }
             ],
             "target": targets
+        }
+
+    @staticmethod
+    def _image_target(iiif_base_uri, xywh):
+        return {
+            "type": "Image",
+            "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
+        }
+
+    @staticmethod
+    def _image_selector_target(iiif_base_uri, xywh):
+        return {
+            "type": "Image",
+            "source": f"{iiif_base_uri}/full/max/0/default.jpg",
+            "selector": {
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh={xywh}"
+            }
+        }
+
+    @staticmethod
+    def _canvas_target(canvas_source: str, xywh: str):
+        return {
+            '@context': "https://knaw-huc.github.io/ns/huc-di-tt.jsonld",
+            "type": "Canvas",
+            "source": canvas_source,
+            "selector": {
+                "@context": "http://iiif.io/api/annex/openannotation/context.json",
+                "type": "iiif:ImageApiSelector",
+                "region": xywh
+            }
         }
 
     @staticmethod

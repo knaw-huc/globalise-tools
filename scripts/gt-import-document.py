@@ -275,13 +275,15 @@ class DocumentsProcessor:
             provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
             iiif_url = get_iiif_url(external_id, textrepo_client)
+            canvas_id = self._get_canvas_id(external_id)
             logger.info(f"iiif_url={iiif_url}")
             page_links['iiif_url'] = iiif_url
             scan_links[external_id] = page_links
 
             logger.info(f"<= {page_xml_path}")
             scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
-            page_marginalia, page_headers, page_paragraphs = extract_text_region_summaries(scan_doc, iiif_url)
+            page_marginalia, page_headers, page_paragraphs = extract_text_region_summaries(scan_doc, iiif_url,
+                                                                                           canvas_id)
             document_marginalia.extend(page_marginalia)
             document_headers.extend(page_headers)
             document_paragraphs.extend(page_paragraphs)
@@ -347,6 +349,13 @@ class DocumentsProcessor:
         logger.info(f"=> {document_data_path}")
         with open(document_data_path, "w") as f:
             json.dump(self.document_data, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
+
+    @staticmethod
+    def _get_canvas_id(page_id):
+        parts = page_id.split('_')
+        inventory_number = parts[-2]
+        page_num = parts[-1].lstrip("0")
+        return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
 
 
 @hydra.main(version_base=None)
@@ -468,7 +477,8 @@ def store_document_text(inventory_id, document_id, marginalia, headers, paragrap
 
 def extract_text_region_summaries(
         scan_doc: PageXMLScan,
-        iiif_url: str
+        iiif_url: str,
+        canvas_url: str
 ) -> (List[TextRegionSummary], List[TextRegionSummary], List[TextRegionSummary]):
     iiif_base_uri = iiif_url.replace('/full/max/0/default.jpg', '')
     paragraphs = []
@@ -483,21 +493,24 @@ def extract_text_region_summaries(
         if is_marginalia(tr):
             ptext = joined_lines(tr)
             if ptext:
-                summary = TextRegionSummary(text=ptext,
-                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
-                marginalia.append(summary)
+                marginalia.append(TextRegionSummary(
+                    text=ptext,
+                    scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, canvas_id=canvas_url, coords=tr.coords)
+                ))
         elif is_header(tr):
             ptext = joined_lines(tr)
             if ptext:
-                summary = TextRegionSummary(text=ptext,
-                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
-                headers.append(summary)
+                headers.append(TextRegionSummary(
+                    text=ptext,
+                    scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, canvas_id=canvas_url, coords=tr.coords)
+                ))
         elif is_paragraph(tr) or is_signature(tr):
             ptext = joined_lines(tr)
             if ptext:
-                summary = TextRegionSummary(text=ptext,
-                                            scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, coords=tr.coords))
-                paragraphs.append(summary)
+                paragraphs.append(TextRegionSummary(
+                    text=ptext,
+                    scan_coords=ScanCoords(iiif_base_uri=iiif_base_uri, canvas_id=canvas_url, coords=tr.coords)
+                ))
         logger.info("")
     return marginalia, headers, paragraphs
 

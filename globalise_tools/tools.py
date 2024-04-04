@@ -114,7 +114,7 @@ class WebAnnotationFactory:
     def annotation_targets(self, annotation: Annotation):
         targets = []
         page_id = annotation.page_id
-        canvas_url = self._get_canvas_url(page_id)
+        canvas_id = self._get_canvas_id(page_id)
         if "coords" in annotation.metadata:
             coords = annotation.metadata["coords"]
             if isinstance(coords, Coords):
@@ -122,7 +122,7 @@ class WebAnnotationFactory:
             targets.extend(self._make_image_targets(page_id, coords))
             xywh_list = [self._to_xywh(c) for c in coords]
             points = [c.points for c in coords]
-            canvas_target = self._canvas_target(canvas_url=canvas_url, xywh_list=xywh_list, coords_list=points)
+            canvas_target = self._canvas_target(canvas_url=canvas_id, xywh_list=xywh_list, coords_list=points)
             targets.append(canvas_target)
         if annotation.type == PAGE_TYPE:
             iiif_base_url = self.get_iiif_base_url(page_id)
@@ -134,7 +134,7 @@ class WebAnnotationFactory:
                 },
                 {
                     '@context': self.ANNO_CONTEXT,
-                    'source': canvas_url,
+                    'source': canvas_id,
                     'type': "Canvas",
                 }
             ])
@@ -148,12 +148,12 @@ class WebAnnotationFactory:
         return f"{coords.left},{coords.top},{coords.width},{coords.height}"
 
     @staticmethod
-    def _get_canvas_url(page_id):
+    def _get_canvas_id(page_id):
         parts = page_id.split('_')
         inventory_number = parts[-2]
         page_num = parts[-1].lstrip("0")
-        canvas_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
-        return canvas_url
+        canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
+        return canvas_id
 
     def _init_iiif_base_url_idx(self, path: str):
         logger.info(f"<= {path}...")
