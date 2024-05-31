@@ -48,6 +48,7 @@ class TextRegionSummary:
 class DocumentMetadata:
     document_id: str
     internal_id: str
+    globalise_id: str
     quality_check: str
     title: str
     year_creation_or_dispatch: str
@@ -87,9 +88,12 @@ class DocumentMetadata:
         self.pagexml_ids = self._pagexml_ids()
 
     def _scan_nr_range(self) -> (int, int):
-        (first_str, last_str) = self.scan_range.split('-')
-        first = int(first_str)
-        last = int(last_str)
+        if '-' in self.scan_range:
+            (first_str, last_str) = self.scan_range.split('-')
+            first = int(first_str)
+            last = int(last_str)
+        else:
+            first = last = 0
         return first, last
 
     def _external_id(self) -> str:
@@ -368,7 +372,7 @@ def main(cfg: DictConfig) -> None:
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
     metadata = read_document_selection(cfg)
-    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE']
+    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE' and not m.document_id]
 
     docs_processor = DocumentsProcessor(textrepo_client=textrepo_client, inception_client=inception_client,
                                         provenance_client=provenance_client, base_provenance=base_provenance,
@@ -451,7 +455,7 @@ def read_document_data() -> Dict[str, Dict[str, Any]]:
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 
 
-def joined_lines(tr):
+def joined_lines(tr) -> str:
     lines = []
     for line in tr.lines:
         if line.text:
@@ -544,13 +548,14 @@ def read_document_selection(cfg) -> List[DocumentMetadata]:
     with open(cfg.selection_file, encoding='utf8') as f:
         f.readline()
         reader = csv.DictReader(f, fieldnames=[
-            "document_id", "internal_id", "quality_check", "title", "year_creation_or_dispatch", "inventory_number",
+            "document_id", "internal_id", "globalise_id", "quality_check", "title", "year_creation_or_dispatch",
+            "inventory_number",
             "folio_or_page", "folio_or_page_range", "scan_range", "scan_start", "scan_end", "no_of_scans",
             "no_of_pages", "GM_id", "tanap_id", "tanap_description", "remarks", "marginalia",
             "partOf500_filename", "partOf500_folio"])
         all_metadata = [DocumentMetadata.from_dict(row) for row in reader]
-    # return [m for m in all_metadata if m.quality_check == 'TRUE']
-    return all_metadata
+    return [m for m in all_metadata if m.quality_check == 'TRUE']
+    # return all_metadata
 
 
 def init_inception_client(cfg) -> (InceptionClient, int):

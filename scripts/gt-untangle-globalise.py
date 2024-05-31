@@ -73,9 +73,13 @@ def main(cfg: DictConfig) -> None:
             after = time.perf_counter()
             diff = after - before
             logger.debug(f"done in {diff} s = {diff / document_metadata.no_of_scans} s/pagexml")
+            for e in results[document_metadata.external_id]['errors']:
+                logger.error(e)
             if annotations_stored and not results[document_metadata.external_id]['errors']:
                 processed.add(document_metadata.external_id)
-                with open("out/processed.json", "w") as f:
+                path = "out/processed.json"
+                logger.info(f"=> {path}")
+                with open(path, "w") as f:
                     json.dump(list(processed), fp=f)
 
 
@@ -348,6 +352,16 @@ def untangle_scan_doc(
                 #     make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
                 scan_lines.extend([trl.text for trl in tr_lines])
                 tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
+
+                word_text = []
+                for trl in tr_lines:
+                    line_word_text = [w.text for w in trl.words]
+                    word_text.extend(line_word_text)
+                joined_words = " ".join(word_text)
+                if " „" in joined_words:
+                    logger.debug(f"\n\"{tr_text}\"\n")
+                    logger.debug("\n" + json.dumps(word_text, ensure_ascii=False) + "\n")
+
                 para_anchor = len(paragraphs)
                 for line_range in line_ranges:
                     start = line_range['start']
