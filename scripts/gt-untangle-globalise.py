@@ -11,13 +11,8 @@ from datetime import datetime
 from itertools import groupby
 from typing import Tuple, List, Dict, Any, Union
 
-import globalise_tools.tools as gt
 import hydra
 import pagexml.helper.pagexml_helper as pxh
-from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
-    LogicalAnchorRange, SegmentedTextType
-from globalise_tools.nav_provider import NavProvider
-from globalise_tools.tools import WebAnnotationFactory, Annotation
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
@@ -25,6 +20,12 @@ from pagexml.parser import parse_pagexml_file
 from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
 from textrepo.client import TextRepoClient, DocumentIdentifier
 from uri import URI
+
+import globalise_tools.tools as gt
+from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
+    LogicalAnchorRange, SegmentedTextType
+from globalise_tools.nav_provider import NavProvider
+from globalise_tools.tools import WebAnnotationFactory, Annotation
 
 word_break_chars = '„¬-'
 
@@ -347,9 +348,9 @@ def untangle_scan_doc(
                 line_ids_to_anchors[line.id] = physical_start_anchor + len(tr_lines)
                 tr_lines.append(line)
             if tr_lines:
-                # tr_start_anchor = physical_start_anchor + len(scan_lines)
-                # scan_annotations.append(
-                #     make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
+                tr_start_anchor = physical_start_anchor + len(scan_lines)
+                scan_annotations.append(
+                    make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor))
                 scan_lines.extend([trl.text for trl in tr_lines])
                 tr_text, line_ranges = pxh.make_text_region_text(lines_with_text, word_break_chars=word_break_chars)
 
@@ -358,9 +359,9 @@ def untangle_scan_doc(
                     line_word_text = [w.text for w in trl.words]
                     word_text.extend(line_word_text)
                 joined_words = " ".join(word_text)
-                if " „" in joined_words:
-                    logger.debug(f"\n\"{tr_text}\"\n")
-                    logger.debug("\n" + json.dumps(word_text, ensure_ascii=False) + "\n")
+                # if " „" in joined_words:
+                #     logger.debug(f"\n\"{tr_text}\"\n")
+                #     logger.debug("\n" + json.dumps(word_text, ensure_ascii=False) + "\n")
 
                 para_anchor = len(paragraphs)
                 for line_range in line_ranges:
@@ -376,10 +377,10 @@ def untangle_scan_doc(
                         logger.error(f"start {start} > end {end}")
                 paragraphs.append(tr_text)
 
-                # scan_annotations.extend(
-                #     make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
-                #                           tr_start_anchor)
-                # )
+                scan_annotations.extend(
+                    make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
+                                          tr_start_anchor)
+                )
 
     if not scan_lines:
         # logger.warning(f"no paragraph text found in {scan_doc.id.replace('.jpg', '')}")
