@@ -197,6 +197,9 @@ class WebAnnotationFactory:
     def get_iiif_base_url(self, page_id: str) -> str:
         if page_id not in self.iiif_base_url_idx:
             logger.error(f"{page_id} not found in {self._iiif_mapping_file}")
+        if page_id not in self.iiif_base_url_idx:
+            logger.error(f"page_id {page_id} not in .iiif_base_url_idx")
+            return ""
         return self.iiif_base_url_idx[page_id]
 
     def _make_text_targets(self, annotation: Annotation):
