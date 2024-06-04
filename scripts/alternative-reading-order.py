@@ -124,41 +124,29 @@ def update_page_xml():
     show(inv_nr="1431", page_no="0910")
 
     path = page_xml_path("3211", "0042")
-    tree = etree.parse(path)
+    modify_page_xml(path, path.replace(".xml", "_modified.xml"))
 
+
+def modify_page_xml(in_path: str, out_path: str):
+    tree = etree.parse(in_path)
     metadata = tree.getroot()[0]
-    new_element = etree.Element('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}MetadataItem')
-    new_element.attrib['type'] = 'processingStep'
-    new_element.attrib['name'] = 'fix-reading-order'
-    new_element.attrib['value'] = 'order-by-y'
-    new_element.append(etree.Element('{http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15}Labels'))
-    metadata.append(new_element)
-
-    root = etree.Element("Products")
-    product = etree.SubElement(root, "Product", attrib={"id": "X123"})
-    name = etree.SubElement(product, "Name")
-    name.text = "Widget Pro"
-    labels = etree.SubElement(root, "Labels")
-    label1 = etree.Element("Label", attrib={"id": "label-1"})
-    label2 = etree.Element("Label", attrib={"id": "label-2"})
-    labels.append(label1)
-    labels.append(label2)
-
-    path = page_xml_path("3211", "0042")
-    tree = etree.parse(path)
-    metadata = tree.getroot()[0]
-    metadata_item = etree.Element("MetadataItem",
-                                  attrib={"type": "processingStep", "name": "fix-reading-order", "value": "whatever"})
+    metadata_item = etree.Element(
+        "MetadataItem",
+        attrib={
+            "type": "processingStep",
+            "name": "fix-reading-order",
+            "value": "whatever"
+        }
+    )
     labels = etree.SubElement(metadata_item, "Labels")
-    label1 = etree.Element("Label", attrib={"id": "label-1"})
-    label1.text = "LaBeL1"
-    label2 = etree.Element("Label", attrib={"id": "label-2"})
-    label2.text = "LaBeL2"
-    labels.append(label1)
-    labels.append(label2)
-    # other_metadata_items=metadata.xpath("//ns:MetadataItem[@type='other']",namespaces={'ns':'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'})
+    labels.append(label_element("label-1", "value-1"))
+    labels.append(label_element("label-2", "value-2"))
     metadata[-1].addprevious(metadata_item)
-    write_to_xml(tree, "/Users/bram/tmp/out.xml")
+    write_to_xml(tree, out_path)
+
+
+def label_element(label_type: str, label_value: str) -> etree.Element:
+    return etree.Element("Label", attrib={"type": label_type, "value": label_value})
 
 
 def write_to_xml(doc: Document, path: str):
