@@ -7,7 +7,7 @@ readme = "README.md"
 packages = [{ include = "globalise_tools" }]
 
 [tool.poetry.dependencies]
-python = ">=3.9,<3.12"
+python = ">=3.9,<3.13"
 
 #annorepo-client = "^0.5.1"
 annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
