@@ -371,7 +371,7 @@ def main(cfg: DictConfig) -> None:
     inception_client, project_id = init_inception_client(cfg)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    metadata = read_document_selection(cfg)
+    metadata = read_document_selection(cfg.selection_file)
     quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE' and not m.document_id]
 
     docs_processor = DocumentsProcessor(textrepo_client=textrepo_client, inception_client=inception_client,
@@ -543,9 +543,9 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-def read_document_selection(cfg) -> List[DocumentMetadata]:
-    logger.info(f"<= {cfg.selection_file}")
-    with open(cfg.selection_file, encoding='utf8') as f:
+def read_document_selection(selection_file: str) -> List[DocumentMetadata]:
+    logger.info(f"<= {selection_file}")
+    with open(selection_file, encoding='utf8') as f:
         f.readline()
         reader = csv.DictReader(f, fieldnames=[
             "document_id", "internal_id", "globalise_id", "quality_check", "title", "year_creation_or_dispatch",
