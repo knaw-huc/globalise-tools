@@ -155,12 +155,12 @@ def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, st
         attrib={
             "type": "processingStep",
             "name": "fix-reading-order",
-            "value": "whatever"
+            "value": "Paragraphs ordered by y coordinate of bounding box, per page"
         }
     )
-    labels = etree.SubElement(metadata_item, "Labels")
-    labels.append(label_element("label-1", "value-1"))
-    labels.append(label_element("label-2", "value-2"))
+    # labels = etree.SubElement(metadata_item, "Labels")
+    # labels.append(label_element("label-1", "value-1"))
+    # labels.append(label_element("label-2", "value-2"))
     metadata[-1].addprevious(metadata_item)
     write_to_xml(tree, out_path)
 
