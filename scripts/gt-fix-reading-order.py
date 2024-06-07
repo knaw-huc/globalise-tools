@@ -37,7 +37,47 @@ def fix_reading_order(pagexml_paths: list[str], output_directory: str):
         if has_problematic_reading_order(scan_doc):
             filename = import_path.split("/")[-1]
             export_path = f"{output_directory}/{filename}"
-            modify_page_xml(import_path, export_path)
+            new_reading_order = order_paragraphs_by_y(scan_doc)
+            modify_page_xml(import_path, export_path, new_reading_order)
+
+
+def order_paragraphs_by_y(scan_doc: pdm.PageXMLDoc):
+    current_reading_order = scan_doc.reading_order
+    paragraphs = [tr for tr in scan_doc.get_text_regions_in_reading_order() if 'paragraph' in defining_types(tr)]
+    replacements = {}
+    if is_portrait(scan_doc):
+        local_replacements = ref_id_replacement_dict(paragraphs)
+        replacements.update(local_replacements)
+    else:
+        middle_x = scan_doc.coords.box['w'] / 2
+        left_paragraphs = [tr for tr in paragraphs if tr.coords.box['x'] < middle_x]
+        right_paragraphs = [tr for tr in paragraphs if tr.coords.box['x'] >= middle_x]
+        if len(left_paragraphs) > 1:
+            local_replacements = ref_id_replacement_dict(left_paragraphs)
+            replacements.update(local_replacements)
+        if len(right_paragraphs) > 1:
+            local_replacements = ref_id_replacement_dict(right_paragraphs)
+            replacements.update(local_replacements)
+    new_reading_order = {}
+    for i, ref_id in current_reading_order.items():
+        if ref_id in replacements.keys():
+            new_reading_order[i] = replacements[ref_id]
+        else:
+            new_reading_order[i] = ref_id
+    return new_reading_order
+
+
+def ref_id_replacement_dict(paragraphs):
+    par_y_list = [(tr.id, tr.coords.box['y']) for tr in paragraphs]
+    sorted_par_y_list = sorted(par_y_list, key=lambda t: t[1])
+    zipped = zip(par_y_list, sorted_par_y_list)
+    local_replacements = {}
+    for z in zipped:
+        original_id = z[0][0]
+        new_id = z[1][0]
+        if original_id != new_id:
+            local_replacements[original_id] = new_id
+    return local_replacements
 
 
 def has_problematic_reading_order(pd: pdm.PageXMLDoc) -> bool:
@@ -92,9 +132,19 @@ def element_index(element: lxml.etree._Element, sub_element_name: str) -> Option
     return None
 
 
-def modify_page_xml(in_path: str, out_path: str):
+def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str]):
     tree = etree.parse(in_path)
-    metadata = tree.getroot()[0]
+    root = tree.getroot()
+    page_index = element_index(root, 'Page')
+    page = root[page_index]
+    reading_order_index = element_index(page, 'ReadingOrder')
+    reading_order = page[reading_order_index]
+    ordered_group = reading_order[0]
+    for index, region_ref in new_reading_order.items():
+        ordered_group[index] = etree.Element("RegionRefIndexed", {"index": str(index), "regionRef": region_ref})
+    metadata_index = element_index(root, 'Metadata')
+    metadata = root[metadata_index]
+
     last_changed_element_index = element_index(metadata, 'LastChange')
     if last_changed_element_index:
         metadata[last_changed_element_index].text = datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
