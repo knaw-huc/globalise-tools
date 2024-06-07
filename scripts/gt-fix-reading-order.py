@@ -125,7 +125,9 @@ def write_to_xml(doc: Document, path: str):
     clean_xml = "\n".join([l for l in pretty_xml_lines if l.strip()])
     logger.info(f"=> {path}")
     with open(path, 'w') as xml_file:
-        xml_file.write(clean_xml.replace('<?xml version="1.0" ?>', '<?xml version="1.0" encoding="UTF-8"?>'))
+        xml_file.write(
+            clean_xml.replace('<?xml version="1.0" ?>', '<?xml version="1.0" encoding="UTF-8"?>').replace('\n"', '"')
+        )
 
 
 if __name__ == '__main__':
