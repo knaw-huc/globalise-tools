@@ -12,7 +12,7 @@ deps:
 
 %-lines.lang.tsv: %-lines.tsv
 	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 4 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,es > "$@.right.tmp"
+	cut -f 4 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,es,da,id > "$@.right.tmp"
 	echo -e "inv_nr	page_no	line_id	lang	confidence	line_text" > "$@"
 	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.right.tmp"
