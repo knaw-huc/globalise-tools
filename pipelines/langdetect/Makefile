@@ -40,7 +40,7 @@ nondutch.pages.tsv: pages
 
 dist: globalise-langdetect.tar.xz
 
-top100tokens: nl.tok100tokens.lst en.tok100tokens.lst fr.tok100tokens.lst de.tok100tokens.lst la.tok100tokens.lst it.tok100tokens.lst pt.tok100tokens.lst es.tok100tokens.lst da.tok100tokens.lst id.tok100tokens.lst
+top100tokens: nl.top100tokens.lst en.top100tokens.lst fr.top100tokens.lst de.top100tokens.lst la.top100tokens.lst it.top100tokens.lst pt.top100tokens.lst es.top100tokens.lst da.top100tokens.lst id.top100tokens.lst
 
 %.top100tokens.lst: %.lst
 	cat $< | sed 's/ /\n/g' | sort | uniq -c | sort -rn | head -n 100 > $@
