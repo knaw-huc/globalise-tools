@@ -40,5 +40,8 @@ nondutch.pages.tsv: pages
 
 dist: globalise-langdetect.tar.xz
 
+%.top100tokens.lst: %.lst
+	cat $< | sed 's/ /\n/g' | sort | uniq -c | sort -rn | head -n 100 > $@
+
 globalise-langdetect.tar.xz: stats nondutch.pages.tsv
 	tar -cvJf globalize-langdetect.tar.xz *.lang.tsv *.pages.tsv nondutch.pages.tsv *.lst stats
