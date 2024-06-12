@@ -1,5 +1,5 @@
 .SHELLFLAGS = -o pipefail -c
-.PHONY: deps lists lines pages stats dist
+.PHONY: deps lists lines pages stats dist top100tokens
 .DELETE_ON_ERROR:
 
 input_tsv := $(wildcard *-lines.tsv)
@@ -39,6 +39,8 @@ nondutch.pages.tsv: pages
 	cat *-pages.lang.tsv | awk -F "\t" '{ if ($$3 != "nl" && $$3 != "lang") print $$0 }' >> $@
 
 dist: globalise-langdetect.tar.xz
+
+top100tokens: nl.tok100tokens.lst en.tok100tokens.lst fr.tok100tokens.lst de.tok100tokens.lst la.tok100tokens.lst it.tok100tokens.lst pt.tok100tokens.lst es.tok100tokens.lst da.tok100tokens.lst id.tok100tokens.lst
 
 %.top100tokens.lst: %.lst
 	cat $< | sed 's/ /\n/g' | sort | uniq -c | sort -rn | head -n 100 > $@
