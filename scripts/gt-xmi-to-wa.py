@@ -7,7 +7,6 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
-from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -80,13 +79,21 @@ class XMIProcessor:
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
-        for a in event_annotations:
-            web_annotations.append(self._as_web_annotation(a, self._event_predicate_body(a)))
-            if a['arguments']:
-                for arg in a['arguments']['elements']:
-                    ic(arg)
-                    wa = self._as_web_annotation(arg, self._event_argument_body(arg))
-                    web_annotations.append(wa)
+        for event_annotation in event_annotations:
+            event_web_annotation = self._as_web_annotation(event_annotation, self._event_predicate_body(event_annotation))
+            web_annotations.append(event_web_annotation)
+            if event_annotation['arguments']:
+                for argument_annotation in event_annotation['arguments']['elements']:
+                    event_argument_web_annotation = \
+                        self._as_web_annotation(argument_annotation, self._event_argument_body(argument_annotation))
+                    web_annotations.append(event_argument_web_annotation)
+                    web_annotations.append(
+                        self._event_link_web_annotation(
+                            f"{wiki_base}{argument_annotation['role']}",
+                            event_web_annotation['id'],
+                            event_argument_web_annotation['id']
+                        )
+                    )
 
         return web_annotations
 
@@ -213,12 +220,11 @@ class XMIProcessor:
 
     @staticmethod
     def _event_link_web_annotation(
-            feature_structure: FeatureStructure,
+            argument_identifier: str,
             event_annotation_uri: str,
-            argument_annotation_uri_list: list[str]
+            argument_annotation_uri: str
     ):
-        # ic(feature_structure)
-        body_source = "<uri naar eventargument>"
+        body_source = argument_identifier
         return {
             "type": "Annotation",
             "motivation": "linking",
@@ -226,7 +232,7 @@ class XMIProcessor:
                 "purpose": "classifying",
                 "source": body_source
             },
-            "target": [event_annotation_uri] + argument_annotation_uri_list
+            "target": [event_annotation_uri, argument_annotation_uri]
         }
 
     @staticmethod
@@ -331,11 +337,10 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
 
         nea = xp.get_named_entity_annotations()
         eva = xp.get_event_annotations()
-        eaa = xp.get_event_argument_annotations()
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
-        all_web_annotations = (nea + eva + eaa)
-        all_web_annotations.sort(key=lambda a: a['target'][0]['selector'][1]['start'])
+        all_web_annotations = (nea + eva)
+        # all_web_annotations.sort(key=lambda a: a['target'][0]['selector'][1]['start'])
         with open(json_path, 'w') as f:
             json.dump(all_web_annotations, f)
 
