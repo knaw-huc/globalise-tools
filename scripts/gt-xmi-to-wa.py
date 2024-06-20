@@ -7,6 +7,7 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
+from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -42,6 +43,8 @@ ner_data_dict = {
     'STATUS': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
                'label': '(Civic) status'}}
 
+wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
+
 
 class XMIProcessor:
     max_fix_len = 20
@@ -70,13 +73,31 @@ class XMIProcessor:
         return self.text
 
     def get_named_entity_annotations(self):
-        return [self._as_web_annotation(a) for a in self.cas.views[0].get_all_annotations() if
-                a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
-        # return [a for a in cas.views[0].get_all_annotations() if a.type.name=="de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"]
+        return [self._as_web_annotation(a, self._named_entity_body(a)) for a in self.cas.views[0].get_all_annotations()
+                if a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+
+    def get_event_annotations(self):
+        event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+                             a.type.name == "webanno.custom.SemPredGLOB"]
+        web_annotations = []
+        for a in event_annotations:
+            web_annotations.append(self._as_web_annotation(a, self._event_predicate_body(a)))
+            if a['arguments']:
+                for arg in a['arguments']['elements']:
+                    ic(arg)
+                    wa = self._as_web_annotation(arg, self._event_argument_body(arg))
+                    web_annotations.append(wa)
+
+        return web_annotations
+
+    def get_event_argument_annotations(self):
+        return [self._as_web_annotation(a, self._event_argument_body(a))
+                for a in self.cas.views[0].get_all_annotations()
+                if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
     def _get_prefix(self, a) -> str:
-        extended_prefix_begin = max(0, a.begin - self.max_fix_len * 2)
-        extended_prefix = self.text[extended_prefix_begin:a.begin].lstrip().replace('\n', ' ')
+        extended_prefix_begin = max(0, a['begin'] - self.max_fix_len * 2)
+        extended_prefix = self.text[extended_prefix_begin:a['begin']].lstrip().replace('\n', ' ')
         first_space_index = extended_prefix.rfind(' ', 0, self.max_fix_len)
         if first_space_index != -1:
             prefix = extended_prefix[first_space_index + 1:]
@@ -85,8 +106,8 @@ class XMIProcessor:
         return prefix
 
     def _get_suffix(self, a) -> str:
-        extended_suffix_end = min(self.text_len, a.end + self.max_fix_len * 2)
-        extended_suffix = self.text[a.end:extended_suffix_end].rstrip().replace('\n', ' ')
+        extended_suffix_end = min(self.text_len, a['end'] + self.max_fix_len * 2)
+        extended_suffix = self.text[a['end']:extended_suffix_end].rstrip().replace('\n', ' ')
         last_space_index = extended_suffix.rfind(' ', 0, self.max_fix_len)
         if last_space_index != -1:
             suffix = extended_suffix[:last_space_index]
@@ -94,22 +115,22 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, nea: FeatureStructure):
-        anno_id = f"urn:globalise:annotation:{nea.xmiID}"
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body):
+        anno_id = f"urn:globalise:annotation:{feature_structure.xmiID}"
+        if not feature_structure['begin']:
+            feature_structure = feature_structure['target']
         text_quote_selector = {
             "type": "TextQuoteSelector",
-            "exact": nea.get_covered_text()
+            "exact": feature_structure.get_covered_text()
         }
-        prefix = self._get_prefix(nea)
+        prefix = self._get_prefix(feature_structure)
         if prefix:
             text_quote_selector['prefix'] = prefix
-        suffix = self._get_suffix(nea)
+        suffix = self._get_suffix(feature_structure)
         if suffix:
             text_quote_selector['suffix'] = suffix
-        entity_id = nea.value
-        ner_data = ner_data_dict[entity_id]
-        entity_uri = ner_data['uri']
-        entity_label = ner_data['label']
+        feature_structure_begin = feature_structure['begin']
+        feature_structure_end = feature_structure['end']
         targets = [
             {
                 "source": self.plain_text_source,
@@ -117,13 +138,13 @@ class XMIProcessor:
                     text_quote_selector,
                     {
                         "type": "TextPositionSelector",
-                        "start": nea.begin,
-                        "end": nea.end
+                        "start": feature_structure_begin,
+                        "end": feature_structure_end
                     }
                 ]
             }
         ]
-        overlapping_intervals = self.itree[nea.begin:nea.end]
+        overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
         if len(overlapping_intervals) > 1:
             logger.warning(">1 overlapping intervals!")
@@ -143,21 +164,69 @@ class XMIProcessor:
             "id": anno_id,
             "type": "Annotation",
             "generated": datetime.today().isoformat(),
-            "body": [
-                {
-                    "type": "SpecificResource",
-                    "purpose": "classifying",
-                    "source": {
-                        "id": entity_uri,
-                        "label": entity_label
-                    }
-                    # },
-                    # {
-                    #     "purpose": "identifying",
-                    #
-                }
-            ],
+            "body": body,
             "target": targets
+        }
+
+    @staticmethod
+    def _named_entity_body(feature_structure: FeatureStructure):
+        entity_id = feature_structure.value
+        ner_data = ner_data_dict[entity_id]
+        entity_uri = ner_data['uri']
+        entity_label = ner_data['label']
+        return [
+            {
+                "type": "SpecificResource",
+                "purpose": "classifying",
+                "source": {
+                    "id": entity_uri,
+                    "label": entity_label
+                }
+            }
+        ]
+
+    @staticmethod
+    def _event_predicate_body(feature_structure: FeatureStructure):
+        # ic(feature_structure)
+        category = feature_structure['category'].replace("+", "Plus").replace("-", "Min")
+        category_source = f"{wiki_base}{category}"
+        relation_type = f"{wiki_base}{feature_structure['relationtype']}"
+        return [
+            {
+                "purpose": "classifying",
+                "source": category_source
+            },
+            {
+                "purpose": "classifying",
+                "source": relation_type
+            }
+        ]
+
+    @staticmethod
+    def _event_argument_body(feature_structure: FeatureStructure):
+        # ic(feature_structure)
+        event_argument_source = f"{wiki_base}{feature_structure['role']}"
+        return {
+            "purpose": "classifying",
+            "source": event_argument_source
+        }
+
+    @staticmethod
+    def _event_link_web_annotation(
+            feature_structure: FeatureStructure,
+            event_annotation_uri: str,
+            argument_annotation_uri_list: list[str]
+    ):
+        # ic(feature_structure)
+        body_source = "<uri naar eventargument>"
+        return {
+            "type": "Annotation",
+            "motivation": "linking",
+            "body": {
+                "purpose": "classifying",
+                "source": body_source
+            },
+            "target": [event_annotation_uri] + argument_annotation_uri_list
         }
 
     @staticmethod
@@ -252,7 +321,7 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
         output_dir = "."
     xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
-        basename = xmi_path.split('/')[-1].replace('.xmi', '').replace(' ',"_")
+        basename = xmi_path.split('/')[-1].replace('.xmi', '').replace(' ', "_")
         xp = xpf.get_xmi_processor(xmi_path)
 
         txt_path = f"{output_dir}/{basename}_plain-text.txt"
@@ -261,10 +330,14 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
             f.write(xp.text)
 
         nea = xp.get_named_entity_annotations()
+        eva = xp.get_event_annotations()
+        eaa = xp.get_event_argument_annotations()
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
+        all_web_annotations = (nea + eva + eaa)
+        all_web_annotations.sort(key=lambda a: a['target'][0]['selector'][1]['start'])
         with open(json_path, 'w') as f:
-            json.dump(nea, f)
+            json.dump(all_web_annotations, f)
 
 
 if __name__ == '__main__':
