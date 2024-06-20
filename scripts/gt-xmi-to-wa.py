@@ -252,7 +252,7 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
         output_dir = "."
     xpf = XMIProcessorFactory(typesystem_path)
     for xmi_path in xmi_paths:
-        basename = xmi_path.split('/')[-1].replace('.xmi', '')
+        basename = xmi_path.split('/')[-1].replace('.xmi', '').replace(' ',"_")
         xp = xpf.get_xmi_processor(xmi_path)
 
         txt_path = f"{output_dir}/{basename}_plain-text.txt"
