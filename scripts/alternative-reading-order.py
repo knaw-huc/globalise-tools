@@ -1,15 +1,19 @@
 import csv
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from xml.dom.minidom import parseString, Document
 
 import pagexml.parser as px
 from IPython.display import display, HTML
+from dataclasses_json import dataclass_json
 from loguru import logger
 from lxml import etree
 
 base_pagexml_path = "/Users/bram/workspaces/globalise/pagexml"
 
 
+# lees data/document_metadata.json
+# select documents with 3.1.1, 3.1.2 or 3.2 in quality check
+# for the pages in the indicated range: adjust the reading order, and write the modified pagexml
 @dataclass
 class XYWH:
     x: int
@@ -42,10 +46,6 @@ def extend_box(box, extra_points: int):
     w1 = box['w'] + 2 * extra_points
     h1 = box['h'] + 2 * extra_points
     return f"{x1},{y1},{w1},{h1}"
-
-
-def defining_types(tr):
-    return sorted(tr.types - {'pagexml_doc', 'physical_structure_doc', 'structure_doc', 'text_region'})
 
 
 def show(inv_nr: str, page_no: str):
@@ -124,35 +124,10 @@ def update_page_xml():
     show(inv_nr="1431", page_no="0910")
 
     path = page_xml_path("3211", "0042")
-    modify_page_xml(path, path.replace(".xml", "_modified.xml"))
 
 
-def modify_page_xml(in_path: str, out_path: str):
-    tree = etree.parse(in_path)
-    metadata = tree.getroot()[0]
-    metadata_item = etree.Element(
-        "MetadataItem",
-        attrib={
-            "type": "processingStep",
-            "name": "fix-reading-order",
-            "value": "whatever"
-        }
-    )
-    labels = etree.SubElement(metadata_item, "Labels")
-    labels.append(label_element("label-1", "value-1"))
-    labels.append(label_element("label-2", "value-2"))
-    metadata[-1].addprevious(metadata_item)
-    write_to_xml(tree, out_path)
 
 
-def label_element(label_type: str, label_value: str) -> etree.Element:
-    return etree.Element("Label", attrib={"type": label_type, "value": label_value})
 
 
-def write_to_xml(doc: Document, path: str):
-    xml_str = etree.tostring(doc, pretty_print=True, xml_declaration=True)
-    pretty_xml_lines = parseString(xml_str).toprettyxml(indent="  ").split('\n')
-    clean_xml = "\n".join([l for l in pretty_xml_lines if l.strip()])
-    logger.info(f"=> {path}")
-    with open(path, 'w') as xml_file:
-        xml_file.write(clean_xml)
+
