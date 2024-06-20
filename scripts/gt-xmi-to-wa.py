@@ -80,7 +80,8 @@ class XMIProcessor:
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
         for event_annotation in event_annotations:
-            event_web_annotation = self._as_web_annotation(event_annotation, self._event_predicate_body(event_annotation))
+            event_web_annotation = self._as_web_annotation(event_annotation,
+                                                           self._event_predicate_body(event_annotation))
             web_annotations.append(event_web_annotation)
             if event_annotation['arguments']:
                 for argument_annotation in event_annotation['arguments']['elements']:
@@ -225,7 +226,11 @@ class XMIProcessor:
             argument_annotation_uri: str
     ):
         body_source = argument_identifier
+        target1_num = event_annotation_uri.split(':')[-1]
+        target2_num = argument_annotation_uri.split(':')[-1]
         return {
+            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "id": f"urn:globalise:annotation:{target1_num}-{target2_num}",
             "type": "Annotation",
             "motivation": "linking",
             "body": {
