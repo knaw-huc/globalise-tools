@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import re
+import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 
@@ -12,36 +13,82 @@ from intervaltree import IntervalTree, Interval
 from loguru import logger
 
 ner_data_dict = {
-    'CMTY_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
-                  'label': 'Name of Commodity'},
-    'CMTY_QUAL': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUAL',
-                  'label': 'Commodity qualifier: colors, processing'},
-    'CMTY_QUANT': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUANT',
-                   'label': 'Quantity'},
-    'DATE': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DATE',
-             'label': 'Date'},
-    'DOC': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DOC',
-            'label': 'Document'},
-    'ETH_REL': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
-                'label': 'Ethno-religious appelation or attribute, not derived from location name'},
-    'LOC_ADJ': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
-                'label': 'Derived (adjectival) form of location name'},
-    'LOC_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_NAME',
-                 'label': 'Name of Location'},
-    'ORG': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ORG',
-            'label': 'Organisation name'},
-    'PER_ATTR': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_ATTR',
-                 'label': 'Other persons attributes (than PER or STATUS)'},
-    'PER_NAME': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_NAME',
-                 'label': 'Name of Person'},
-    'PRF': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PRF',
-            'label': 'Profession, title'},
-    'SHIP': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP',
-             'label': 'Ship name'},
-    'SHIP_TYPE': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP_TYPE',
-                  'label': 'Ship type'},
-    'STATUS': {'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
-               'label': '(Civic) status'}}
+    'CMTY_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
+        'label': 'Name of Commodity',
+        'entity_type': 'urn:globalise:entityType:Commodity'
+    },
+    'CMTY_QUAL': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUAL',
+        'label': 'Commodity qualifier: colors, processing',
+        'entity_type': 'urn:globalise:entityType:CommodityQualifier'
+    },
+    'CMTY_QUANT': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUANT',
+        'label': 'Quantity',
+        'entity_type': 'urn:globalise:entityType:CommodityQuantity'
+    },
+    'DATE': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DATE',
+        'label': 'Date',
+        'entity_type': 'urn:globalise:entityType:Date'
+    },
+    'DOC': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DOC',
+        'label': 'Document',
+        'entity_type': 'urn:globalise:entityType:Document'
+    },
+    'ETH_REL': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
+        'label': 'Ethno-religious appelation or attribute, not derived from location name',
+        'entity_type': 'urn:globalise:entityType:EthnoReligiousAppelation'
+    },
+    'LOC_ADJ': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
+        'label': 'Derived (adjectival) form of location name',
+        'entity_type': 'urn:globalise:entityType:Location'
+    },
+    'LOC_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_NAME',
+        'label': 'Name of Location',
+        'entity_type': 'urn:globalise:entityType:Location'
+    },
+    'ORG': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ORG',
+        'label': 'Organisation name',
+        'entity_type': 'urn:globalise:entityType:Organisation'
+    },
+    'PER_ATTR': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_ATTR',
+        'label': 'Other persons attributes (than PER or STATUS)',
+        'entity_type': 'urn:globalise:entityType:PersonAttribute'
+    },
+    'PER_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_NAME',
+        'label': 'Name of Person',
+        'entity_type': 'urn:globalise:entityType:Person'
+    },
+    'PRF': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PRF',
+        'label': 'Profession, title',
+        'entity_type': 'urn:globalise:entityType:Profession'
+    },
+    'SHIP': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP',
+        'label': 'Ship name',
+        'entity_type': 'urn:globalise:entityType:Ship'
+    },
+    'SHIP_TYPE': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP_TYPE',
+        'label': 'Ship type',
+        'entity_type': 'urn:globalise:entityType:Ship'
+    },
+    'STATUS': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
+        'label': '(Civic) status',
+        'entity_type': 'urn:globalise:entityType:CivicStatus'
+    }
+}
 
 wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
 
@@ -73,8 +120,15 @@ class XMIProcessor:
         return self.text
 
     def get_named_entity_annotations(self):
-        return [self._as_web_annotation(a, self._named_entity_body(a)) for a in self.cas.views[0].get_all_annotations()
-                if a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+        entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+                              a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+        web_annotations = []
+        for a in entity_annotations:
+            web_annotation = self._as_web_annotation(a, self._named_entity_body(a))
+            web_annotations.append(web_annotation)
+            entity_type = ner_data_dict[a['value']]['entity_type']
+            web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type))
+        return web_annotations
 
     def get_event_annotations(self):
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
@@ -291,6 +345,24 @@ class XMIProcessor:
         w = max_x - min_x
         h = max_y - min_y
         return f"{min_x},{min_y},{w},{h}"
+
+    @staticmethod
+    def _entity_inference_annotation(entity_annotation, entity_type: str):
+        entity_name = entity_annotation["target"][0]['selector'][0]['exact']
+        entity_name = re.sub(r"[^a-z0-9]+", "_", entity_name.lower()).strip("_")
+        entity_annotation_id = entity_annotation['id']
+        return {
+            "@context": ["http://www.w3.org/ns/anno.jsonld", {"prov": "http://www.w3.org/ns/prov#"}],
+            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "type": "Annotation",
+            "body": {
+                "id": f"urn:globalise:entity:{entity_name}",
+                "type": entity_type,
+                "prov:wasDerivedFrom": entity_annotation_id,
+                "label": entity_name
+            },
+            "target": entity_annotation_id
+        }
 
 
 class XMIProcessorFactory:
