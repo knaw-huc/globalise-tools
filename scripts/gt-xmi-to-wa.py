@@ -266,9 +266,9 @@ class XMIProcessor:
             "type": "Canvas",
             "source": canvas_source,
             "selector": {
-                "@context": "http://iiif.io/api/annex/openannotation/context.json",
-                "type": "iiif:ImageApiSelector",
-                "region": xywh
+                "type": "FragmentSelector",
+                "conformsTo": "http://www.w3.org/TR/media-frags/",
+                "value": f"xywh={xywh}"
             }
         }
 
