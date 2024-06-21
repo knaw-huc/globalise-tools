@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import re
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
 
@@ -159,13 +160,14 @@ class XMIProcessor:
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
-            iiif_base_uri = iv_data["iiif_base_uri"]
             canvas_id = iv_data["canvas_id"]
             coords = iv_data["coords"]
+            manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
             xywh = self._to_xywh(coords)
-            targets.append(self._image_target(iiif_base_uri, xywh))
-            targets.append(self._image_selector_target(iiif_base_uri, xywh))
-            targets.append(self._canvas_target(canvas_id, xywh))
+            # iiif_base_uri = iv_data["iiif_base_uri"]
+            # targets.append(self._image_target(iiif_base_uri, xywh))
+            # targets.append(self._image_selector_target(iiif_base_uri, xywh))
+            targets.append(self._canvas_target(canvas_id, xywh, manifest_uri))
 
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
@@ -260,11 +262,19 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _canvas_target(canvas_source: str, xywh: str):
+    def _canvas_target(canvas_source: str, xywh: str,
+                       manifest_uri: str):
         return {
-            '@context': "https://knaw-huc.github.io/ns/huc-di-tt.jsonld",
-            "type": "Canvas",
-            "source": canvas_source,
+            "type": "SpecificResource",
+            "source": {
+                '@context': "http://iiif.io/api/presentation/3/context.json",
+                "id": canvas_source,
+                "type": "Canvas",
+                "partOf": {
+                    "id": manifest_uri,
+                    "type": "Manifest"
+                }
+            },
             "selector": {
                 "type": "FragmentSelector",
                 "conformsTo": "http://www.w3.org/TR/media-frags/",
