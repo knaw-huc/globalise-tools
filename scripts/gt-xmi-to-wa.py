@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
+from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -107,6 +108,7 @@ class XMIProcessor:
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         data = [d for d in document_data.values() if d['plain_text_md5'] == md5]
+        self.event_argument_entity_dict = {}
         # source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
         if data:
             self.plain_text_source = data[0]['plain_text_source']
@@ -138,10 +140,16 @@ class XMIProcessor:
             event_web_annotation = self._as_web_annotation(event_annotation,
                                                            self._event_predicate_body(event_annotation))
             web_annotations.append(event_web_annotation)
+            argument_annotations = []
             if event_annotation['arguments']:
                 for argument_annotation in event_annotation['arguments']['elements']:
+                    argument_annotations.append(argument_annotation)
                     event_argument_web_annotation = \
                         self._as_web_annotation(argument_annotation, self._event_argument_body(argument_annotation))
+                    raw_target_entity = event_argument_web_annotation['target'][0]['selector'][0]['exact']
+                    target_entity = re.sub(r"[^a-z0-9]+", "_", raw_target_entity.lower()).strip("_")
+                    self.event_argument_entity_dict[argument_annotation.xmiID] = target_entity
+
                     web_annotations.append(event_argument_web_annotation)
                     web_annotations.append(
                         self._event_link_web_annotation(
@@ -150,7 +158,7 @@ class XMIProcessor:
                             event_argument_web_annotation['id']
                         )
                     )
-            web_annotations.append(self._event_inference_annotation(event_web_annotation))
+            web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation))
 
         return web_annotations
 
@@ -365,15 +373,27 @@ class XMIProcessor:
             "target": entity_annotation_id
         }
 
-    @staticmethod
-    def _event_inference_annotation(event_predicate_annotation):
+    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure):
         event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         event_name = re.sub(r"[^a-z0-9]+", "_", event_name.lower()).strip("_")
         event_annotation_id = event_predicate_annotation['id']
         event_type = event_predicate_annotation['body'][0]['source']
-        roleType = ""
-        value_uri = "urn:globalise:value:x"
-        return {
+        actors = []
+        # ic(event_annotation)
+        if event_annotation.arguments:
+            for arg in event_annotation.arguments.elements:
+                ic(arg, arg.target)
+                roleType = f"glob:{arg.role}"
+                value_uri = f"urn:globalise:entity:{self.event_argument_entity_dict[arg.xmiID]}"
+                actors.append(
+                    {
+                        "type": "sem:Role",
+                        "sem:roleType": roleType,
+                        "value": value_uri
+                    }
+                )
+
+        web_anno = {
             "@context": [
                 "http://www.w3.org/ns/anno.jsonld",
                 {
@@ -387,17 +407,13 @@ class XMIProcessor:
             "body": {
                 "id": f"urn:globalise:event:{event_name}",
                 "type": event_type,
-                "prov:wasDerivedFrom": event_annotation_id,
-                "sem:hasActor": [
-                    {
-                        "type": "sem:Role",
-                        "sem:roleType": roleType,
-                        "value": value_uri
-                    }
-                ]
+                "prov:wasDerivedFrom": event_annotation_id
             },
             "target": event_annotation_id
         }
+        if actors:
+            web_anno['body']['sem:hasActor'] = actors
+        return web_anno
 
 
 class XMIProcessorFactory:
