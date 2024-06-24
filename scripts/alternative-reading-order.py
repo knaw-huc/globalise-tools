@@ -1,12 +1,8 @@
 import csv
-from dataclasses import dataclass, field
-from xml.dom.minidom import parseString, Document
+from dataclasses import dataclass
 
 import pagexml.parser as px
 from IPython.display import display, HTML
-from dataclasses_json import dataclass_json
-from loguru import logger
-from lxml import etree
 
 base_pagexml_path = "/Users/bram/workspaces/globalise/pagexml"
 
@@ -124,10 +120,3 @@ def update_page_xml():
     show(inv_nr="1431", page_no="0910")
 
     path = page_xml_path("3211", "0042")
-
-
-
-
-
-
-

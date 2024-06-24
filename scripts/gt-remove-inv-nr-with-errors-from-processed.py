@@ -15,7 +15,7 @@ def main():
             processed.discard(id)
 
     path = "out/processed.json"
-    with open(path,'w') as f:
+    with open(path, 'w') as f:
         json.dump(list(processed), f)
 
 

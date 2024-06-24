@@ -6,16 +6,17 @@ from dataclasses import field, dataclass
 from pathlib import Path
 from typing import List, Dict, Any
 
-import globalise_tools.tools as gt
 import hydra
 import pagexml.parser as pxp
 from annorepo.client import AnnoRepoClient
 from dataclasses_json import dataclass_json
-from globalise_tools.model import WebAnnotation, AnnotationEncoder
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLScan
 from textrepo.client import TextRepoClient
+
+import globalise_tools.tools as gt
+from globalise_tools.model import WebAnnotation, AnnotationEncoder
 
 
 @dataclass_json

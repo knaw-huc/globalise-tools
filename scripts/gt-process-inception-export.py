@@ -191,7 +191,6 @@ def main(cfg: DictConfig) -> None:
 if __name__ == '__main__':
     main()
 
-
 """
 TODO:
 - map inception entity annotations to text and image targets

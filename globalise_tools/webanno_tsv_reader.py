@@ -138,7 +138,7 @@ def read_webanno_tsv(path: str) -> Document:
         elif line.startswith(PREFIX_SPAN_LAYER):
             _handle_span_layer(line, doc)
         elif line.startswith(PREFIX_CHAIN_LAYER):
-            _todo()glob
+            _todo()
         elif line.startswith(PREFIX_RELATION_LAYER):
             _todo()
         elif line.startswith(PREFIX_TEXT):

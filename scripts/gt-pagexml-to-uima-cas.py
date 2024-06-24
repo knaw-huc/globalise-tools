@@ -5,7 +5,6 @@ from typing import Tuple, List
 
 import spacy
 from cassis import *
-from icecream import ic
 from loguru import logger
 from pagexml.parser import parse_pagexml_file
 

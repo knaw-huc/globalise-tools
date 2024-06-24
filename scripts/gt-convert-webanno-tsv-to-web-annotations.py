@@ -127,8 +127,8 @@ class TokenContext:
 
 
 @logger.catch
-def main(iiif_mapping_file: str, textrepo_base_uri:str, data_dir: str):
-    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file,textrepo_base_uri=textrepo_base_uri)
+def main(iiif_mapping_file: str, textrepo_base_uri: str, data_dir: str):
+    webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file, textrepo_base_uri=textrepo_base_uri)
     annotations = create_web_annotations(webannotation_factory, data_dir)
     print(json.dumps(annotations, indent=2))
 
