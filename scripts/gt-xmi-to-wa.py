@@ -9,7 +9,6 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
-from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -357,18 +356,18 @@ class XMIProcessor:
 
     @staticmethod
     def _entity_inference_annotation(entity_annotation, entity_type: str):
-        entity_name = entity_annotation["target"][0]['selector'][0]['exact']
-        entity_name = re.sub(r"[^a-z0-9]+", "_", entity_name.lower()).strip("_")
+        raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
+        normalized_entity_name = re.sub(r"[^a-z0-9]+", "_", raw_entity_name.lower()).strip("_")
         entity_annotation_id = entity_annotation['id']
         return {
             "@context": ["http://www.w3.org/ns/anno.jsonld", {"prov": "http://www.w3.org/ns/prov#"}],
             "id": f"urn:globalise:annotation:{uuid.uuid4()}",
             "type": "Annotation",
             "body": {
-                "id": f"urn:globalise:entity:{entity_name}",
+                "id": f"urn:globalise:entity:{normalized_entity_name}",
                 "type": entity_type,
                 "prov:wasDerivedFrom": entity_annotation_id,
-                "label": entity_name
+                "label": raw_entity_name
             },
             "target": entity_annotation_id
         }
@@ -382,7 +381,7 @@ class XMIProcessor:
         # ic(event_annotation)
         if event_annotation.arguments:
             for arg in event_annotation.arguments.elements:
-                ic(arg, arg.target)
+                # ic(arg, arg.target)
                 roleType = f"glob:{arg.role}"
                 value_uri = f"urn:globalise:entity:{self.event_argument_entity_dict[arg.xmiID]}"
                 actors.append(
