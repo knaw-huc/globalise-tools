@@ -204,6 +204,7 @@ class XMIProcessor:
         feature_structure_end = feature_structure['end']
         targets = [
             {
+                "type": "SpecificResource",
                 "source": self.plain_text_source,
                 "selector": [
                     text_quote_selector,
