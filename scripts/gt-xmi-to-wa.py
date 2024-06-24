@@ -150,6 +150,7 @@ class XMIProcessor:
                             event_argument_web_annotation['id']
                         )
                     )
+            web_annotations.append(self._event_inference_annotation(event_web_annotation))
 
         return web_annotations
 
@@ -362,6 +363,40 @@ class XMIProcessor:
                 "label": entity_name
             },
             "target": entity_annotation_id
+        }
+
+    @staticmethod
+    def _event_inference_annotation(event_predicate_annotation):
+        event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
+        event_name = re.sub(r"[^a-z0-9]+", "_", event_name.lower()).strip("_")
+        event_annotation_id = event_predicate_annotation['id']
+        event_type = event_predicate_annotation['body'][0]['source']
+        roleType = ""
+        value_uri = "urn:globalise:value:x"
+        return {
+            "@context": [
+                "http://www.w3.org/ns/anno.jsonld",
+                {
+                    "prov": "http://www.w3.org/ns/prov#",
+                    "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
+                    "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/"
+                }
+            ],
+            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "type": "Annotation",
+            "body": {
+                "id": f"urn:globalise:event:{event_name}",
+                "type": event_type,
+                "prov:wasDerivedFrom": event_annotation_id,
+                "sem:hasActor": [
+                    {
+                        "type": "sem:Role",
+                        "sem:roleType": roleType,
+                        "value": value_uri
+                    }
+                ]
+            },
+            "target": event_annotation_id
         }
 
 
