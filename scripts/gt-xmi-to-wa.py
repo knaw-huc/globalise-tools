@@ -361,13 +361,22 @@ class XMIProcessor:
         normalized_entity_name = re.sub(r"[^a-z0-9]+", "_", raw_entity_name.lower()).strip("_")
         entity_annotation_id = entity_annotation['id']
         return {
-            "@context": ["http://www.w3.org/ns/anno.jsonld", {"prov": "http://www.w3.org/ns/prov#"}],
+            "@context": [
+                "http://www.w3.org/ns/anno.jsonld",
+                {
+                    "prov": "http://www.w3.org/ns/prov#",
+                    "wasDerivedFrom": {
+                        "@id": "prov:wasDerivedFrom",
+                        "@type": "@id"
+                    }
+                }
+            ],
             "id": f"urn:globalise:annotation:{uuid.uuid4()}",
             "type": "Annotation",
             "body": {
                 "id": f"urn:globalise:entity:{normalized_entity_name}",
                 "type": entity_type,
-                "prov:wasDerivedFrom": entity_annotation_id,
+                "wasDerivedFrom": entity_annotation_id,
                 "label": raw_entity_name
             },
             "target": entity_annotation_id
@@ -388,7 +397,7 @@ class XMIProcessor:
                 actors.append(
                     {
                         "type": "sem:Role",
-                        "sem:roleType": roleType,
+                        "roleType": roleType,
                         "value": value_uri
                     }
                 )
@@ -399,7 +408,16 @@ class XMIProcessor:
                 {
                     "prov": "http://www.w3.org/ns/prov#",
                     "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
-                    "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/"
+                    "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/",
+                    "hasActor": "sem:hasActor",
+                    "roleType": {
+                        "@id": "sem:roleType",
+                        "@type": "@id"
+                    },
+                    "wasDerivedFrom": {
+                        "@id": "prov:wasDerivedFrom",
+                        "@type": "@id"
+                    }
                 }
             ],
             "id": f"urn:globalise:annotation:{uuid.uuid4()}",
@@ -407,12 +425,12 @@ class XMIProcessor:
             "body": {
                 "id": f"urn:globalise:event:{event_name}",
                 "type": event_type,
-                "prov:wasDerivedFrom": event_annotation_id
+                "wasDerivedFrom": event_annotation_id
             },
             "target": event_annotation_id
         }
         if actors:
-            web_anno['body']['sem:hasActor'] = actors
+            web_anno['body']['hasActor'] = actors
         return web_anno
 
 
