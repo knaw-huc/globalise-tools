@@ -464,8 +464,10 @@ class XMIProcessor:
                 role = {
                     "type": "sem:Role",
                     "roleType": roleType,
-                    "value": entity_id,
-                    "label": entity_label
+                    "value": {
+                        "id": entity_id,
+                        "label": entity_label
+                    }
                 }
                 if arg.role in time_roles:
                     time_args.append(role)
