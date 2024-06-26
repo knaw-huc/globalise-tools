@@ -92,6 +92,10 @@ ner_data_dict = {
 
 wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
 
+time_roles = ["Time"]
+actor_roles = ["Agent", "AgentPatient", "Benefactive", "Cargo", "Instrument", "Patient"]
+place_roles = ["Location", "Path", "Source", "Target"]
+
 
 class XMIProcessor:
     max_fix_len = 20
@@ -402,6 +406,8 @@ class XMIProcessor:
                     "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
                     "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/",
                     "hasActor": "sem:hasActor",
+                    "hasTime": "sem:hasTime",
+                    "hasPlace": "sem:hasPlace",
                     "Event": "sem:Event",
                     "roleType": {
                         "@id": "sem:roleType",
@@ -426,22 +432,32 @@ class XMIProcessor:
             },
             "target": event_annotation_id
         }
-        actors = []
+        actor_args = []
+        place_args = []
+        time_args = []
         # ic(event_annotation)
         if event_annotation.arguments:
             for arg in event_annotation.arguments.elements:
                 # ic(arg, arg.target)
                 roleType = f"glob:{arg.role}"
                 value_uri = self._entity_id(f"{self.event_argument_entity_dict[arg.xmiID]}:{arg.target.xmiID}")
-                actors.append(
-                    {
-                        "type": "sem:Role",
-                        "roleType": roleType,
-                        "value": value_uri
-                    }
-                )
-        if actors:
-            web_anno['body']['hasActor'] = actors
+                role = {
+                    "type": "sem:Role",
+                    "roleType": roleType,
+                    "value": value_uri
+                }
+                if arg.role in time_roles:
+                    time_args.append(role)
+                elif arg.role in place_roles:
+                    place_args.append(role)
+                else:
+                    actor_args.append(role)
+        if actor_args:
+            web_anno['body']['hasActor'] = actor_args
+        if place_args:
+            web_anno['body']['hasPlace'] = place_args
+        if time_args:
+            web_anno['body']['hasTime'] = time_args
         return web_anno
 
     def _annotation_id(self, extra_id: any) -> str:
