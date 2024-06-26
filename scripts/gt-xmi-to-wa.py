@@ -460,10 +460,12 @@ class XMIProcessor:
                 start = arg.target.begin
                 end = arg.target.end
                 entity_id = self._event_argument_id(start, end, self.event_argument_entity_dict[arg.xmiID])
+                entity_label = arg.target.get_covered_text()
                 role = {
                     "type": "sem:Role",
                     "roleType": roleType,
-                    "value": entity_id
+                    "value": entity_id,
+                    "label": entity_label
                 }
                 if arg.role in time_roles:
                     time_args.append(role)
