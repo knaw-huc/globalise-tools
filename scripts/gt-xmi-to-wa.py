@@ -106,12 +106,16 @@ class XMIProcessor:
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
-        data = [d for d in document_data.values() if d['plain_text_md5'] == md5]
+        data = None
+        for k, v in document_data.items():
+            if v['plain_text_md5'] == md5:
+                self.document_id = k
+                data = v
         self.event_argument_entity_dict = {}
         # source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
         if data:
-            self.plain_text_source = data[0]['plain_text_source']
-            self.itree = IntervalTree([Interval(*iv) for iv in data[0]['text_intervals']])
+            self.plain_text_source = data['plain_text_source']
+            self.itree = IntervalTree([Interval(*iv) for iv in data['text_intervals']])
         else:
             logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             self.plain_text_source = "urn:placeholder"
@@ -128,7 +132,7 @@ class XMIProcessor:
             web_annotation = self._as_web_annotation(a, self._named_entity_body(a))
             web_annotations.append(web_annotation)
             entity_type = ner_data_dict[a['value']]['entity_type']
-            web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type))
+            web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
 
     def get_event_annotations(self):
@@ -187,7 +191,7 @@ class XMIProcessor:
         return suffix
 
     def _as_web_annotation(self, feature_structure: FeatureStructure, body):
-        anno_id = f"urn:globalise:annotation:{feature_structure.xmiID}"
+        anno_id = self._annotation_id(feature_structure.xmiID)
         if not feature_structure['begin']:
             feature_structure = feature_structure['target']
         text_quote_selector = {
@@ -284,8 +288,8 @@ class XMIProcessor:
             "source": event_argument_source
         }
 
-    @staticmethod
     def _event_link_web_annotation(
+            self,
             argument_identifier: str,
             event_annotation_uri: str,
             argument_annotation_uri: str
@@ -295,7 +299,7 @@ class XMIProcessor:
         target2_num = argument_annotation_uri.split(':')[-1]
         return {
             "@context": "http://www.w3.org/ns/anno.jsonld",
-            "id": f"urn:globalise:annotation:{target1_num}-{target2_num}",
+            "id": self._annotation_id(f"{target1_num}-{target2_num}"),
             "type": "Annotation",
             "motivation": "linking",
             "body": {
@@ -355,11 +359,12 @@ class XMIProcessor:
         h = max_y - min_y
         return f"{min_x},{min_y},{w},{h}"
 
-    @staticmethod
-    def _entity_inference_annotation(entity_annotation, entity_type: str):
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         normalized_entity_name = re.sub(r"[^a-z0-9]+", "_", raw_entity_name.lower()).strip("_")
         entity_annotation_id = entity_annotation['id']
+        annotation_id = self._annotation_id(uuid.uuid4())
+        entity_id = f"{self._entity_id(normalized_entity_name)}:{anno_num}"
         return {
             "@context": [
                 "http://www.w3.org/ns/anno.jsonld",
@@ -371,10 +376,10 @@ class XMIProcessor:
                     }
                 }
             ],
-            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "id": annotation_id,
             "type": "Annotation",
             "body": {
-                "id": f"urn:globalise:entity:{normalized_entity_name}",
+                "id": entity_id,
                 "type": entity_type,
                 "wasDerivedFrom": entity_annotation_id,
                 "label": raw_entity_name
@@ -383,25 +388,12 @@ class XMIProcessor:
         }
 
     def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure):
-        event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
-        event_name = re.sub(r"[^a-z0-9]+", "_", event_name.lower()).strip("_")
-        event_annotation_id = event_predicate_annotation['id']
+        annotation_id = self._annotation_id(uuid.uuid4())
+        raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
+        normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
+        event_id = self._event_id(f"{normalized_event_name}:{event_annotation.xmiID}")
         event_type = event_predicate_annotation['body'][0]['source']
-        actors = []
-        # ic(event_annotation)
-        if event_annotation.arguments:
-            for arg in event_annotation.arguments.elements:
-                # ic(arg, arg.target)
-                roleType = f"glob:{arg.role}"
-                value_uri = f"urn:globalise:entity:{self.event_argument_entity_dict[arg.xmiID]}"
-                actors.append(
-                    {
-                        "type": "sem:Role",
-                        "roleType": roleType,
-                        "value": value_uri
-                    }
-                )
-
+        event_annotation_id = event_predicate_annotation['id']
         web_anno = {
             "@context": [
                 "http://www.w3.org/ns/anno.jsonld",
@@ -410,8 +402,13 @@ class XMIProcessor:
                     "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
                     "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/",
                     "hasActor": "sem:hasActor",
+                    "Event": "sem:Event",
                     "roleType": {
                         "@id": "sem:roleType",
+                        "@type": "@id"
+                    },
+                    "value": {
+                        "@id": "rdf:value",
                         "@type": "@id"
                     },
                     "wasDerivedFrom": {
@@ -420,18 +417,41 @@ class XMIProcessor:
                     }
                 }
             ],
-            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "id": annotation_id,
             "type": "Annotation",
             "body": {
-                "id": f"urn:globalise:event:{event_name}",
-                "type": event_type,
+                "id": event_id,
+                "type": ["Event", event_type],
                 "wasDerivedFrom": event_annotation_id
             },
             "target": event_annotation_id
         }
+        actors = []
+        # ic(event_annotation)
+        if event_annotation.arguments:
+            for arg in event_annotation.arguments.elements:
+                # ic(arg, arg.target)
+                roleType = f"glob:{arg.role}"
+                value_uri = self._entity_id(f"{self.event_argument_entity_dict[arg.xmiID]}:{arg.target.xmiID}")
+                actors.append(
+                    {
+                        "type": "sem:Role",
+                        "roleType": roleType,
+                        "value": value_uri
+                    }
+                )
         if actors:
             web_anno['body']['hasActor'] = actors
         return web_anno
+
+    def _annotation_id(self, extra_id: any) -> str:
+        return f"urn:globalise:annotation:{self.document_id}:{extra_id}"
+
+    def _event_id(self, extra_id: any) -> str:
+        return f"urn:globalise:event:{self.document_id}:{extra_id}"
+
+    def _entity_id(self, extra_id: any) -> str:
+        return f"urn:globalise:entity:{self.document_id}:{extra_id}"
 
 
 class XMIProcessorFactory:
