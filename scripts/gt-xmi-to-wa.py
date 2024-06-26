@@ -3,6 +3,7 @@ import argparse
 import hashlib
 import json
 import re
+import subprocess
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
@@ -101,10 +102,11 @@ place_roles = ["Location", "Path", "Source", "Target"]
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, document_data, xmi_path: str):
+    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str):
         self.typesystem = typesystem
         self.document_data = document_data
         self.xmi_path = xmi_path
+        self.commit_id = commit_id
         logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
@@ -160,7 +162,7 @@ class XMIProcessor:
 
                     web_annotations.append(event_argument_web_annotation)
                     web_annotations.append(
-                        self._event_link_web_annotation(
+                        self._as_event_link_web_annotation(
                             f"{wiki_base}{argument_annotation['role']}",
                             event_web_annotation['id'],
                             event_argument_web_annotation['id']
@@ -246,8 +248,18 @@ class XMIProcessor:
             "id": anno_id,
             "type": "Annotation",
             "generated": datetime.today().isoformat(),
+            "generator": self._generator(),
             "body": body,
             "target": targets
+        }
+
+    def _generator(self):
+        return {
+            "id": "https://github.com/knaw-huc/globalise-tools/blob/"
+                  f"{self.commit_id}"
+                  "/scripts/gt-xmi-to-wa.py",
+            "type": "Software",
+            "name": "scripts/gt-xmi-to-wa.py"
         }
 
     @staticmethod
@@ -293,7 +305,7 @@ class XMIProcessor:
             "source": event_argument_source
         }
 
-    def _event_link_web_annotation(
+    def _as_event_link_web_annotation(
             self,
             argument_identifier: str,
             event_annotation_uri: str,
@@ -306,6 +318,8 @@ class XMIProcessor:
             "@context": "http://www.w3.org/ns/anno.jsonld",
             "id": self._annotation_id(f"{target1_num}-{target2_num}"),
             "type": "Annotation",
+            "generated": datetime.today().isoformat(),
+            "generator": self._generator(),
             "motivation": "linking",
             "body": {
                 "purpose": "classifying",
@@ -483,9 +497,10 @@ class XMIProcessorFactory:
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
+        self.commit_id = self._read_current_commit_id()
 
     def get_xmi_processor(self, xmi_path: str) -> XMIProcessor:
-        return XMIProcessor(self.typesystem, self.document_data, xmi_path)
+        return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
 
     @staticmethod
     def _read_document_data() -> Dict[str, Any]:
@@ -493,6 +508,15 @@ class XMIProcessorFactory:
         logger.info(f"<= {path}")
         with open(path) as f:
             return json.load(f)
+
+    @staticmethod
+    def _read_current_commit_id():
+        git_status = subprocess.check_output(['git', 'status', '--short']).decode('ascii').strip()
+        git_committable_changes = [line for line in git_status.split('\n') if not line.startswith('?? ')]
+        if git_committable_changes:
+            logger.warning("Uncommitted changes! Do a `git commit` first!")
+        commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
+        return commit_id
 
 
 @logger.catch
@@ -535,12 +559,10 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
 
         nea = xp.get_named_entity_annotations()
         entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
-        ic(entity_ids)
         eva = xp.get_event_annotations(entity_ids)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
         all_web_annotations = (nea + eva)
-        # all_web_annotations.sort(key=lambda a: a['target'][0]['selector'][1]['start'])
         with open(json_path, 'w') as f:
             json.dump(all_web_annotations, f)
 
