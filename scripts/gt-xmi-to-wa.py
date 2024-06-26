@@ -9,6 +9,7 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
+from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -139,7 +140,7 @@ class XMIProcessor:
             web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
 
-    def get_event_annotations(self):
+    def get_event_annotations(self, entity_ids: list[str]):
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
@@ -165,7 +166,7 @@ class XMIProcessor:
                             event_argument_web_annotation['id']
                         )
                     )
-            web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation))
+            web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation, entity_ids))
 
         return web_annotations
 
@@ -365,10 +366,12 @@ class XMIProcessor:
 
     def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
+        start = entity_annotation["target"][0]['selector'][1]['start']
+        end = entity_annotation["target"][0]['selector'][1]['end']
         normalized_entity_name = re.sub(r"[^a-z0-9]+", "_", raw_entity_name.lower()).strip("_")
         entity_annotation_id = entity_annotation['id']
         annotation_id = self._annotation_id(uuid.uuid4())
-        entity_id = f"{self._entity_id(normalized_entity_name)}:{anno_num}"
+        entity_id = self._entity_id(start, end, normalized_entity_name)
         return {
             "@context": [
                 "http://www.w3.org/ns/anno.jsonld",
@@ -391,7 +394,7 @@ class XMIProcessor:
             "target": entity_annotation_id
         }
 
-    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure):
+    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure, entity_ids):
         annotation_id = self._annotation_id(uuid.uuid4())
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
@@ -440,18 +443,21 @@ class XMIProcessor:
             for arg in event_annotation.arguments.elements:
                 # ic(arg, arg.target)
                 roleType = f"glob:{arg.role}"
-                value_uri = self._entity_id(f"{self.event_argument_entity_dict[arg.xmiID]}:{arg.target.xmiID}")
-                role = {
-                    "type": "sem:Role",
-                    "roleType": roleType,
-                    "value": value_uri
-                }
-                if arg.role in time_roles:
-                    time_args.append(role)
-                elif arg.role in place_roles:
-                    place_args.append(role)
-                else:
-                    actor_args.append(role)
+                start = arg.target.begin
+                end = arg.target.end
+                entity_id = self._entity_id(start, end, self.event_argument_entity_dict[arg.xmiID])
+                if entity_id in entity_ids:
+                    role = {
+                        "type": "sem:Role",
+                        "roleType": roleType,
+                        "value": entity_id
+                    }
+                    if arg.role in time_roles:
+                        time_args.append(role)
+                    elif arg.role in place_roles:
+                        place_args.append(role)
+                    else:
+                        actor_args.append(role)
         if actor_args:
             web_anno['body']['hasActor'] = actor_args
         if place_args:
@@ -466,8 +472,8 @@ class XMIProcessor:
     def _event_id(self, extra_id: any) -> str:
         return f"urn:globalise:event:{self.document_id}:{extra_id}"
 
-    def _entity_id(self, extra_id: any) -> str:
-        return f"urn:globalise:entity:{self.document_id}:{extra_id}"
+    def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
+        return f"urn:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
 
 
 class XMIProcessorFactory:
@@ -528,7 +534,9 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
             f.write(xp.text)
 
         nea = xp.get_named_entity_annotations()
-        eva = xp.get_event_annotations()
+        entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
+        ic(entity_ids)
+        eva = xp.get_event_annotations(entity_ids)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
         logger.info(f"=> {json_path}")
         all_web_annotations = (nea + eva)
