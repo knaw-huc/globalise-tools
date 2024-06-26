@@ -10,7 +10,6 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
-from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -114,6 +113,7 @@ class XMIProcessor:
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         data = None
+        self.document_id = "unknown"
         for k, v in document_data.items():
             if v['plain_text_md5'] == md5:
                 self.document_id = k
@@ -459,19 +459,18 @@ class XMIProcessor:
                 roleType = f"glob:{arg.role}"
                 start = arg.target.begin
                 end = arg.target.end
-                entity_id = self._entity_id(start, end, self.event_argument_entity_dict[arg.xmiID])
-                if entity_id in entity_ids:
-                    role = {
-                        "type": "sem:Role",
-                        "roleType": roleType,
-                        "value": entity_id
-                    }
-                    if arg.role in time_roles:
-                        time_args.append(role)
-                    elif arg.role in place_roles:
-                        place_args.append(role)
-                    else:
-                        actor_args.append(role)
+                entity_id = self._event_argument_id(start, end, self.event_argument_entity_dict[arg.xmiID])
+                role = {
+                    "type": "sem:Role",
+                    "roleType": roleType,
+                    "value": entity_id
+                }
+                if arg.role in time_roles:
+                    time_args.append(role)
+                elif arg.role in place_roles:
+                    place_args.append(role)
+                else:
+                    actor_args.append(role)
         if actor_args:
             web_anno['body']['hasActor'] = actor_args
         if place_args:
@@ -488,6 +487,9 @@ class XMIProcessor:
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
         return f"urn:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
+
+    def _event_argument_id(self, start: int, end: int, normalized_label: str) -> str:
+        return f"urn:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
 
 
 class XMIProcessorFactory:
