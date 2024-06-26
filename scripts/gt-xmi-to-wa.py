@@ -430,10 +430,10 @@ class XMIProcessor:
                         "@id": "sem:roleType",
                         "@type": "@id"
                     },
-                    "value": {
-                        "@id": "rdf:value",
-                        "@type": "@id"
-                    },
+                    # "value": {
+                    #     "@id": "rdf:value",
+                    #     "@type": "@id"
+                    # },
                     "wasDerivedFrom": {
                         "@id": "prov:wasDerivedFrom",
                         "@type": "@id"
