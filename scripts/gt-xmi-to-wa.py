@@ -249,7 +249,7 @@ class XMIProcessor:
         overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
         if len(overlapping_intervals) > 1:
-            logger.warning(">1 overlapping intervals!")
+            logger.warning(f">1 overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
