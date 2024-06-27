@@ -54,6 +54,10 @@ test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.
 prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
 	poetry run ./scripts/gt-import-document.py -cd conf -cn prod.yaml
 
+.PHONY: convert-example-xmi
+convert-example-xmi:
+	./scripts/gt-convert-example-xmi.sh
+
 .PHONY: install
 install:
 	poetry update
@@ -106,6 +110,8 @@ help:
 	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo
+	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
 	@echo
 	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
 	@echo
