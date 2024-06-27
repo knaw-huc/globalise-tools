@@ -49,7 +49,7 @@ def show(inv_nr: str, page_no: str):
     key = page_xml_id(inv_nr, page_no)
     base_iiif_url = iiif_base_url_idx[key]
     print(scan_doc.metadata['scan_id'])
-    print(f"{base_iiif_url}/full/full/0/default.jpg")
+    print(f"{base_iiif_url}/full/max/0/default.jpg")
     for i, tr in enumerate(scan_doc.get_text_regions_in_reading_order()):
         if tr.lines:
             text = " ".join([l.text for l in tr.lines])
@@ -58,7 +58,7 @@ def show(inv_nr: str, page_no: str):
         bb = bounding_box(tr.coords)
         print(i, bb, defining_types(tr), '"' + text + '"')
         extended_xywh = extend_box(tr.coords.box, 75)
-        img = f"""<img src="{base_iiif_url}/{extended_xywh}/full/0/default.jpg"/>"""
+        img = f"""<img src="{base_iiif_url}/{extended_xywh}/max/0/default.jpg"/>"""
         display(HTML(img))
 
 
@@ -106,7 +106,7 @@ def show_boxes(base: str, width: int, height: int, boxes: list[XYWH]):
     div = f"""
     {style}
     <div class="container">
-        <img src="{base}/full/full/0/default.jpg" alt="Image" width="{width}" height="{height}">
+        <img src="{base}/full/max/0/default.jpg" alt="Image" width="{width}" height="{height}">
         <svg class="overlay" width="{width}" height="{height}">
         {svg}
         </svg>
