@@ -10,6 +10,7 @@ from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
+from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
 
@@ -124,9 +125,10 @@ class XMIProcessor:
             self.plain_text_source = data['plain_text_source']
             self.itree = IntervalTree([Interval(*iv) for iv in data['text_intervals']])
         else:
-            logger.error(f"No document data found for {xmi_path}, using placeholder target source")
-            self.plain_text_source = "urn:placeholder"
-            self.itree = IntervalTree()
+            # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
+            raise Exception(f"No document data found for {xmi_path}")
+            # self.plain_text_source = "urn:placeholder"
+            # self.itree = IntervalTree()
 
     def text(self) -> str:
         return self.text
@@ -147,9 +149,13 @@ class XMIProcessor:
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
         for event_annotation in event_annotations:
-            event_web_annotation = self._as_web_annotation(event_annotation,
-                                                           self._event_predicate_body(event_annotation))
-            web_annotations.append(event_web_annotation)
+            event_predicate_body = self._event_predicate_body(event_annotation)
+            if event_predicate_body:
+                event_web_annotation = self._as_web_annotation(event_annotation, event_predicate_body)
+                web_annotations.append(event_web_annotation)
+            else:
+                event_web_annotation = None
+
             argument_annotations = []
             if event_annotation['arguments']:
                 for argument_annotation in event_annotation['arguments']['elements']:
@@ -161,14 +167,16 @@ class XMIProcessor:
                     self.event_argument_entity_dict[argument_annotation.xmiID] = target_entity
 
                     web_annotations.append(event_argument_web_annotation)
-                    web_annotations.append(
-                        self._as_event_link_web_annotation(
-                            f"{wiki_base}{argument_annotation['role']}",
-                            event_web_annotation['id'],
-                            event_argument_web_annotation['id']
+                    if event_web_annotation:
+                        web_annotations.append(
+                            self._as_event_link_web_annotation(
+                                f"{wiki_base}{argument_annotation['role']}",
+                                event_web_annotation['id'],
+                                event_argument_web_annotation['id']
+                            )
                         )
-                    )
-            web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation, entity_ids))
+            if event_web_annotation:
+                web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation))
 
         return web_annotations
 
@@ -178,6 +186,8 @@ class XMIProcessor:
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
     def _get_prefix(self, a) -> str:
+        if not a:
+            return ""
         extended_prefix_begin = max(0, a['begin'] - self.max_fix_len * 2)
         extended_prefix = self.text[extended_prefix_begin:a['begin']].lstrip().replace('\n', ' ')
         first_space_index = extended_prefix.rfind(' ', 0, self.max_fix_len)
@@ -188,6 +198,8 @@ class XMIProcessor:
         return prefix
 
     def _get_suffix(self, a) -> str:
+        if not a:
+            return ""
         extended_suffix_end = min(self.text_len, a['end'] + self.max_fix_len * 2)
         extended_suffix = self.text[a['end']:extended_suffix_end].rstrip().replace('\n', ' ')
         last_space_index = extended_suffix.rfind(' ', 0, self.max_fix_len)
@@ -199,11 +211,18 @@ class XMIProcessor:
 
     def _as_web_annotation(self, feature_structure: FeatureStructure, body):
         anno_id = self._annotation_id(feature_structure.xmiID)
-        if not feature_structure['begin']:
+        original_fs = feature_structure
+        if feature_structure['begin'] is None:
             feature_structure = feature_structure['target']
+        if not feature_structure:
+            ic(original_fs)
+            logger.error("missing feature_structure")
+            exact = ""
+        else:
+            exact = feature_structure.get_covered_text()
         text_quote_selector = {
             "type": "TextQuoteSelector",
-            "exact": feature_structure.get_covered_text()
+            "exact": exact
         }
         prefix = self._get_prefix(feature_structure)
         if prefix:
@@ -282,19 +301,25 @@ class XMIProcessor:
     @staticmethod
     def _event_predicate_body(feature_structure: FeatureStructure):
         # ic(feature_structure)
-        category = feature_structure['category'].replace("+", "Plus").replace("-", "Min")
-        category_source = f"{wiki_base}{category}"
-        relation_type = f"{wiki_base}{feature_structure['relationtype']}"
-        return [
-            {
-                "purpose": "classifying",
-                "source": category_source
-            },
-            {
+        bodies = []
+        raw_category = feature_structure['category']
+        if not raw_category:
+            logger.warning(f"no category for {feature_structure}")
+        else:
+            category = raw_category.replace("+", "Plus").replace("-", "Min")
+            category_source = f"{wiki_base}{category}"
+            bodies.append(
+                {
+                    "purpose": "classifying",
+                    "source": category_source
+                }
+            )
+            relation_type = f"{wiki_base}{feature_structure['relationtype']}"
+            bodies.append({
                 "purpose": "classifying",
                 "source": relation_type
-            }
-        ]
+            })
+        return bodies
 
     @staticmethod
     def _event_argument_body(feature_structure: FeatureStructure):
@@ -408,7 +433,7 @@ class XMIProcessor:
             "target": entity_annotation_id
         }
 
-    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure, entity_ids):
+    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure):
         annotation_id = self._annotation_id(uuid.uuid4())
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
