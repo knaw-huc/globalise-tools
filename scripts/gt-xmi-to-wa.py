@@ -570,7 +570,7 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
         logger.info(f"=> {json_path}")
         all_web_annotations = (nea + eva)
         with open(json_path, 'w') as f:
-            json.dump(all_web_annotations, f)
+            json.dump(all_web_annotations, f, indent=2)
 
 
 if __name__ == '__main__':
