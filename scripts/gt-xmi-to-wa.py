@@ -3,7 +3,6 @@ import argparse
 import hashlib
 import json
 import re
-import subprocess
 import uuid
 from datetime import datetime
 from typing import List, Dict, Any, Tuple
@@ -13,6 +12,8 @@ from cassis.typesystem import FeatureStructure
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
+
+import globalise_tools.git_tools as git
 
 ner_data_dict = {
     'CMTY_NAME': {
@@ -161,7 +162,7 @@ class XMIProcessor:
                 for argument_annotation in event_annotation['arguments']['elements']:
                     argument_annotations.append(argument_annotation)
                     event_argument_web_annotation = \
-                        self._as_web_annotation(argument_annotation, self._event_argument_body(argument_annotation))
+                        self._as_web_annotation(argument_annotation, self._event_argument_body())
                     raw_target_entity = event_argument_web_annotation['target'][0]['selector'][0]['exact']
                     target_entity = re.sub(r"[^a-z0-9]+", "_", raw_target_entity.lower()).strip("_")
                     self.event_argument_entity_dict[argument_annotation.xmiID] = target_entity
@@ -181,7 +182,7 @@ class XMIProcessor:
         return web_annotations
 
     def get_event_argument_annotations(self):
-        return [self._as_web_annotation(a, self._event_argument_body(a))
+        return [self._as_web_annotation(a, self._event_argument_body())
                 for a in self.cas.views[0].get_all_annotations()
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
@@ -322,12 +323,10 @@ class XMIProcessor:
         return bodies
 
     @staticmethod
-    def _event_argument_body(feature_structure: FeatureStructure):
-        # ic(feature_structure)
-        event_argument_source = f"{wiki_base}{feature_structure['role']}"
+    def _event_argument_body():
         return {
             "purpose": "classifying",
-            "source": event_argument_source
+            "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArguments"
         }
 
     def _as_event_link_web_annotation(
@@ -542,12 +541,9 @@ class XMIProcessorFactory:
 
     @staticmethod
     def _read_current_commit_id():
-        git_status = subprocess.check_output(['git', 'status', '--short']).decode('ascii').strip()
-        git_committable_changes = [line for line in git_status.split('\n') if not line.startswith('?? ')]
-        if git_committable_changes:
+        if git.there_are_uncommitted_changes():
             logger.warning("Uncommitted changes! Do a `git commit` first!")
-        commit_id = subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()
-        return commit_id
+        return git.read_current_commit_id()
 
 
 @logger.catch
