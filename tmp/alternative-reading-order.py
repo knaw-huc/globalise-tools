@@ -19,7 +19,7 @@ class XYWH:
 
 
 def scan_map():
-    path = "/Users/bram/workspaces/globalise/globalise-tools/data/iiif-url-mapping.csv"
+    path = "/data/iiif-url-mapping.csv"
     iiif_base_url_idx = {}
     with open(path) as f:
         reader = csv.DictReader(f)
