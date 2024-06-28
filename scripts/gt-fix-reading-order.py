@@ -10,6 +10,8 @@ import pagexml.parser as px
 from loguru import logger
 from lxml import etree
 
+import globalise_tools.git_tools as git
+
 
 @logger.catch
 def get_arguments():
@@ -23,6 +25,11 @@ def get_arguments():
                         required=True,
                         help="The directory to store the modified PageXML files in.",
                         type=str)
+    parser.add_argument("-e",
+                        "--error-code",
+                        required=True,
+                        help="The directory to store the modified PageXML files in.",
+                        type=str)
     parser.add_argument("pagexml_path",
                         help="The path to the pagexml file",
                         nargs="*",
@@ -31,14 +38,14 @@ def get_arguments():
 
 
 @logger.catch
-def fix_reading_order(pagexml_paths: list[str], output_directory: str):
+def fix_reading_order(pagexml_paths: list[str], output_directory: str, error_codes: list[str]):
     for import_path in pagexml_paths:
         scan_doc = px.parse_pagexml_file(import_path)
         if has_problematic_reading_order(scan_doc):
             filename = import_path.split("/")[-1]
             export_path = f"{output_directory}/{filename}"
             new_reading_order = order_paragraphs_by_y(scan_doc)
-            modify_page_xml(import_path, export_path, new_reading_order)
+            modify_page_xml(import_path, export_path, new_reading_order, error_codes)
 
 
 def order_paragraphs_by_y(scan_doc: pdm.PageXMLDoc):
@@ -132,37 +139,91 @@ def element_index(element: lxml.etree._Element, sub_element_name: str) -> Option
     return None
 
 
-def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str]):
+def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], error_codes: list[str]):
+    # @Leon van Wissen
+    #  mentioned adding a processingStep MetadataItem to the modified PageXML. What name/value and Labels (if any) would you want in that MetadataItem?
+    # I think it can include something like this (but I'm open for other naming suggestions!):
+    # <MetadataItem type="processingStep" name="fix-reading-order" value="globalise-tools">
+    #     <Label value="the-commit-hash-here" type="githash"/>
+    #     <Label value="url-to-the-script-used-here" type="url"/>
+    # </MetadataItem>
+    # Additionally, it can include a name and description, but that can also be done in that script/repo. Maybe that's the better place point to the error codes.
+    # Is it, from the name of the script, clear which error code(s) is/are fixed in such a step? Otherwise, that needs to be an extra element as well. (edited)
+
     tree = etree.parse(in_path)
     root = tree.getroot()
+    page = get_page_element(root)
+    set_new_reading_order(page, new_reading_order)
+    metadata = get_metadata_element(root)
+    update_last_change(metadata)
+    add_processing_step(metadata, error_codes)
+    reorder_text_regions(page, new_reading_order)
+    write_to_xml(tree, out_path)
+
+
+def get_page_element(root):
     page_index = element_index(root, 'Page')
     page = root[page_index]
+    return page
+
+
+def set_new_reading_order(page, new_reading_order):
     reading_order_index = element_index(page, 'ReadingOrder')
     reading_order = page[reading_order_index]
     ordered_group = reading_order[0]
     for index, region_ref in new_reading_order.items():
         ordered_group[index] = etree.Element("RegionRefIndexed", {"index": str(index), "regionRef": region_ref})
+
+
+def get_metadata_element(root):
     metadata_index = element_index(root, 'Metadata')
     metadata = root[metadata_index]
+    return metadata
 
+
+def update_last_change(metadata):
     last_changed_element_index = element_index(metadata, 'LastChange')
     if last_changed_element_index:
         metadata[last_changed_element_index].text = datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
     else:
         logger.warning(f"no LastChange element found in Metadata")
+
+
+def add_processing_step(metadata, error_codes):
+    commit_id = git.read_current_commit_id()
     metadata_item = etree.Element(
         "MetadataItem",
         attrib={
             "type": "processingStep",
             "name": "fix-reading-order",
-            "value": "Paragraphs ordered by y coordinate of bounding box, per page"
+            "value": "globalise-tools/scripts/gt-fix-reading-order.py"
         }
     )
-    # labels = etree.SubElement(metadata_item, "Labels")
-    # labels.append(label_element("label-1", "value-1"))
-    # labels.append(label_element("label-2", "value-2"))
+    labels = etree.SubElement(metadata_item, "Labels")
+    labels.append(label_element("githash", commit_id))
+    script_permalink = f"https://github.com/knaw-huc/globalise-tools/blob/{commit_id}/scripts/gt-fix-reading-order.py"
+    labels.append(label_element("url", script_permalink))
+    labels.append(label_element("error_codes", ",".join(error_codes)))
     metadata[-1].addprevious(metadata_item)
-    write_to_xml(tree, out_path)
+
+
+def reorder_text_regions(page: lxml.etree._Element, new_reading_order: dict[int, str]):
+    reading_orders = []
+    text_region_dict = {}
+    for page_child in page:
+        if 'TextRegion' in page_child.tag:
+            tr_id = page_child.attrib['id']
+            text_region_dict[tr_id] = page_child
+        elif 'ReadingOrder' in page_child.tag:
+            reading_orders.append(page_child)
+        else:
+            logger.error(f"unexpected Page child: {page_child.tag}")
+        page.remove(page_child)
+    for ro in reading_orders:
+        page.append(ro)
+    ro_keys_in_order = sorted(new_reading_order.keys())
+    for ro_key in ro_keys_in_order:
+        page.append(text_region_dict[new_reading_order[ro_key]])
 
 
 def label_element(label_type: str, label_value: str) -> etree.Element:
@@ -183,4 +244,4 @@ def write_to_xml(doc: Document, path: str):
 if __name__ == '__main__':
     args = get_arguments()
     if args.pagexml_path:
-        fix_reading_order(args.pagexml_path, args.output_directory)
+        fix_reading_order(args.pagexml_path, args.output_directory, ["3.1.1", "3.1.2", "3.2"])
