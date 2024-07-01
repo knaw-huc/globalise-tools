@@ -62,12 +62,14 @@ def fix_reading_order(intput_directory: str, output_directory: str, document_met
         logger.info(f"<= {import_path} ({i + 1}/{total})")
         if os.path.exists(import_path):
             scan_doc = px.parse_pagexml_file(import_path)
-            if has_problematic_text_region_reading_order(scan_doc):
-                filename = import_path.split("/")[-1]
-                export_path = f"{output_directory}/{filename}"
-                new_reading_order = order_paragraphs_by_y(scan_doc)
-                relevant_error_codes = extract_relevant_error_codes(quality_check[import_path])
-                modify_page_xml(import_path, export_path, new_reading_order, relevant_error_codes)
+            filename = import_path.split("/")[-1]
+            export_path = f"{output_directory}/{filename}"
+            current_reading_order = scan_doc.reading_order
+            new_reading_order = order_paragraphs_by_y(scan_doc)
+            text_region_reading_order_needs_fixing = current_reading_order != new_reading_order
+            relevant_error_codes = extract_relevant_error_codes(quality_check[import_path])
+            modify_page_xml(import_path, export_path, new_reading_order, relevant_error_codes,
+                            text_region_reading_order_needs_fixing)
         else:
             logger.warning(f"missing file: {import_path}")
 
@@ -179,7 +181,8 @@ def element_index(element: lxml.etree._Element, sub_element_name: str) -> Option
     return None
 
 
-def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], error_codes: str):
+def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], error_codes: str,
+                    text_area_reading_order_needs_fixing: bool):
     # @Leon van Wissen
     #  mentioned adding a processingStep MetadataItem to the modified PageXML. What name/value and Labels (if any) would you want in that MetadataItem?
     # I think it can include something like this (but I'm open for other naming suggestions!):
@@ -198,7 +201,8 @@ def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, st
     update_last_change(metadata)
     add_processing_step(metadata, error_codes)
     reorder_text_regions(page, new_reading_order)
-    write_to_xml(tree, out_path)
+    if text_area_reading_order_needs_fixing:
+        write_to_xml(tree, out_path)
 
 
 def get_page_element(root):
