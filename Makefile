@@ -62,6 +62,10 @@ convert-example-xmi:
 fix-reading-order:
 	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
 
+.PHONY: extract-paragraph-text
+extract-paragraph-text:
+	poetry run scripts/gt-extract-paragraph-text.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local | tee > out-local/extract-paragraph-text.log
+
 .PHONY: install
 install:
 	poetry update
@@ -119,6 +123,7 @@ help:
 	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
 	@echo
 	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
+	@echo "  extract-paragraph-text     - to generate a tsv file with the paragraph text of the pagexml"
 	@echo
 	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
 	@echo
