@@ -58,6 +58,10 @@ prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.
 convert-example-xmi:
 	./scripts/gt-convert-example-xmi.sh
 
+.PHONY: fix-reading-order
+fix-reading-order:
+	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local -m data/document_metadata.csv
+
 .PHONY: install
 install:
 	poetry update
@@ -112,6 +116,7 @@ help:
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
 	@echo
 	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
+	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
 	@echo
 	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
 	@echo

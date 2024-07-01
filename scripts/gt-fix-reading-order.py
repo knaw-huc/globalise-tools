@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import os.path
 from datetime import datetime
 from typing import Optional
 from xml.dom.minidom import parseString, Document
@@ -10,7 +11,9 @@ import pagexml.parser as px
 from loguru import logger
 from lxml import etree
 
+import globalise_tools.document_metadata as DM
 import globalise_tools.git_tools as git
+from globalise_tools.document_metadata import DocumentMetadata
 
 
 @logger.catch
@@ -20,32 +23,57 @@ def get_arguments():
                     " When the reading order is fixed, write the PageXML with the modified reading order"
                     " to the given export directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-i",
+                        "--input-directory",
+                        required=True,
+                        help="The directory where the original PageXML files are stored, grouped by inventory number.",
+                        type=str)
     parser.add_argument("-o",
                         "--output-directory",
                         required=True,
                         help="The directory to store the modified PageXML files in.",
                         type=str)
-    parser.add_argument("-e",
-                        "--error-code",
+    parser.add_argument("-m",
+                        "--document-metadata-path",
                         required=True,
-                        help="The directory to store the modified PageXML files in.",
+                        help="The path to the document_metadata.csv file containing the document definitions.",
                         type=str)
-    parser.add_argument("pagexml_path",
-                        help="The path to the pagexml file",
-                        nargs="*",
-                        type=str)
+    # parser.add_argument("pagexml_path",
+    #                     help="The path to the pagexml file",
+    #                     nargs="*",
+    #                     type=str)
     return parser.parse_args()
 
 
 @logger.catch
-def fix_reading_order(pagexml_paths: list[str], output_directory: str, error_codes: list[str]):
-    for import_path in pagexml_paths:
-        scan_doc = px.parse_pagexml_file(import_path)
-        if has_problematic_reading_order(scan_doc):
-            filename = import_path.split("/")[-1]
-            export_path = f"{output_directory}/{filename}"
-            new_reading_order = order_paragraphs_by_y(scan_doc)
-            modify_page_xml(import_path, export_path, new_reading_order, error_codes)
+def fix_reading_order(intput_directory: str, output_directory: str, document_metadata_path: str):
+    logger.info(f"<= {document_metadata_path}")
+    relevant_documents = [r for r in DM.read_document_metadata(document_metadata_path) if is_relevant(r)]
+    pagexml_paths = []
+    quality_check = {}
+    for dm in relevant_documents:
+        pagexml_dir = f"{intput_directory}/{dm.inventory_number}"
+        for pid in dm.pagexml_ids:
+            pagexml_path = f"{pagexml_dir}/{pid}.xml"
+            pagexml_paths.append(pagexml_path)
+            quality_check[pagexml_path] = dm.quality_check
+    total = len(pagexml_paths)
+    for i, import_path in enumerate(pagexml_paths):
+        logger.info(f"<= {import_path} ({i + 1}/{total})")
+        if os.path.exists(import_path):
+            scan_doc = px.parse_pagexml_file(import_path)
+            if has_problematic_text_region_reading_order(scan_doc):
+                filename = import_path.split("/")[-1]
+                export_path = f"{output_directory}/{filename}"
+                new_reading_order = order_paragraphs_by_y(scan_doc)
+                modify_page_xml(import_path, export_path, new_reading_order, quality_check[import_path])
+        else:
+            logger.warning(f"missing file: {import_path}")
+
+
+def is_relevant(document_metadata: DocumentMetadata) -> bool:
+    quality_check = document_metadata.quality_check
+    return '3.1.1' in quality_check or '3.1.2' in quality_check or '3.2' in quality_check and document_metadata.scan_range != ""
 
 
 def order_paragraphs_by_y(scan_doc: pdm.PageXMLDoc):
@@ -87,7 +115,7 @@ def ref_id_replacement_dict(paragraphs):
     return local_replacements
 
 
-def has_problematic_reading_order(pd: pdm.PageXMLDoc) -> bool:
+def has_problematic_text_region_reading_order(pd: pdm.PageXMLDoc) -> bool:
     paragraphs = [tr for tr in pd.get_text_regions_in_reading_order() if 'paragraph' in defining_types(tr)]
     if len(paragraphs) > 1:
         if is_portrait(pd):
@@ -139,7 +167,7 @@ def element_index(element: lxml.etree._Element, sub_element_name: str) -> Option
     return None
 
 
-def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], error_codes: list[str]):
+def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], quality_check: str):
     # @Leon van Wissen
     #  mentioned adding a processingStep MetadataItem to the modified PageXML. What name/value and Labels (if any) would you want in that MetadataItem?
     # I think it can include something like this (but I'm open for other naming suggestions!):
@@ -156,7 +184,7 @@ def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, st
     set_new_reading_order(page, new_reading_order)
     metadata = get_metadata_element(root)
     update_last_change(metadata)
-    add_processing_step(metadata, error_codes)
+    add_processing_step(metadata, quality_check)
     reorder_text_regions(page, new_reading_order)
     write_to_xml(tree, out_path)
 
@@ -189,7 +217,7 @@ def update_last_change(metadata):
         logger.warning(f"no LastChange element found in Metadata")
 
 
-def add_processing_step(metadata, error_codes):
+def add_processing_step(metadata, quality_check: str):
     commit_id = git.read_current_commit_id()
     metadata_item = etree.Element(
         "MetadataItem",
@@ -203,7 +231,7 @@ def add_processing_step(metadata, error_codes):
     labels.append(label_element("githash", commit_id))
     script_permalink = f"https://github.com/knaw-huc/globalise-tools/blob/{commit_id}/scripts/gt-fix-reading-order.py"
     labels.append(label_element("url", script_permalink))
-    labels.append(label_element("error_codes", ",".join(error_codes)))
+    labels.append(label_element("quality_check", quality_check))
     metadata[-1].addprevious(metadata_item)
 
 
@@ -243,5 +271,5 @@ def write_to_xml(doc: Document, path: str):
 
 if __name__ == '__main__':
     args = get_arguments()
-    if args.pagexml_path:
-        fix_reading_order(args.pagexml_path, args.output_directory, ["3.1.1", "3.1.2", "3.2"])
+    if args.document_metadata_path:
+        fix_reading_order(args.input_directory, args.output_directory, args.document_metadata_path)
