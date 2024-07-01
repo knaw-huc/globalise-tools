@@ -66,7 +66,8 @@ def fix_reading_order(intput_directory: str, output_directory: str, document_met
                 filename = import_path.split("/")[-1]
                 export_path = f"{output_directory}/{filename}"
                 new_reading_order = order_paragraphs_by_y(scan_doc)
-                modify_page_xml(import_path, export_path, new_reading_order, quality_check[import_path])
+                relevant_error_codes = extract_relevant_error_codes(quality_check[import_path])
+                modify_page_xml(import_path, export_path, new_reading_order, relevant_error_codes)
         else:
             logger.warning(f"missing file: {import_path}")
 
@@ -74,6 +75,17 @@ def fix_reading_order(intput_directory: str, output_directory: str, document_met
 def is_relevant(document_metadata: DocumentMetadata) -> bool:
     quality_check = document_metadata.quality_check
     return '3.1.1' in quality_check or '3.1.2' in quality_check or '3.2' in quality_check and document_metadata.scan_range != ""
+
+
+fixable_error_codes = ['3.1.1', '3.1.2', '3.2']
+
+
+def extract_relevant_error_codes(quality_check: str) -> str:
+    error_codes = []
+    for fec in fixable_error_codes:
+        if fec in quality_check:
+            error_codes.append(fec)
+    return " + ".join(error_codes)
 
 
 def order_paragraphs_by_y(scan_doc: pdm.PageXMLDoc):
@@ -167,7 +179,7 @@ def element_index(element: lxml.etree._Element, sub_element_name: str) -> Option
     return None
 
 
-def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], quality_check: str):
+def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, str], error_codes: str):
     # @Leon van Wissen
     #  mentioned adding a processingStep MetadataItem to the modified PageXML. What name/value and Labels (if any) would you want in that MetadataItem?
     # I think it can include something like this (but I'm open for other naming suggestions!):
@@ -184,7 +196,7 @@ def modify_page_xml(in_path: str, out_path: str, new_reading_order: dict[int, st
     set_new_reading_order(page, new_reading_order)
     metadata = get_metadata_element(root)
     update_last_change(metadata)
-    add_processing_step(metadata, quality_check)
+    add_processing_step(metadata, error_codes)
     reorder_text_regions(page, new_reading_order)
     write_to_xml(tree, out_path)
 
@@ -217,7 +229,7 @@ def update_last_change(metadata):
         logger.warning(f"no LastChange element found in Metadata")
 
 
-def add_processing_step(metadata, quality_check: str):
+def add_processing_step(metadata, error_codes: str):
     commit_id = git.read_current_commit_id()
     metadata_item = etree.Element(
         "MetadataItem",
@@ -231,7 +243,7 @@ def add_processing_step(metadata, quality_check: str):
     labels.append(label_element("githash", commit_id))
     script_permalink = f"https://github.com/knaw-huc/globalise-tools/blob/{commit_id}/scripts/gt-fix-reading-order.py"
     labels.append(label_element("url", script_permalink))
-    labels.append(label_element("quality_check", quality_check))
+    labels.append(label_element("fixed_error_codes", error_codes))
     metadata[-1].addprevious(metadata_item)
 
 

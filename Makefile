@@ -60,7 +60,7 @@ convert-example-xmi:
 
 .PHONY: fix-reading-order
 fix-reading-order:
-	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local -m data/document_metadata.csv
+	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
 
 .PHONY: install
 install:
