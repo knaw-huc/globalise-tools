@@ -23,7 +23,7 @@ def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str):
     print(f"=> {file_name}")
     with open(file_name, mode='w', newline='') as file:
         writer = csv.writer(file, delimiter='\t')
-        writer.writerow(["inv_nr", "page_no", "line_id", "line_text"])
+        writer.writerow(["inv_nr", "page_no", "textregion_id", "textregion_type", "line_id", "line_text"])
         for path in pagexml_paths(inv_nr, base_pagexml_path):
             parts = path.split('/')
             page_no = parts[-1].split('_')[-1].replace('.xml', '')
@@ -32,7 +32,7 @@ def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str):
                 if tr.lines:
                     for l in tr.lines:
                         if l.text:
-                            writer.writerow([inv_nr, page_no, l.id, l.text])
+                            writer.writerow([inv_nr, page_no, tr.id, tr.type[-1], l.id, l.text])
 @logger.catch
 def get_arguments():
     parser = ArgumentParser(

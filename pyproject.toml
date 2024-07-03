@@ -42,7 +42,6 @@ provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-pytho
 pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
 spacy = { extras = ["apple"], version = "^3.4.3" }
 
-
 [build-system]
 requires = ["poetry-core"]
 build-backend = "poetry.core.masonry.api"
