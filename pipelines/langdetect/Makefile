@@ -24,10 +24,10 @@ clean:
 	-rm *-lines.lang.tsv *-lines.lexmatch.tsv *-paragraphs.lang.tsv *-pages.lang.tsv *.lst stats *.tmp
 
 %-lines.lang.tsv: %-lines.tsv
-	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 4 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.linguacli.tmp"
-	cut -f 4 "$<" | tail --lines +2 | lexmatch -i --coverage-matrix -l lexicons/nl_voc.tsv -l lexicons/nl.tsv -l lexicons/en.tsv -l lexicons/de.tsv -l lexicons/da.tsv -l lexicons/fr.tsv -l lexicons/la.tsv -l lexicons/it.tsv -l lexicons/es.tsv -l lexicons/pt.tsv -l lexicons/id.tsv --min-token-length 3 - | tail --lines +2 | cut -f 2- >  "$@.lexmatch.tmp"
-	echo -e "inv_nr	page_no	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	id	total" > "$@"
+	cut -f 1,2,3,4,5 "$<" | tail --lines +2  > "$@.left.tmp"
+	cut -f 6 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.linguacli.tmp"
+	cut -f 6 "$<" | tail --lines +2 | lexmatch -i --coverage-matrix -l lexicons/nl_voc.tsv -l lexicons/nl.tsv -l lexicons/en.tsv -l lexicons/de.tsv -l lexicons/da.tsv -l lexicons/fr.tsv -l lexicons/la.tsv -l lexicons/it.tsv -l lexicons/es.tsv -l lexicons/pt.tsv -l lexicons/id.tsv --min-token-length 3 - | tail --lines +2 | cut -f 2- >  "$@.lexmatch.tmp"
+	echo -e "inv_nr	page_no	textregion_id	textregion_type	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	id	total" > "$@"
 	paste "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp"
 
