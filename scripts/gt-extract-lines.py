@@ -46,7 +46,7 @@ def get_arguments():
     parser.add_argument("-o",
                         "--output-directory",
                         help="The directory to write the output files in",
-                        default="."
+                        default=".",
                         type=str
                         )
     return parser.parse_args()
