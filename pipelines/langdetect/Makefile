@@ -2,20 +2,23 @@
 .PHONY: deps lists lines pages stats dist top100tokens
 .DELETE_ON_ERROR:
 
-input_tsv := $(wildcard *-lines.tsv)
-output_tsv := $(input_tsv:%-lines.tsv=%-lines.lang.tsv)
-output_pages_tsv := $(input_tsv:%-lines.tsv=%-pages.lang.tsv)
+lineinput_tsv := $(wildcard *-lines.tsv)
+lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
+parinput_tsv := $(wildcard *-paragraphs.tsv)
+paroutput_tsv := $(parinput_tsv:%-paragraphs.tsv=%-paragraphs.lang.tsv)
+output_pages_tsv := $(lineinput_tsv:%-lines.tsv=%-pages.lang.tsv)
 
 all: stats nondutch.pages.tsv
 
-lines: $(output_tsv)
+lines: $(lineoutput_tsv)
+paragraphs: $(paroutput_tsv)
 pages: lines $(output_pages_tsv)
 
 deps:
 	cargo install lingua-cli
 
 clean:
-	-rm *-lines.lang.tsv *-pages.lang.tsv *.lst stats
+	-rm *-lines.lang.tsv *-paragraphs.lang.tsv *-pages.lang.tsv *.lst stats
 
 %-lines.lang.tsv: %-lines.tsv
 	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
@@ -24,11 +27,22 @@ clean:
 	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.right.tmp"
 
+%-paragraphs.lang.tsv: %-paragraphs.tsv
+	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
+	cut -f 4 "$<" | tail --lines +2 | lingua-cli --minlength 20 --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.right.tmp"
+	echo -e "inv_nr	page_no	textarea_id	lang	confidence	text" > "$@"
+	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
+	rm "$@.left.tmp" "$@.right.tmp"
+
 lists: lines 
 	-rm *.lst
 	cat *-lines.lang.tsv | awk -F "\t" '{ if ($$4 != "lang") print $$6 >> $$4".lst" }'
 
-stats: lines lists
+parlists: paragraphs 
+	-rm *.lst
+	cat *-paragraphs.lang.tsv | awk -F "\t" '{ if ($$4 != "lang") print $$6 >> $$4".par.lst" }'
+
+stats: lines lists parlists
 	wc -l *.lst | tee $@
 
 %-pages.lang.tsv: %-lines.lang.tsv
