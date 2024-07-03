@@ -1,0 +1,8 @@
+* nl_voc.tsv - Historical Dutch from ground truth transcriptions of VOC data: https://zenodo.org/record/6414086  (see ../Makefile),
+  (note that that list may contain subtokens as no dehyphenation was performed!)
+* la.tsv - Latin, from https://kyle-p-johnson.com/assets/most-common-latin-words.txt
+* ??.tsv - Top 10k words from OpenSubtitles 2018, extracted from https://github.com/hermitdave/FrequencyWords (CC-by-sa-4.0)
+     (including nl.tsv for contemporary dutch)
+
+
+

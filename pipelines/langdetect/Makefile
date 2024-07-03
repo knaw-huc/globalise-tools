@@ -64,7 +64,7 @@ top100tokens: nl.top100tokens.lst en.top100tokens.lst fr.top100tokens.lst de.top
 globalise-langdetect.tar.xz: stats nondutch.pages.tsv
 	tar -cvJf globalize-langdetect.tar.xz *.lang.tsv *.pages.tsv nondutch.pages.tsv *.lst stats
 
-nl_groundtruth_lexicon.tsv:
+nl_voc.tsv:
 	-xmllint --xpath '//*[local-name() = "TextRegion"]/*[local-name() = "TextEquiv"]/*[local-name() = "Unicode"]/text()' $(VOC_GROUNDTRUTH_PATH)/*xml | sed -e 's/&#13;//g' -e 's/&amp;/\&/g' > $@.tmp
 	ucto -Lgeneric -l -m -n $@.tmp $@.tok.tmp 
 	cat $@.tok.tmp | lingua-cli --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id | awk -F "\t" '{ if ($$1 == "nl") print $$3 }' | sed -e 's/ /\n/g' | grep -E "[[:alpha:]:\-]{2,}+" | sort | uniq -c | sort -rn | awk '{ print $$2"\t"$$1 }' > $@
