@@ -7,15 +7,17 @@ VOC_GROUNDTRUTH_PATH = /home/proycon/exp/voc-groundtruth/
 
 lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
+output_tsv := $(lineinput_tsv:%-lines.tsv=%-all.lang.tsv)
+
 parinput_tsv := $(wildcard *-paragraphs.tsv)
 paroutput_tsv := $(parinput_tsv:%-paragraphs.tsv=%-paragraphs.lang.tsv)
-output_pages_tsv := $(lineinput_tsv:%-lines.tsv=%-pages.lang.tsv)
 
-all: stats nondutch.pages.tsv
+all: stats pages.lang.csv nondutch-pages.lang.tsv
 
 lines: $(lineoutput_tsv)
 paragraphs: $(paroutput_tsv)
-pages: lines $(output_pages_tsv)
+output: $(output_tsv)
+pages: pages.lang.tsv
 
 deps:
 	cargo install lingua-cli lexmatch
@@ -38,23 +40,35 @@ clean:
 	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.right.tmp"
 
-lists: lines 
+lists: $(output_tsv)
 	-rm *.lst
-	cat *-lines.lang.tsv | awk -F "\t" '{ if ($$4 != "lang") print $$6 >> $$4".lst" }'
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$5 != "") print $$7 >> $$6".lst" }'
 
 parlists: paragraphs 
 	-rm *.lst
 	cat *-paragraphs.lang.tsv | awk -F "\t" '{ if ($$4 != "lang") print $$6 >> $$4".par.lst" }'
 
-stats: lines lists parlists
+stats: lists
 	wc -l *.lst | tee $@
 
-%-pages.lang.tsv: %-lines.lang.tsv
-	python classify_pages.py $< > $@
+%-all.lang.tsv: %-lines.lang.tsv
+	./gt-classify-language.py $< > $@
 
-nondutch.pages.tsv: pages
-	echo -e "inv_nr	page_no	lang	score" > "$@"
-	cat *-pages.lang.tsv | awk -F "\t" '{ if ($$3 != "nl" && $$3 != "lang") print $$0 }' >> $@
+pages.lang.tsv: $(output_tsv)
+	head -n 1 10000-all.lang.tsv > $@
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "") print $$0 }' >> $@
+
+regions.lang.tsv: $(output_tsv)
+	head -n 1 10000-all.lang.tsv > $@
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 != "" && $$5 == "") print $$0 }' >> $@
+
+nondutch-pages.lang.tsv: $(output_tsv)
+	head -n 1 10000-all.lang.tsv > $@
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "" && $$6 != "unknown" && $$8 == "0") print $$0 }' >> $@
+
+unknown-pages.lang.tsv: $(output_tsv)
+	head -n 1 10000-all.lang.tsv > $@
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "" && $$6 == "unknown") print $$0 }' >> $@
 
 dist: globalise-langdetect.tar.xz
 
@@ -63,9 +77,8 @@ top100tokens: nl.top100tokens.lst en.top100tokens.lst fr.top100tokens.lst de.top
 %.top100tokens.lst: %.lst
 	cat $< | sed 's/ /\n/g' | sort | uniq -c | sort -rn | head -n 100 > $@
 
-globalise-langdetect.tar.xz: stats nondutch.pages.tsv
-	tar -cvJf globalize-langdetect.tar.xz *.lang.tsv *.pages.tsv nondutch.pages.tsv *.lst stats
-
+globalise-langdetect.tar.xz: stats nondutch-pages.lang.tsv
+	tar -cvJf globalize-langdetect.tar.xz *.lang.tsv *.lst stats
 
 nl_voc.tsv:
 	-xmllint --xpath '//*[local-name() = "TextRegion"]/*[local-name() = "TextEquiv"]/*[local-name() = "Unicode"]/text()' $(VOC_GROUNDTRUTH_PATH)/*xml | sed -e 's/&#13;//g' -e 's/&amp;/\&/g' > $@.tmp
