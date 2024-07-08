@@ -31,12 +31,13 @@ uuid = "^1.30"
 xlsxwriter = "^3.0.3"
 xmldict = "^0.4.1"
 
-#[tool.poetry.devbram.dependencies]
-#annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
-#pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
-#provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-python-client", develop = true }
-#spacy = { extras = ["apple"], version = "^3.4.3" }
-#textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
+# use `poetry install --with dev-bram` to use these dependencies
+[tool.poetry.group.dev-bram.dependencies]
+annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
+pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
+provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-python-client", develop = true }
+spacy = { extras = ["apple"], version = "^3.4.3" }
+textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
 
 [build-system]
 requires = ["poetry-core"]
