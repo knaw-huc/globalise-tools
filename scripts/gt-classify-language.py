@@ -8,8 +8,9 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 #order matters in case of ties in lines, first match wins
 LANGS = ('nl_voc','nl','fr','la','en','de','it','pt','es','id','da')
 
+
 def classify_line_language(row: dict) -> str:
-    if count_alphabetic(row['line_text']) <= 4:
+    if count_alphabetic(row['line_text']) <= 6:
         #too short to classify
         return "unknown"
 
@@ -38,6 +39,9 @@ def classify_line_language(row: dict) -> str:
     elif lang_charmodel == "nl" and lex_score <= 0.5:
         #character model says this is dutch, lexical model thinks otherwise but  not sufficient confidence
         return lang_charmodel
+    elif "nl" not in lang_lex and ' ' not in row['line_text']:
+        #this is just a single non-dutch word, refuse to classify as non-dutch
+        return "unknown"
     elif confidence_charmodel >= 0.9 and confidence_charmodel > lex_score:
         #character model has very high confidence
         return lang_charmodel
@@ -53,7 +57,7 @@ def classify_region_language(line_langs: Counter) -> list:
     linecount = line_langs.total()
     for lang, count in line_langs.items():
         freq = count / linecount
-        if freq >= 0.25 and lang != 'unknown':
+        if (lang == 'nl' or count >= 3) and freq >= 0.25 and lang != 'unknown':
             region_langs.append(lang)
     return region_langs
 
