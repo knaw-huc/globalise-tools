@@ -38,7 +38,6 @@ class ParagraphTextExtractor:
         return sorted(glob.glob(f"{self.input_dir}/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_*.xml"))
 
     def _process_inv(self, inv_nr: str, bar):
-
         file_name = f"{self.output_dir}/{inv_nr}-paragraphs.tsv"
         bar.set_description(f"=> {file_name}")
         with open(file_name, mode='w', newline='') as file:
