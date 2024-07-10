@@ -52,16 +52,19 @@ class PageXmlFixer:
         self.output_directory = output_directory
         self.quality_check = quality_check
         self.scan_doc = px.parse_pagexml_file(self.import_path)
-        self.pagexml_has_changed = False
+        self.error_codes = set()
 
     def fix(self):
         filename = self.import_path.split("/")[-1]
         export_path = f"{self.output_directory}/{filename}"
         current_reading_order = self.scan_doc.reading_order
         new_reading_order = self._order_paragraphs_by_y()
-        self.pagexml_has_changed = current_reading_order != new_reading_order
-        relevant_error_codes = self._extract_relevant_error_codes()
-        self._modify_page_xml(export_path, new_reading_order, relevant_error_codes)
+        if current_reading_order != new_reading_order:
+            if self._is_portrait():
+                self.error_codes.add("3.1.1")
+            else:
+                self.error_codes.add("3.1.2")
+        self._modify_page_xml(export_path, new_reading_order)
 
     def _order_paragraphs_by_y(self):
         current_reading_order = self.scan_doc.reading_order
@@ -112,23 +115,16 @@ class PageXmlFixer:
                 local_replacements[original_id] = new_id
         return local_replacements
 
-    def _extract_relevant_error_codes(self) -> str:
-        error_codes = []
-        for fec in fixable_error_codes:
-            if fec in self.quality_check:
-                error_codes.append(fec)
-        return " + ".join(error_codes)
-
-    def _modify_page_xml(self, out_path: str, new_reading_order: dict[int, str], error_codes: str):
+    def _modify_page_xml(self, out_path: str, new_reading_order: dict[int, str]):
         tree = etree.parse(self.import_path)
         root = tree.getroot()
         page = self._get_page_element(root)
         self._set_new_reading_order(page, new_reading_order)
         metadata = self._get_metadata_element(root)
         self._update_last_change(metadata)
-        self._add_processing_step(metadata, error_codes)
         self._reorder_text_regions(page, new_reading_order)
-        if self.pagexml_has_changed:
+        self._add_processing_step(metadata, " + ".join(sorted(self.error_codes)))
+        if self.error_codes:
             self._write_to_xml(tree, out_path)
 
     def _get_page_element(self, root):
@@ -228,6 +224,7 @@ class PageXmlFixer:
             return
 
         self.pagexml_has_changed = True
+        self.error_codes.add("3.2")
         sorted_text_line_ids = [l.id for l in sorted_text_lines]
         for child in text_region_element:
             if 'TextLine' in child.tag:
