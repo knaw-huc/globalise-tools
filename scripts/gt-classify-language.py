@@ -45,7 +45,7 @@ def classify_line_language(row: dict) -> str:
     elif confidence_charmodel >= 0.9 and confidence_charmodel > lex_score:
         #character model has very high confidence
         return lang_charmodel
-    elif lex_score >= 0.5 and confidence_charmodel > lex_score:
+    elif lex_score >= 0.5 and lex_score >= confidence_charmodel:
         #favour lexical model
         return lang_lex[0]
     else:
