@@ -150,6 +150,8 @@ class XMIProcessor:
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
         for event_annotation in event_annotations:
+            event_argument_annotation_ids = []
+            event_linking_annotation_ids = []
             event_predicate_body = self._event_predicate_body(event_annotation)
             if event_predicate_body:
                 event_web_annotation = self._as_web_annotation(event_annotation, event_predicate_body)
@@ -163,21 +165,29 @@ class XMIProcessor:
                     argument_annotations.append(argument_annotation)
                     event_argument_web_annotation = \
                         self._as_web_annotation(argument_annotation, self._event_argument_body())
+                    event_argument_annotation_ids.append(event_argument_web_annotation['id'])
                     raw_target_entity = event_argument_web_annotation['target'][0]['selector'][0]['exact']
                     target_entity = re.sub(r"[^a-z0-9]+", "_", raw_target_entity.lower()).strip("_")
                     self.event_argument_entity_dict[argument_annotation.xmiID] = target_entity
 
                     web_annotations.append(event_argument_web_annotation)
                     if event_web_annotation:
-                        web_annotations.append(
-                            self._as_event_link_web_annotation(
-                                f"{wiki_base}{argument_annotation['role']}",
-                                event_web_annotation['id'],
-                                event_argument_web_annotation['id']
-                            )
-                        )
+                        link_web_annotation = self._as_event_link_web_annotation(
+                            f"{wiki_base}{argument_annotation['role']}",
+                            event_web_annotation['id'],
+                            event_argument_web_annotation['id'])
+                        web_annotations.append(link_web_annotation)
+                        event_linking_annotation_ids.append(link_web_annotation['id'])
+
             if event_web_annotation:
-                web_annotations.append(self._event_inference_annotation(event_web_annotation, event_annotation))
+                web_annotations.append(
+                    self._event_inference_annotation(
+                        event_annotation=event_annotation,
+                        event_predicate_annotation=event_web_annotation,
+                        event_argument_annotation_ids=event_argument_annotation_ids,
+                        event_linking_annotation_ids=event_linking_annotation_ids
+                    )
+                )
 
         return web_annotations
 
@@ -432,13 +442,19 @@ class XMIProcessor:
             "target": entity_annotation_id
         }
 
-    def _event_inference_annotation(self, event_predicate_annotation, event_annotation: FeatureStructure):
+    def _event_inference_annotation(self, event_annotation: FeatureStructure,
+                                    event_predicate_annotation,
+                                    event_argument_annotation_ids: list[str] = [],
+                                    event_linking_annotation_ids: list[str] = []):
         annotation_id = self._annotation_id(uuid.uuid4())
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
         event_id = self._event_id(f"{normalized_event_name}:{event_annotation.xmiID}")
         event_type = event_predicate_annotation['body'][0]['source']
         event_annotation_id = event_predicate_annotation['id']
+        event_sources = [event_annotation_id]
+        event_sources.extend(event_argument_annotation_ids)
+        event_sources.extend(event_linking_annotation_ids)
         web_anno = {
             "@context": [
                 "http://www.w3.org/ns/anno.jsonld",
@@ -469,7 +485,7 @@ class XMIProcessor:
             "body": {
                 "id": event_id,
                 "type": ["Event", event_type],
-                "wasDerivedFrom": event_annotation_id
+                "wasDerivedFrom": event_sources
             },
             "target": event_annotation_id
         }
