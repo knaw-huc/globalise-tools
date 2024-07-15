@@ -6,7 +6,15 @@ from collections import Counter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 #order matters in case of ties in lines, first match wins
-LANGS = ('nl_voc','nl','fr','la','en','de','it','pt','es','ms','da')
+LANGS = ('nl_voc','nl','fr','la','en','de','it','pt','es','id','da')
+LANGS3 = ('nld_voc','nld','fra','lat','eng','deu','ita','por','spa','msa','dan')
+#^-- make sure these match up exactly or things will go wrong
+
+def to_iso639_3(lang):
+    for (lang1,lang3) in zip(LANGS, LANGS3):
+        if lang1 == lang:
+            return lang3
+    raise Exception("Invalid language")
 
 
 def classify_line_language(row: dict) -> str:
@@ -66,7 +74,7 @@ def count_alphabetic(s: str):
 
 def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_langs: list, text: str):
     if page_langs:
-        langs = ",".join(sorted(page_langs))
+        langs = ",".join(sorted((to_iso639_3(l) for l in page_langs)))
     else:
         langs = "unknown"
     print(f"{inv_nr}\t{page_no}\t{textregion_id}\t{textregion_type}\t{line_id}\t{langs}\t{text}", end="")
@@ -91,7 +99,7 @@ if __name__ == '__main__':
 
 
     print("inv_nr\tpage_no\ttextregion_id\ttextregion_type\tline_id\tlangs\tline_text", end="")
-    for lang in LANGS[1:]:
+    for lang in LANGS3[1:]:
         print(f"\t{lang}", end="")
     print()
 

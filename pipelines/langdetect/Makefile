@@ -12,7 +12,7 @@ output_tsv := $(lineinput_tsv:%-lines.tsv=%-all.lang.tsv)
 parinput_tsv := $(wildcard *-paragraphs.tsv)
 paroutput_tsv := $(parinput_tsv:%-paragraphs.tsv=%-paragraphs.lang.tsv)
 
-all: stats pages.lang.csv nondutch-pages.lang.tsv nonormixeddutch-pages.lang.tsv
+all: stats pages.lang.tsv nondutch-pages.lang.tsv nonormixeddutch-pages.lang.tsv
 
 lines: $(lineoutput_tsv)
 paragraphs: $(paroutput_tsv)
@@ -27,15 +27,15 @@ clean:
 
 %-lines.lang.tsv: %-lines.tsv
 	cut -f 1,2,3,4,5 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 6 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,ms > "$@.linguacli.tmp"
+	cut -f 6 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.linguacli.tmp"
 	cut -f 6 "$<" | tail --lines +2 | lexmatch -i --coverage-matrix -l lexicons/nl_voc.tsv -l lexicons/nl.tsv -l lexicons/en.tsv -l lexicons/de.tsv -l lexicons/da.tsv -l lexicons/fr.tsv -l lexicons/la.tsv -l lexicons/it.tsv -l lexicons/es.tsv -l lexicons/pt.tsv -l lexicons/id.tsv --min-token-length 3 - | tail --lines +2 | cut -f 2- >  "$@.lexmatch.tmp"
-	echo -e "inv_nr	page_no	textregion_id	textregion_type	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	ms	total" > "$@"
+	echo -e "inv_nr	page_no	textregion_id	textregion_type	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	id	total" > "$@"
 	paste "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp"
 
 %-paragraphs.lang.tsv: %-paragraphs.tsv
 	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 4 "$<" | tail --lines +2 | lingua-cli --minlength 20 --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,ms > "$@.right.tmp"
+	cut -f 4 "$<" | tail --lines +2 | lingua-cli --minlength 20 --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.right.tmp"
 	echo -e "inv_nr	page_no	textarea_id	lang	confidence	text" > "$@"
 	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.right.tmp"
@@ -64,12 +64,15 @@ regions.lang.tsv: $(output_tsv)
 
 nondutch-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	#cat *-all.lang.tsv | awk -F "\t" '! /^inv_nr/ { if ($$3 == "" && $$6 != "unknown" && $$8 != "1") { print $$0 "\t" t; t=""; } else { t=t " " $7 } }' >> $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$8 != "1") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else if ($$6 != "unknown" && $$8 != "1") { t=t " " $$7; } prev=$$1$$2; }' >> $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$8 != "1") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 nonormixeddutch-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nl") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else if ($$6 != "unknown" && $$6 != "nl") { t=t " " $$7; } prev=$$1$$2; }' >> $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nld") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
+
+msa-pages.lang.tsv: $(output_tsv)
+	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 ~ /msa/) { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 unknown-pages.lang.tsv: $(output_tsv)
 	head -n 1 10000-all.lang.tsv > $@
@@ -77,7 +80,7 @@ unknown-pages.lang.tsv: $(output_tsv)
 
 dist: globalise-langdetect.tar.xz
 
-top100tokens: nl.top100tokens.lst en.top100tokens.lst fr.top100tokens.lst de.top100tokens.lst la.top100tokens.lst it.top100tokens.lst pt.top100tokens.lst es.top100tokens.lst da.top100tokens.lst ms.top100tokens.lst
+top100tokens: nl.top100tokens.lst en.top100tokens.lst fr.top100tokens.lst de.top100tokens.lst la.top100tokens.lst it.top100tokens.lst pt.top100tokens.lst es.top100tokens.lst da.top100tokens.lst id.top100tokens.lst
 
 %.top100tokens.lst: %.lst
 	cat $< | sed 's/ /\n/g' | sort | uniq -c | sort -rn | head -n 100 > $@
@@ -88,7 +91,7 @@ globalise-langdetect.tar.xz: stats nondutch-pages.lang.tsv
 nl_voc.tsv:
 	-xmllint --xpath '//*[local-name() = "TextRegion"]/*[local-name() = "TextEquiv"]/*[local-name() = "Unicode"]/text()' $(VOC_GROUNDTRUTH_PATH)/*xml | sed -e 's/&#13;//g' -e 's/&amp;/\&/g' > $@.tmp
 	ucto -Lgeneric -l -m -n $@.tmp $@.tok.tmp 
-	cat $@.tok.tmp | lingua-cli --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,ms | awk -F "\t" '{ if ($$1 == "nl") print $$3 }' | sed -e 's/ /\n/g' | grep -E "[[:alpha:]:\-]{2,}+" | sort | uniq -c | sort -rn | awk '{ print $$2"\t"$$1 }' > $@
+	cat $@.tok.tmp | lingua-cli --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id | awk -F "\t" '{ if ($$1 == "nl") print $$3 }' | sed -e 's/ /\n/g' | grep -E "[[:alpha:]:\-]{2,}+" | sort | uniq -c | sort -rn | awk '{ print $$2"\t"$$1 }' > $@
 	rm $@.tmp $@.tok.tmp
 
 frompagexml:
