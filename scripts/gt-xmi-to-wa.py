@@ -336,7 +336,7 @@ class XMIProcessor:
     def _event_argument_body():
         return {
             "purpose": "classifying",
-            "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArguments"
+            "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArgument"
         }
 
     def _as_event_link_web_annotation(
