@@ -268,9 +268,9 @@ class XMIProcessor:
             coords = iv_data["coords"]
             manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
             xywh = self._to_xywh(coords)
-            # iiif_base_uri = iv_data["iiif_base_uri"]
-            # targets.append(self._image_target(iiif_base_uri, xywh))
-            # targets.append(self._image_selector_target(iiif_base_uri, xywh))
+            iiif_base_uri = iv_data["iiif_base_uri"]
+            targets.append(self._image_target(iiif_base_uri, xywh))
+            targets.append(self._image_selector_target(iiif_base_uri, xywh))
             targets.append(self._canvas_target(canvas_id, xywh, manifest_uri))
 
         return {
