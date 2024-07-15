@@ -6,7 +6,7 @@ from collections import Counter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 #order matters in case of ties in lines, first match wins
-LANGS = ('nl_voc','nl','fr','la','en','de','it','pt','es','id','da')
+LANGS = ('nl_voc','nl','fr','la','en','de','it','pt','es','ms','da')
 
 
 def classify_line_language(row: dict) -> str:
