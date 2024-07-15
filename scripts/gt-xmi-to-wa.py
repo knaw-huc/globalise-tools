@@ -4,7 +4,9 @@ import hashlib
 import json
 import re
 import uuid
+from dataclasses import dataclass
 from datetime import datetime
+from itertools import groupby
 from typing import List, Dict, Any, Tuple
 
 import cassis as cas
@@ -98,6 +100,14 @@ wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
 time_roles = ["Time"]
 actor_roles = ["Agent", "AgentPatient", "Benefactive", "Cargo", "Instrument", "Patient"]
 place_roles = ["Location", "Path", "Source", "Target"]
+
+
+@dataclass
+class ImageData:
+    canvas_id: str
+    iiif_base_uri: str
+    manifest_uri: str
+    xywh: str
 
 
 class XMIProcessor:
@@ -261,6 +271,7 @@ class XMIProcessor:
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
         if len(overlapping_intervals) > 1:
             logger.warning(f">1 overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
+        image_data_list = []
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
@@ -269,7 +280,21 @@ class XMIProcessor:
             manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
             xywh = self._to_xywh(coords)
             iiif_base_uri = iv_data["iiif_base_uri"]
-            targets.append(self._image_target(iiif_base_uri, xywh))
+            image_data = ImageData(
+                canvas_id,
+                iiif_base_uri,
+                manifest_uri,
+                xywh
+            )
+            image_data_list.append(image_data)
+        grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
+        for canvas_id, image_data_groups in grouped_image_data:
+            image_data_list = [i for i in image_data_groups]
+            iiif_base_uri = [d.iiif_base_uri for d in image_data_list][0]
+            manifest_uri = [d.manifest_uri for d in image_data_list][0]
+            xywh = [d.xywh for d in image_data_list]
+
+            targets.extend(self._image_targets(iiif_base_uri, xywh))
             targets.append(self._image_selector_target(iiif_base_uri, xywh))
             targets.append(self._canvas_target(canvas_id, xywh, manifest_uri))
 
@@ -363,27 +388,27 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _image_target(iiif_base_uri, xywh):
-        return {
-            "type": "Image",
-            "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
-        }
+    def _image_targets(iiif_base_uri: str, xywh_list: list[str]):
+        return [
+            {
+                "type": "Image",
+                "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
+            }
+            for xywh in xywh_list
+        ]
 
-    @staticmethod
-    def _image_selector_target(iiif_base_uri, xywh):
+    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]):
+        selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "Image",
             "source": f"{iiif_base_uri}/full/max/0/default.jpg",
-            "selector": {
-                "type": "FragmentSelector",
-                "conformsTo": "http://www.w3.org/TR/media-frags/",
-                "value": f"xywh={xywh}"
-            }
+            "selector": selectors
         }
 
-    @staticmethod
-    def _canvas_target(canvas_source: str, xywh: str,
+    def _canvas_target(self, canvas_source: str,
+                       xywh_list: list[str],
                        manifest_uri: str):
+        selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "SpecificResource",
             "source": {
@@ -395,12 +420,24 @@ class XMIProcessor:
                     "type": "Manifest"
                 }
             },
-            "selector": {
-                "type": "FragmentSelector",
-                "conformsTo": "http://www.w3.org/TR/media-frags/",
-                "value": f"xywh={xywh}"
-            }
+            "selector": selectors
         }
+
+    @staticmethod
+    def _fragment_selectors(xywh_list):
+        selectors = []
+        for xywh in xywh_list:
+            selectors.append(
+                {
+                    "type": "FragmentSelector",
+                    "conformsTo": "http://www.w3.org/TR/media-frags/",
+                    "value": f"xywh={xywh}"
+                }
+            )
+        if len(selectors) == 1:
+            return selectors[0]
+        else:
+            return selectors
 
     @staticmethod
     def _to_xywh(coords: List[Tuple[int, int]]):
