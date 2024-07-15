@@ -269,8 +269,10 @@ class XMIProcessor:
         ]
         overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
-        if len(overlapping_intervals) > 1:
-            logger.warning(f">1 overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
+        overlap_size = len(overlapping_intervals)
+        if overlap_size > 1:
+            logger.warning(
+                f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         image_data_list = []
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
@@ -644,7 +646,7 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
         logger.info(f"=> {json_path}")
         all_web_annotations = (nea + eva)
         with open(json_path, 'w') as f:
-            json.dump(all_web_annotations, f, indent=2)
+            json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
 if __name__ == '__main__':
