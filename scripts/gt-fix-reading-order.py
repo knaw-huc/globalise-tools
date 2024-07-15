@@ -133,6 +133,8 @@ class PageXmlFixer:
         return page
 
     def _add_processing_step(self, metadata, error_codes: str):
+        if git.there_are_uncommitted_changes():
+            logger.warning("Uncommitted changes! Do a `git commit` first!")
         commit_id = git.read_current_commit_id()
         metadata_item = etree.Element(
             "MetadataItem",
