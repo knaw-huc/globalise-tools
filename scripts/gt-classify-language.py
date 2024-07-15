@@ -11,10 +11,12 @@ LANGS3 = ('nld_voc','nld','fra','lat','eng','deu','ita','por','spa','msa','dan')
 #^-- make sure these match up exactly or things will go wrong
 
 def to_iso639_3(lang):
+    if lang == "unknown":
+        return lang
     for (lang1,lang3) in zip(LANGS, LANGS3):
         if lang1 == lang:
             return lang3
-    raise Exception("Invalid language")
+    raise Exception(f"Invalid language: {lang}")
 
 
 def classify_line_language(row: dict) -> str:
