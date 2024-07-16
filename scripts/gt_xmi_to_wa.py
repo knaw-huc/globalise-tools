@@ -625,7 +625,6 @@ def get_arguments():
     return parser.parse_args()
 
 
-@logger.catch
 def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
     if not output_dir:
         output_dir = "."
@@ -649,7 +648,12 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     if args.xmi_path:
         extract_web_annotations(args.xmi_path, args.type_system, args.output_dir)
+
+
+if __name__ == '__main__':
+    main()

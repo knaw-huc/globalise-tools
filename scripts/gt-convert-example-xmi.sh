@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 find ~/workspaces/globalise/globalise-web-annotation-examples -iname "*.xmi" | while read -r f; do
-  poetry run ./scripts/gt-xmi-to-wa.py -t inception-exports/TypeSystem.xml -o ~/workspaces/globalise/globalise-web-annotation-examples "$f"
+  poetry run ./scripts/gt_xmi_to_wa.py -t inception-exports/TypeSystem.xml -o ~/workspaces/globalise/globalise-web-annotation-examples "$f"
   echo
 done
 cd ~/workspaces/globalise/globalise-web-annotation-examples && (\

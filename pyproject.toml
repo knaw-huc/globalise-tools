@@ -45,6 +45,7 @@ textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-pyth
 [tool.poetry.scripts]
 gt-classify-language = "globalise_tools.scripts.gt_classify_language:main"
 gt-extract-lines = "globalise_tools.scripts.gt_extract_lines:main"
+gt-xmi-to-wa = "globalise_tools.scripts.gt_xmi_to_wa:main"
 version = 'poetry_scripts:version'
 
 [build-system]
