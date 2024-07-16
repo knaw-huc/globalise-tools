@@ -2,7 +2,7 @@
 name = "globalise-tools"
 version = "0.1.1"
 description = ""
-authors = ["Bram Buitendijk <bram.buitendijk@di.huc.knaw.nl>"]
+authors = ["Bram Buitendijk <bram.buitendijk@di.huc.knaw.nl>", "Maarten van Gompel <proycon@anaproy.nl>"]
 readme = "README.md"
 packages = [{ include = "globalise_tools" }]
 
