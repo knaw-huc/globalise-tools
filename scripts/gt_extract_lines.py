@@ -7,8 +7,12 @@ from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 import pagexml.parser as px
 from loguru import logger
 
+def main():
+    args = get_arguments()
+    run(args.input_directory, args.output_directory)
+
 @logger.catch
-def main(base_pagexml_path: str, output_directory: str):
+def run(base_pagexml_path: str, output_directory: str):
     inv_nrs = sorted(
         [p.split("/")[-1] for p in glob.glob(f"{base_pagexml_path}/*") if os.path.isdir(p)])
     for i in inv_nrs:
@@ -53,5 +57,4 @@ def get_arguments():
 
 
 if __name__ == '__main__':
-    args = get_arguments()
-    main(args.input_directory, args.output_directory)
+    main()

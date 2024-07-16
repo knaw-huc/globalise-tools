@@ -1,10 +1,13 @@
 [tool.poetry]
 name = "globalise-tools"
-version = "0.1.1"
+version = "0.2.0"
 description = ""
 authors = ["Bram Buitendijk <bram.buitendijk@di.huc.knaw.nl>", "Maarten van Gompel <proycon@anaproy.nl>"]
 readme = "README.md"
-packages = [{ include = "globalise_tools" }]
+packages = [
+    { include = "globalise_tools" },
+    { include = "scripts", to="globalise_tools" },
+]
 
 [tool.poetry.dependencies]
 annorepo-client = "^0.1.3"
@@ -38,6 +41,11 @@ pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
 provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-python-client", develop = true }
 spacy = { extras = ["apple"], version = "^3.4.3" }
 textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
+
+[tool.poetry.scripts]
+gt-classify-language = "globalise_tools.scripts.gt_classify_language:main"
+gt-extract-lines = "globalise_tools.scripts.gt_extract_lines:main"
+
 
 [build-system]
 requires = ["poetry-core"]
