@@ -300,8 +300,11 @@ def is_relevant(document_metadata: DocumentMetadata) -> bool:
 #     else:
 #         return False
 
-
-if __name__ == '__main__':
+def main():
     args = get_arguments()
     if args.document_metadata_path:
         fix_reading_order(args.input_directory, args.output_directory, args.document_metadata_path)
+
+
+if __name__ == '__main__':
+    main()
