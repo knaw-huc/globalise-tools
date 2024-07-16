@@ -1,5 +1,5 @@
 .SHELLFLAGS = -o pipefail -c
-.PHONY: deps lists lines pages stats dist top100tokens frompagexml
+.PHONY: setup lists lines pages stats dist top100tokens frompagexml
 .DELETE_ON_ERROR:
 
 PAGEXML_PATH = /home/proycon/exp/globalize-pagexml/
@@ -19,8 +19,15 @@ paragraphs: $(paroutput_tsv)
 output: $(output_tsv)
 pages: pages.lang.tsv
 
-deps:
-	cargo install lingua-cli lexmatch
+setup:
+	@echo "Checking if common dependencies are available"
+	command -V sed awk paste cat wc tee tr cut head tail python3
+	@echo "Installing dependencies (requires cargo+rustc)"
+	command -v lingua-cli || cargo install lingua-cli@0.4.0
+	command -v lexmatch || cargo install lexmatch@0.3.0
+	@echo "Setting up Python virtual environment and installing globalise-tools"
+	[ ! -e env ] && python3 -m venv env; cd ../../; pip install .
+	@echo "Activate the virtual environment with: source env/bin/activate , then run: make all PAGEXML_PATH=/path/to/globalise-pagexml"
 
 clean:
 	-rm *.lang.tsv *.lst stats *.tmp
@@ -52,7 +59,7 @@ stats: lists
 	wc -l *.lst | tee $@
 
 %-all.lang.tsv: %-lines.lang.tsv
-	./gt-classify-language.py $< > $@
+	gt-classify-language $< > $@
 
 pages.lang.tsv: $(output_tsv)
 	head -n 1 10000-all.lang.tsv > $@
@@ -70,13 +77,9 @@ nonormixeddutch-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
 	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nld") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
-msa-pages.lang.tsv: $(output_tsv)
-	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 ~ /msa/) { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
-
 unknown-pages.lang.tsv: $(output_tsv)
-	head -n 1 10000-all.lang.tsv > $@
-	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "" && $$6 == "unknown") print $$0 }' >> $@
+	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 == "unknown") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 dist: globalise-langdetect.tar.xz
 
@@ -96,4 +99,4 @@ nl_voc.tsv:
 
 frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed
-	./gt-extract-lines.py -i $(PAGEXML_PATH) 
+	gt-extract-lines -i $(PAGEXML_PATH) 
