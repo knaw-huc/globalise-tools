@@ -6,7 +6,7 @@ authors = ["Bram Buitendijk <bram.buitendijk@di.huc.knaw.nl>", "Maarten van Gomp
 readme = "README.md"
 packages = [
     { include = "globalise_tools" },
-    { include = "scripts", to="globalise_tools" },
+    { include = "scripts", to = "globalise_tools" },
 ]
 
 [tool.poetry.dependencies]
@@ -45,7 +45,7 @@ textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-pyth
 [tool.poetry.scripts]
 gt-classify-language = "globalise_tools.scripts.gt_classify_language:main"
 gt-extract-lines = "globalise_tools.scripts.gt_extract_lines:main"
-
+version = 'poetry_scripts:version'
 
 [build-system]
 requires = ["poetry-core"]

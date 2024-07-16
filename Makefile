@@ -100,6 +100,18 @@ stop-inception:
 browse-globalise-inception:
 	open https://text-annotation.huc.knaw.nl/
 
+.PHONY: version-update-patch
+version-update-patch:
+	poetry run version patch
+
+.PHONY: version-update-minor
+version-update-minor:
+	poetry run version minor
+
+.PHONY: version-update-major
+version-update-major:
+	poetry run version major
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
@@ -108,14 +120,18 @@ help:
 	@echo "  install                    - to install the necessary requirements"
 	@echo "  install-spacy-model        - to load the 'nl_core_news_lg' language model used by spacy"
 #	@echo "  extract-all            		to extract text and annotations from all document directories"
-	@echo "  web-annotations            - to generate the web-annotations"
+#	@echo "  web-annotations            - to generate the web-annotations"
+	@echo
+	@echo "  version-update-patch       - to update the project version to the next patch version"
+	@echo "  version-update-minor       - to update the project version to the next minor version"
+	@echo "  version-update-major       - to update the project version to the next major version"
 	@echo
 	@echo "  run-provenance             - to start a local provenance server"
 	@echo "  run-inception              - to start a local inception"
 	@echo "  stop-inception             - to stop the local inception"
 	@echo
 	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
-	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
+#	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
 	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
