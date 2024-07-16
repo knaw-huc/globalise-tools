@@ -75,8 +75,8 @@ class Annotation:
     type: str
     id: str
     page_id: str
-    physical_span: TextSpan = TextSpan()
-    logical_span: TextSpan = TextSpan()
+    physical_span: TextSpan = field(default_factory=TextSpan, hash=False)
+    logical_span: TextSpan = field(default_factory=TextSpan, hash=False) 
     # offset: int
     # length: int
     # physical_segmented_version_id: str = ""

@@ -87,9 +87,7 @@ def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_l
             print("\t0",end="")
     print()
 
-
-
-if __name__ == '__main__':
+def main():
     parser = ArgumentParser(
         description="Extract line text from pagexml files",
         formatter_class=ArgumentDefaultsHelpFormatter)
@@ -143,5 +141,9 @@ if __name__ == '__main__':
                         page_langs.append(lang)
                 if inv_nr:
                     print_langs(inv_nr, page_no,textregion_id, textregion_type, "",region_langs,"")
+
+
+if __name__ == '__main__':
+    main()
 
 
