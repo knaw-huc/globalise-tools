@@ -9,13 +9,9 @@ lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
 output_tsv := $(lineinput_tsv:%-lines.tsv=%-all.lang.tsv)
 
-parinput_tsv := $(wildcard *-paragraphs.tsv)
-paroutput_tsv := $(parinput_tsv:%-paragraphs.tsv=%-paragraphs.lang.tsv)
-
-all: stats pages.lang.tsv nondutch-pages.lang.tsv mixed-pages.lang.tsv
+all: stats pages.lang.tsv nondutch-pages.lang.tsv mixed-pages.lang.tsv unknown-pages.lang.tsv
 
 lines: $(lineoutput_tsv)
-paragraphs: $(paroutput_tsv)
 output: $(output_tsv)
 pages: pages.lang.tsv
 
@@ -26,8 +22,8 @@ setup:
 	command -v lingua-cli || cargo install lingua-cli@0.4.0
 	command -v lexmatch || cargo install lexmatch@0.3.0
 	@echo "Setting up Python virtual environment and installing globalise-tools"
-	[ ! -e env ] && python3 -m venv env; cd ../../; pip install .
-	@echo "Activate the virtual environment with: source env/bin/activate , then run: make all PAGEXML_PATH=/path/to/globalise-pagexml"
+	[ ! -e env ] && python3 -m venv env; source env/bin/activate; cd ../../; pip install .
+	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
 clean:
 	-rm *.lang.tsv *.lst stats *.tmp
@@ -39,13 +35,6 @@ clean:
 	echo -e "inv_nr	page_no	textregion_id	textregion_type	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	id	total" > "$@"
 	paste "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp"
-
-%-paragraphs.lang.tsv: %-paragraphs.tsv
-	cut -f 1,2,3 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 4 "$<" | tail --lines +2 | lingua-cli --minlength 20 --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.right.tmp"
-	echo -e "inv_nr	page_no	textarea_id	lang	confidence	text" > "$@"
-	paste "$@.left.tmp" "$@.right.tmp" >> "$@"
-	rm "$@.left.tmp" "$@.right.tmp"
 
 lists: $(output_tsv)
 	-rm *.lst
@@ -62,24 +51,24 @@ stats: lists
 	gt-classify-language $< > $@
 
 pages.lang.tsv: $(output_tsv)
-	head -n 1 10000-all.lang.tsv > $@
-	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "") print $$0 }' >> $@
+	head -n 1 10000-all.lang.tsv | cut -f 1,2,6 > $@
+	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 == "") print $$1"\t"$$2"\t"$$6 }' >> $@
 
 regions.lang.tsv: $(output_tsv)
 	head -n 1 10000-all.lang.tsv > $@
 	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 != "" && $$5 == "") print $$0 }' >> $@
 
 nondutch-pages.lang.tsv: $(output_tsv)
-	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$8 != "1") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
+	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 !~ /nld/) { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 mixed-pages.lang.tsv: $(output_tsv)
-	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nld") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
+	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nld") { print $$1"\t"$$2"\t"$$6"\t""\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 unknown-pages.lang.tsv: $(output_tsv)
-	echo "$(shell head -n 1 10000-all.lang.tsv)	page_text	url" > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 == "unknown") { print $$0"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
+	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 == "unknown") { print $$1"\t"$$2"\t"$$6"\t""\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' >> $@
 
 dist: globalise-langdetect.tar.xz
 

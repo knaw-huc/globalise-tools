@@ -79,13 +79,7 @@ def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_l
         langs = ",".join(sorted((to_iso639_3(l) for l in page_langs)))
     else:
         langs = "unknown"
-    print(f"{inv_nr}\t{page_no}\t{textregion_id}\t{textregion_type}\t{line_id}\t{langs}\t{text}", end="")
-    for lang in LANGS[1:]:
-        if lang in page_langs:
-            print("\t1",end="")
-        else:
-            print("\t0",end="")
-    print()
+    print(f"{inv_nr}\t{page_no}\t{textregion_id}\t{textregion_type}\t{line_id}\t{langs}\t{text}")
 
 def main():
     parser = ArgumentParser(
@@ -98,10 +92,7 @@ def main():
     args = parser.parse_args()
 
 
-    print("inv_nr\tpage_no\ttextregion_id\ttextregion_type\tline_id\tlangs\tline_text", end="")
-    for lang in LANGS3[1:]:
-        print(f"\t{lang}", end="")
-    print()
+    print("inv_nr\tpage_no\ttextregion_id\ttextregion_type\tline_id\tlangs\tline_text")
 
     for filename in args.inputfiles:
         prev = (None,None,None,None)
