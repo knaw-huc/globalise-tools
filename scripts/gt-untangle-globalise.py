@@ -13,6 +13,7 @@ from typing import Tuple, List, Dict, Any, Union
 
 import hydra
 import pagexml.helper.pagexml_helper as pxh
+from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
@@ -35,6 +36,8 @@ word_break_chars = '„¬-'
 def main(cfg: DictConfig) -> None:
     # logger.level('warning')
     results = {}
+    page_lang = read_page_langs(cfg)
+    ic(page_lang)
     processed = load_processed_files()
 
     scan_url_mapping = read_scan_url_mapping()
@@ -70,7 +73,8 @@ def main(cfg: DictConfig) -> None:
             logger.info(f"processing {document_metadata.external_id} [{i + 1}/{total}]")
             before = time.perf_counter()
             annotations_stored = process_na_file(document_metadata, base_provenance, prc, trc, webannotation_factory,
-                                                 scan_url_mapping, results, nav_provider=nav_provider)
+                                                 scan_url_mapping, results, nav_provider=nav_provider,
+                                                 page_lang=page_lang)
             after = time.perf_counter()
             diff = after - before
             logger.debug(f"done in {diff} s = {diff / document_metadata.no_of_scans} s/pagexml")
@@ -82,6 +86,19 @@ def main(cfg: DictConfig) -> None:
                 logger.info(f"=> {path}")
                 with open(path, "w") as f:
                     json.dump(list(processed), fp=f)
+
+
+def read_page_langs(cfg: DictConfig):
+    langs_for_page = {}
+    for path in [cfg.automated_page_langs_file, cfg.curated_page_langs_file]:
+        logger.info(f"<= {path}")
+        with open(path) as file:
+            reader = csv.DictReader(file, delimiter='\t')
+            for record in reader:
+                langs = record['langs'].split(',')
+                key = f"NL-HaNA_1.04.02_{record['inv_nr']}_{record['page_no']}"
+                langs_for_page[key] = langs
+    return langs_for_page
 
 
 def get_available_inv_nrs():
@@ -131,7 +148,8 @@ def process_na_file(
         waf: WebAnnotationFactory,
         scan_url_mapping: Dict[str, str],
         results: Dict[str, any],
-        nav_provider: NavProvider
+        nav_provider: NavProvider,
+        page_lang: dict[str, list[str]]
 ) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
@@ -147,7 +165,8 @@ def process_na_file(
         base_provenance=base_provenance,
         links=links,
         scan_url_mapping=scan_url_mapping,
-        nav_provider=nav_provider
+        nav_provider=nav_provider,
+        page_lang=page_lang
     )
     physical_version_identifier = store_segmented_text(tr_client, physical_segmented_text, SegmentedTextType.PHYSICAL,
                                                        document_metadata, links)
@@ -333,7 +352,8 @@ def untangle_scan_doc(
         line_ids_to_anchors: Dict[str, int],
         logical_anchor_range_for_line_id: Dict[str, LogicalAnchorRange],
         paragraphs: List[str],
-        nav_provider: NavProvider
+        nav_provider: NavProvider,
+        page_lang: dict[str, list[str]]
 ) -> tuple[list[Union[str, Any]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
     scan_lines = []
@@ -358,7 +378,7 @@ def untangle_scan_doc(
                 for trl in tr_lines:
                     line_word_text = [w.text for w in trl.words]
                     word_text.extend(line_word_text)
-                joined_words = " ".join(word_text)
+                # joined_words = " ".join(word_text)
                 # if " „" in joined_words:
                 #     logger.debug(f"\n\"{tr_text}\"\n")
                 #     logger.debug("\n" + json.dumps(word_text, ensure_ascii=False) + "\n")
@@ -387,10 +407,14 @@ def untangle_scan_doc(
         scan_lines.append("")
         paragraphs.append("")
 
+    metadata = scan_doc.metadata
+    pid = metadata['document']
+    if page_id in page_lang:
+        metadata['lang'] = page_lang[pid]
     scan_annotations.append(
         gt.page_annotation(id_prefix=id_prefix,
                            page_id=page_id(scan_doc),
-                           scan_doc_metadata=scan_doc.metadata,
+                           scan_doc_metadata=metadata,
                            path=path,
                            physical_span=gt.TextSpan(offset=physical_start_anchor, length=len(scan_lines)),
                            logical_span=gt.TextSpan(offset=logical_start_anchor,
@@ -461,7 +485,8 @@ def untangle_na_file(
         base_provenance: ProvenanceData,
         links: Dict[str, Any],
         scan_url_mapping: Dict[str, str],
-        nav_provider: NavProvider()
+        nav_provider: NavProvider(),
+        page_lang: dict[str, list[str]]
 ) -> Tuple[Dict[str, any], Dict[str, any], ProvenanceData, List[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
@@ -517,7 +542,8 @@ def untangle_na_file(
                     line_ids_to_anchors=line_ids_to_anchors,
                     paragraphs=document_paragraphs,
                     logical_anchor_range_for_line_id=logical_anchor_range_for_line_id,
-                    nav_provider=nav_provider
+                    nav_provider=nav_provider,
+                    page_lang=page_lang
                 )
                 document_annotations.extend(scan_annotations)
                 document_lines.extend(scan_lines)
