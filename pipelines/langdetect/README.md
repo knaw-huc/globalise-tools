@@ -2,12 +2,21 @@ This is a pipeline for language detection on the Globalise HTR output.
 
 ## Usage
 
-Clone this git repository, from this directory, run the following to check and
-install necessary dependencies.
+You will need a Linux/BSD/macOS system with `make`, `cargo`, `rustc` and a
+recent enough `python3`. On Ubuntu/Debian Linux this is accomplished with `apt
+install make cargo python`.
+
+First clone this git repository. Then from this directory, run the following to
+check and install necessary dependencies. 
 
 ```
 $ make setup
 ```
+
+This will check necessary dependencies, create a Python virtual environment
+with the globalise-tools, and compile and install
+[lingua-cli](https://github.com/proycon/lingua-cli) and
+[lexmatch](https://github.com/proycon/lexmatch) which are used for language detection.
 
 Activate the Python virtual environment that was created in the above step: 
 
@@ -34,4 +43,5 @@ $ make all
 strongly recommended to make use of multiple CPU cores by passing `-j 20`
 (example for 20 cores) to `make` to speed up to process.
 
-The main results will be in `pages.lang.tsv`.
+The main results will be in `pages.lang.tsv`, secondary results in
+`nondutch-pages.lang.tsv`, `mixed-pages.lang.tsv` and `unknown-pages.lang.tsv`.
