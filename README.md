@@ -2,6 +2,8 @@
 
 tools for various globalise tasks
 
+For the language classification pipeline, see [`pipelines/langdetect/README.md`](pipelines/langdetect/README.md)
+
 in `scripts/`:
 
 ### `gt-xmi-to-wa.py`
