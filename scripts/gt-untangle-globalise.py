@@ -13,7 +13,6 @@ from typing import Tuple, List, Dict, Any, Union
 
 import hydra
 import pagexml.helper.pagexml_helper as pxh
-from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
@@ -37,7 +36,7 @@ def main(cfg: DictConfig) -> None:
     # logger.level('warning')
     results = {}
     page_lang = read_page_langs(cfg)
-    ic(page_lang)
+    # ic(page_lang)
     processed = load_processed_files()
 
     scan_url_mapping = read_scan_url_mapping()
@@ -408,19 +407,24 @@ def untangle_scan_doc(
         paragraphs.append("")
 
     metadata = scan_doc.metadata
-    pid = metadata['document']
-    if page_id in page_lang:
-        metadata['lang'] = page_lang[pid]
+    pid = page_id(scan_doc)
+    if pid in page_lang:
+        langs = page_lang[pid]
+    else:
+        langs = None
     scan_annotations.append(
-        gt.page_annotation(id_prefix=id_prefix,
-                           page_id=page_id(scan_doc),
-                           scan_doc_metadata=metadata,
-                           path=path,
-                           physical_span=gt.TextSpan(offset=physical_start_anchor, length=len(scan_lines)),
-                           logical_span=gt.TextSpan(offset=logical_start_anchor,
-                                                    length=len(paragraphs) - logical_start_anchor),
-                           document_id=scan_doc.id,
-                           nav_provider=nav_provider)
+        gt.page_annotation(
+            id_prefix=id_prefix,
+            page_id=pid,
+            scan_doc_metadata=metadata,
+            path=path,
+            physical_span=gt.TextSpan(offset=physical_start_anchor, length=len(scan_lines)),
+            logical_span=gt.TextSpan(offset=logical_start_anchor,
+                                     length=len(paragraphs) - logical_start_anchor),
+            document_id=scan_doc.id,
+            nav_provider=nav_provider,
+            langs=langs
+        )
     )
     return scan_lines, scan_annotations
 

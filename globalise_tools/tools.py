@@ -76,7 +76,7 @@ class Annotation:
     id: str
     page_id: str
     physical_span: TextSpan = field(default_factory=TextSpan, hash=False)
-    logical_span: TextSpan = field(default_factory=TextSpan, hash=False) 
+    logical_span: TextSpan = field(default_factory=TextSpan, hash=False)
     # offset: int
     # length: int
     # physical_segmented_version_id: str = ""
@@ -495,7 +495,8 @@ def page_annotation(
         physical_span: TextSpan,
         logical_span: TextSpan,
         document_id: str,
-        nav_provider: NavProvider()
+        nav_provider: NavProvider(),
+        langs: list[str]
 ) -> Annotation:
     parts = page_id.split("_")
     n = parts[-1]
@@ -519,6 +520,8 @@ def page_annotation(
     if not externalRef:
         logger.warning(f"{path}: missing 'externalRef' attribute in <Metadata/>")
         metadata.pop("eDepotId")
+    if langs:
+        metadata["lang"] = langs
     metadata.update(nav_provider.nav_fields(page_id))
     return Annotation(
         type=PAGE_TYPE,
