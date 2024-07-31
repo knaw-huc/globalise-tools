@@ -9,7 +9,7 @@ lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
 output_tsv := $(lineinput_tsv:%-lines.tsv=%-all.lang.tsv)
 
-all: stats pages.lang.tsv nondutch-pages.lang.tsv mixed-pages.lang.tsv unknown-pages.lang.tsv
+all: stats pages.lang.tsv nondutchmono-pages.lang.tsv multilingual-pages.lang.tsv unknown-pages.lang.tsv
 
 lines: $(lineoutput_tsv)
 output: $(output_tsv)
@@ -58,13 +58,15 @@ regions.lang.tsv: $(output_tsv)
 	head -n 1 10000-all.lang.tsv > $@
 	cat *-all.lang.tsv | awk -F "\t" '{ if ($$1 != "inv_nr" && $$3 != "" && $$5 == "") print $$0 }' >> $@
 
-nondutch-pages.lang.tsv: $(output_tsv)
+nondutchmono-pages.lang.tsv: $(output_tsv)
+	#monolingual non-dutch
 	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 !~ /nld/) { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 !~ /nld/ && $$6 !~ /,/) { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
 
-mixed-pages.lang.tsv: $(output_tsv)
+multilingual-pages.lang.tsv: $(output_tsv)
+	#multilingual languages (any, not just dutch)
 	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
-	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 != "nld" && $$6 ~ /nld/) { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
+	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 != "unknown" && $$6 ~ /,/) { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
 
 unknown-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
