@@ -1,9 +1,11 @@
 .SHELLFLAGS = -o pipefail -c
-.PHONY: setup lists lines pages stats dist top100tokens frompagexml
+.PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections
 .DELETE_ON_ERROR:
 
 PAGEXML_PATH = /home/proycon/exp/globalize-pagexml/
 VOC_GROUNDTRUTH_PATH = /home/proycon/exp/voc-groundtruth/
+MANUAL_CORRECTIONS = /home/proycon/work/globalise-language-identification-data/corrections/corrected-pages.tsv
+PUBLISH_DIR = /home/proycon/work/globalise-language-identification-data/latin-script-pages/
 
 lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
@@ -71,6 +73,17 @@ multilingual-pages.lang.tsv: $(output_tsv)
 unknown-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
 	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 == "unknown") { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
+
+%-withcorrections.lang.tsv: %.lang.tsv
+	gt-merge-manual-corrections $< $(MANUAL_CORRECTIONS) > $@
+
+withcorrections: pages-withcorrections.lang.tsv multilingual-pages-withcorrections.lang.tsv nondutchmono-pages-withcorrections.lang.tsv unknown-pages-withcorrections.lang.tsv
+
+publish: withcorrections
+	cp -f pages-withcorrections.lang.tsv "$(PUBLISH_DIR)pages.lang.tsv"
+	cp -f nondutchmono-pages-withcorrections.lang.tsv "$(PUBLISH_DIR)nondutchmono-pages.lang.tsv"
+	cp -f unknown-pages-withcorrections.lang.tsv "$(PUBLISH_DIR)unknown-pages.lang.tsv"
+	cp -f multilingual-pages-withcorrections.lang.tsv "$(PUBLISH_DIR)multilingual-pages.lang.tsv"
 
 dist: globalise-langdetect.tar.xz
 
