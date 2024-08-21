@@ -5,7 +5,7 @@
 #these can be injected/overriden via the environment:
 PAGEXML_PATH = /home/proycon/exp/globalize-pagexml/
 VOC_GROUNDTRUTH_PATH = /home/proycon/exp/voc-groundtruth/
-MANUAL_CORRECTIONS = /home/proycon/work/globalise-language-identification-data/corrections/corrections.tsv
+MANUAL_CORRECTIONS = /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
 PUBLISH_DIR = /home/proycon/work/globalise-language-identification-data/latin-script-pages/
 
 lineinput_tsv := $(wildcard *-lines.tsv)
