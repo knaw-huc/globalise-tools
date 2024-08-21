@@ -44,4 +44,5 @@ strongly recommended to make use of multiple CPU cores by passing `-j 20`
 (example for 20 cores) to `make` to speed up to process.
 
 The main results will be in `pages.lang.tsv`, secondary results in
-`nondutch-pages.lang.tsv`, `mixed-pages.lang.tsv` and `unknown-pages.lang.tsv`.
+`nondutch-pages.lang.tsv` (everything that includes another language) and
+`unknown-pages.lang.tsv` (everything that could not be identified).
