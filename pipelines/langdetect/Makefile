@@ -70,6 +70,9 @@ unknown-pages.lang.tsv: $(output_tsv)
 	echo "$(shell head -n 1 10000-all.lang.tsv | cut -f 1,2,6)	page_text	url"  > $@
 	cat *-all.lang.tsv | awk -F "\t" 'BEGIN { prev="" } ! /^inv_nr/ { if (prev != $$1$$2) { t = ""; }; if ($$3 == "" && $$6 == "unknown") { print $$1"\t"$$2"\t"$$6"\t"t"\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:NL-HaNA_1.04.02_"$$1"_"$$2; t=""; } else { t=t " " $$7; } prev=$$1$$2; }' | sort -k 1n,2n >> $@
 
+pages-withcorrections.lang.tsv: pages.lang.tsv
+	gt-merge-manual-corrections --all $< $(MANUAL_CORRECTIONS) > $@
+
 %-withcorrections.lang.tsv: %.lang.tsv
 	gt-merge-manual-corrections $< $(MANUAL_CORRECTIONS) > $@
 
