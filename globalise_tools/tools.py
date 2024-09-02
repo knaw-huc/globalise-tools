@@ -6,7 +6,7 @@ from dataclasses_json import dataclass_json
 from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion
 
-from globalise_tools.model import Document, WebAnnotation
+from globalise_tools.model import Document, WebAnnotation, LangDeduction
 from globalise_tools.nav_provider import NavProvider
 
 PAGE_TYPE = "px:Page"
@@ -496,7 +496,7 @@ def page_annotation(
         logical_span: TextSpan,
         document_id: str,
         nav_provider: NavProvider(),
-        langs: list[str]
+        lang_deduction: LangDeduction
 ) -> Annotation:
     parts = page_id.split("_")
     n = parts[-1]
@@ -520,8 +520,9 @@ def page_annotation(
     if not externalRef:
         logger.warning(f"{path}: missing 'externalRef' attribute in <Metadata/>")
         metadata.pop("eDepotId")
-    if langs:
-        metadata["lang"] = langs
+    if lang_deduction:
+        metadata["lang"] = lang_deduction.langs
+        metadata["langCorrected"] = lang_deduction.corrected
     metadata.update(nav_provider.nav_fields(page_id))
     return Annotation(
         type=PAGE_TYPE,

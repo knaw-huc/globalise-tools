@@ -23,7 +23,7 @@ from uri import URI
 
 import globalise_tools.tools as gt
 from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
-    LogicalAnchorRange, SegmentedTextType
+    LogicalAnchorRange, SegmentedTextType, LangDeduction
 from globalise_tools.nav_provider import NavProvider
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
@@ -89,14 +89,14 @@ def main(cfg: DictConfig) -> None:
 
 def read_page_langs(cfg: DictConfig):
     langs_for_page = {}
-    for path in [cfg.automated_page_langs_file, cfg.curated_page_langs_file]:
+    for path in [cfg.automated_page_langs_file]:
         logger.info(f"<= {path}")
         with open(path) as file:
             reader = csv.DictReader(file, delimiter='\t')
             for record in reader:
-                langs = record['langs'].split(',')
+                lang_deduction = LangDeduction(langs=record['langs'].split(','), corrected=record['corrected'] == "1")
                 key = f"NL-HaNA_1.04.02_{record['inv_nr']}_{record['page_no']}"
-                langs_for_page[key] = langs
+                langs_for_page[key] = lang_deduction
     return langs_for_page
 
 
@@ -123,6 +123,7 @@ def read_all_metadata():
 
 def read_scan_url_mapping() -> Dict[str, str]:
     path = "data/scan_url_mapping.json"
+    logger.info(f"<= {path}")
     with open(path) as f:
         scan_url_mapping = json.load(f)
     return scan_url_mapping
@@ -148,7 +149,7 @@ def process_na_file(
         scan_url_mapping: Dict[str, str],
         results: Dict[str, any],
         nav_provider: NavProvider,
-        page_lang: dict[str, list[str]]
+        page_lang: dict[str, LangDeduction]
 ) -> bool:
     links = {'textrepo_links': {}, 'errors': []}
 
@@ -352,7 +353,7 @@ def untangle_scan_doc(
         logical_anchor_range_for_line_id: Dict[str, LogicalAnchorRange],
         paragraphs: List[str],
         nav_provider: NavProvider,
-        page_lang: dict[str, list[str]]
+        page_lang: dict[str, LangDeduction]
 ) -> tuple[list[Union[str, Any]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
     scan_lines = []
@@ -409,9 +410,9 @@ def untangle_scan_doc(
     metadata = scan_doc.metadata
     pid = page_id(scan_doc)
     if pid in page_lang:
-        langs = page_lang[pid]
+        lang_deduction = page_lang[pid]
     else:
-        langs = None
+        lang_deduction = None
     scan_annotations.append(
         gt.page_annotation(
             id_prefix=id_prefix,
@@ -423,7 +424,7 @@ def untangle_scan_doc(
                                      length=len(paragraphs) - logical_start_anchor),
             document_id=scan_doc.id,
             nav_provider=nav_provider,
-            langs=langs
+            lang_deduction=lang_deduction
         )
     )
     return scan_lines, scan_annotations
@@ -490,7 +491,7 @@ def untangle_na_file(
         links: Dict[str, Any],
         scan_url_mapping: Dict[str, str],
         nav_provider: NavProvider(),
-        page_lang: dict[str, list[str]]
+        page_lang: dict[str, LangDeduction]
 ) -> Tuple[Dict[str, any], Dict[str, any], ProvenanceData, List[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
