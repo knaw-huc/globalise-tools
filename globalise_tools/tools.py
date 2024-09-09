@@ -6,7 +6,8 @@ from dataclasses_json import dataclass_json
 from loguru import logger
 from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion
 
-from globalise_tools.model import Document, WebAnnotation, LangDeduction
+from globalise_tools.lang_deduction import LangDeduction
+from globalise_tools.model import Document, WebAnnotation
 from globalise_tools.nav_provider import NavProvider
 
 PAGE_TYPE = "px:Page"
