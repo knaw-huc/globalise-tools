@@ -2,6 +2,7 @@
 
 import os
 import csv
+import sys
 from collections import Counter
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -130,8 +131,7 @@ def main():
                 for lang in region_langs:
                     if lang not in page_langs:
                         page_langs.append(lang)
-                if inv_nr:
-                    print_langs(inv_nr, page_no,textregion_id, textregion_type, "",region_langs,"")
+                print_langs(inv_nr, page_no,"", "", "",page_langs,"")
 
 
 if __name__ == '__main__':
