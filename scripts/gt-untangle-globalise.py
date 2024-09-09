@@ -21,9 +21,11 @@ from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, P
 from textrepo.client import TextRepoClient, DocumentIdentifier
 from uri import URI
 
+import globalise_tools.lang_deduction as ld
 import globalise_tools.tools as gt
+from globalise_tools.lang_deduction import LangDeduction
 from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
-    LogicalAnchorRange, SegmentedTextType, LangDeduction
+    LogicalAnchorRange, SegmentedTextType
 from globalise_tools.nav_provider import NavProvider
 from globalise_tools.tools import WebAnnotationFactory, Annotation
 
@@ -35,7 +37,7 @@ word_break_chars = '„¬-'
 def main(cfg: DictConfig) -> None:
     # logger.level('warning')
     results = {}
-    page_lang = read_page_langs(cfg)
+    page_lang = ld.read_lang_deduction_for_page(cfg.automated_page_langs_file)
     # ic(page_lang)
     processed = load_processed_files()
 
@@ -85,19 +87,6 @@ def main(cfg: DictConfig) -> None:
                 logger.info(f"=> {path}")
                 with open(path, "w") as f:
                     json.dump(list(processed), fp=f)
-
-
-def read_page_langs(cfg: DictConfig):
-    langs_for_page = {}
-    for path in [cfg.automated_page_langs_file]:
-        logger.info(f"<= {path}")
-        with open(path) as file:
-            reader = csv.DictReader(file, delimiter='\t')
-            for record in reader:
-                lang_deduction = LangDeduction(langs=record['langs'].split(','), corrected=record['corrected'] == "1")
-                key = f"NL-HaNA_1.04.02_{record['inv_nr']}_{record['page_no']}"
-                langs_for_page[key] = lang_deduction
-    return langs_for_page
 
 
 def get_available_inv_nrs():

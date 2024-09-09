@@ -231,9 +231,3 @@ class LogicalAnchorRange:
 class SegmentedTextType(Enum):
     PHYSICAL = 1,
     LOGICAL = 2
-
-
-@dataclass
-class LangDeduction:
-    langs: list[str]
-    corrected: bool
