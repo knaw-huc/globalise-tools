@@ -18,6 +18,7 @@ import os
 import csv
 import sys
 import stam
+import math
 from collections import defaultdict
 from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
@@ -47,6 +48,10 @@ def main():
                         help="HTR data directory",
                         default=".",
                         type=str)
+    parser.add_argument('--coverage', 
+                        help="The percentage of characters that has to be correctly covered for an alignment to be made",
+                        default=0.25,
+                        type=float)
     args = parser.parse_args()
 
     with open(args.metamap, mode='r') as file:
@@ -133,14 +138,19 @@ def main():
                 for htr_line in htr_lines:
                     htr_line_id = htr_line.id()
                     htr_line_ts = next(htr_line.textselections())
-                    transpositions = htr_line_ts.align_text(rgp_resource_ts)
-                    print(f"   computed {len(transpositions)} transposition(s)",file=sys.stderr)
-                    for transposition in transpositions:
-                        for alignment in transposition.alignments():
-                            print(htr_line_id,end="")
-                            for side in alignment:
-                                print(f"\t{side.resource().id()}\t{side.offset()}\t\"{side.text().replace("\"","\\\"")}\"", end="")
-                            print(f"\t\"{htr_line_ts.text().replace("\n","\\n").replace("\"","\\\"")}\"")
+                    htr_line_text = htr_line_ts.text().replace("\n","\\n").replace("\"","\\\"")
+                    max_errors = math.ceil(len(htr_line_ts) * args.coverage)
+                    translations = htr_line_ts.align_text(rgp_resource_ts, max_errors=max_errors,grow=True)
+                    print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
+                    for translation in translations:
+                        begin = None
+                        end = None
+                        for alignment in translation.alignments():
+                            _,rgp_found = alignment
+                            #print(f"\t{side.resource().id()}\t{side.offset()}\t\"{side.text().replace("\"","\\\"")}\"", end="")
+                            rgp_alignedtext = rgp_found.text().replace("\"","\\\"").replace("\n","\\n")
+                            print(f"{htr_line_id}\t\"{htr_line_text}\"\t{rgp_found.resource().id()}\t{rgp_found.offset()}\t\"{rgp_alignedtext}\"")
+
 
 
 if __name__ == '__main__':
