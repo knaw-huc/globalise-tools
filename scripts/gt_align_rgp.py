@@ -15,6 +15,7 @@
 #   extraheer paragraven met wat body
 
 import os
+import os.path
 import csv
 import sys
 import stam
@@ -30,6 +31,21 @@ LINE_TYPE_DATA = {
     "key": "type",
     "value": "line",
 }
+PARAGRAPH_TYPE_DATA = {
+    "set": "globalise",
+    "key": "type",
+    "value": "paragraph",
+}
+PAGE_TYPE_DATA = {
+    "set": "globalise",
+    "key": "type",
+    "value": "page",
+}
+LETTER_TYPE_DATA = {
+    "set": "globalise",
+    "key": "type",
+    "value": "letter",
+}
 
 
 def main():
@@ -41,8 +57,8 @@ def main():
                         default="Overzicht van Generale Missiven in 1.04.02 v.3.csv",
                         type=str)
     parser.add_argument('--rgpdir',
-                        help="RGP data directory (a git clone of https://github.com/globalise-huygens/globalise-generale-missiven-rgp)",
-                        default="globalise-generale-missiven-rgp",
+                        help="Directory containing RGP export from WP6-missieven (a git clone of https://github.com/CLARIAH/wp6-missieven)",
+                        default="wp6-missieven",
                         type=str)
     parser.add_argument('--htrdir',
                         help="HTR data directory",
@@ -50,111 +66,148 @@ def main():
                         type=str)
     parser.add_argument('--coverage', 
                         help="The percentage of characters that has to be correctly covered for an alignment to be made",
-                        default=0.25,
+                        default=0.75,
                         type=float)
     args = parser.parse_args()
 
+    print("Loading metadata mapping...",file=sys.stderr)
+    rgp2htr_metamap = defaultdict(dict)
+    inv_nrs = set()
     with open(args.metamap, mode='r') as file:
         reader_metamap = csv.DictReader(file, delimiter=";",quoting=csv.QUOTE_NONE)
         for row in reader_metamap:
-            if row[RGP_DEEL] and row[RGP_PAGINA]:
+            if row[RGP_DEEL] and row[RGP_PAGINA] and row['Beginscan'] and row['Eindscan']:
                 rgp_deel = int(row[RGP_DEEL])
-                rgp_pagina = int(row[RGP_PAGINA])
-                inv_nr = row[INV_NR]
-                beginpage = int(row['Beginscan'])
-                endpage = int(row['Eindscan'])
-                store = stam.AnnotationStore()
+                try:
+                    rgp_pagina = int(row[RGP_PAGINA])
+                except:
+                    print("Skipping invalid page: ", row[RGP_PAGINA],file=sys.stderr)
+                    continue
+                inv_nr = row[INV_NR] 
+                inv_nrs.add(inv_nr)
+                htr_beginpage = int(row['Beginscan'])
+                htr_endpage = int(row['Eindscan'])
 
-                #Load RGP data
-                rgp_file = f"{args.rgpdir}/full_volumes/GM_{rgp_deel}.txt"
-                lines_text = ""
-                id_annotations = []
-                print(f"Loading RGP file: {rgp_file}",file=sys.stderr)
-                with open(rgp_file,mode="r",encoding="utf-8") as file_rgp:
-                    for line in file_rgp:
-                        meta, line = line.split("  ", maxsplit=1)
-                        page, linenr = meta.split(" ")[1].split(":")
-                        page = int(page)
-                        linenr = int(linenr)
-                        if page >= rgp_pagina:
-                            begin = len(lines_text)
-                            lines_text += line + "\n"
-                            end = len(lines_text)
-                            id_annotations.append((f"GM-{rgp_deel}-{page}-{linenr}", page, linenr, begin,end))
-                print(f"   found {len(id_annotations)} lines",file=sys.stderr)
+                rgp2htr_metamap[rgp_deel][rgp_pagina] = (inv_nr,htr_beginpage,htr_endpage)
 
-                # create a derived plain text resource with all lines in the specified range
-                rgp_resource_id = f"GM-{rgp_pagina}+"
-                rgp_resource = store.add_resource(id=rgp_resource_id, text=lines_text)
+    if os.path.exists("gm-alignment.store.stam.cbor"):
+        print("Loading from cache...",file=sys.stderr)
+        store = stam.AnnotationStore(file="gm-alignment.store.stam.cbor")
+    else:
+        #convert RGP data to STAM
+        store = stam.AnnotationStore()
 
-                # associate the RGP page and line number with the line
-                for line_id, page, linenr, begin, end in id_annotations:
-                    try:
-                        store.annotate(id=line_id,target=stam.Selector.textselector(rgp_resource, stam.Offset.simple(begin,end)), data=[
-                            LINE_TYPE_DATA,
+        print("Loading RGP text...",file=sys.stderr)
+        with open(os.path.join(args.rgpdir,"originals/text.txt"), mode='r', encoding='utf-8') as f:
+            text = f.read()
+            rgp_resource = store.add_resource(id="RGP", text=text)
+            for paragraph in rgp_resource.split_text("\n"):
+                store.annotate(target=paragraph.select(), data=PARAGRAPH_TYPE_DATA)
+
+        print("Loading RGP annotations...",file=sys.stderr)
+        with open(os.path.join(args.rgpdir,"originals/portions.tsv"), mode='r') as f:
+            for row in csv.DictReader(f, delimiter="\t",quoting=csv.QUOTE_NONE):
+                portion_text = rgp_resource.textselection(stam.Offset.simple(int(row['start']), int(row['end'])))
+                store.annotate(
+                    target=portion_text.select(), 
+                    data=[ LETTER_TYPE_DATA,
                             {
                                 "set": "globalise",
-                                "key": "line",
-                                "value": linenr
+                                "key": "volume",
+                                "value": int(row['volume'])
                             },
                             {
                                 "set": "globalise",
-                                "key": "page",
-                                "value": page,
+                                "key": "startpage",
+                                "value": int(row['startpage'])
                             },
-                        ])
-                    except stam.StamError as e:
-                        print("WARNING:", e,file=sys.stderr)
+                            {
+                                "set": "globalise",
+                                "key": "date",
+                                "value": row['date']
+                            },
+                            {
+                                "set": "globalise",
+                                "key": "letter",
+                                "value": row['letter']
+                            },
+                            {
+                                "set": "globalise",
+                                "key": "author",
+                                "value": row['author']
+                            }
+                   ])
 
-                #Load HTR data
-                htr_file = f"{args.htrdir}/{inv_nr}-lines.tsv"
-                lines_text = ""
-                id_annotations = []
-                print(f"Loading HTR file: {htr_file}",file=sys.stderr)
-                with open(htr_file, mode='r') as file_inv:
-                    reader_inv = csv.DictReader(file_inv, delimiter="\t",quoting=csv.QUOTE_NONE)
-
-                    for row in reader_inv:
-                        if row['textregion_type'] == "paragraph":
-                            page = int(row['page_no'])
-                            if page >= beginpage and page <= endpage:
-                                line_text = row['line_text']
-                                begin = len(lines_text)
-                                lines_text += line_text + "\n"
-                                end = len(lines_text)
-                                id_annotations.append((row['line_id'],begin,end))
-                print(f"   found {len(id_annotations)} lines",file=sys.stderr)
+        print("Loading HTR data...",file=sys.stderr)
+        for inv_nr in sorted(inv_nrs):
+            htr_file = f"{args.htrdir}/{inv_nr}-lines.tsv"
+            if not os.path.exists(htr_file):
+                print("Skipping missing HTR file: ", htr_file,file=sys.stderr)
+                continue
+            lines_text = ""
+            id_annotations = []
+            pagebegin = {}
+            pageend = {}
+            print(f"    {htr_file}",file=sys.stderr)
+            with open(htr_file, mode='r') as file_inv:
+                reader_inv = csv.DictReader(file_inv, delimiter="\t",quoting=csv.QUOTE_NONE)
+                for row in reader_inv:
+                    if row['textregion_type'] == "paragraph":
+                        page = int(row['page_no'])
+                        line_text = row['line_text']
+                        begin = len(lines_text)
+                        lines_text += line_text + "\n"
+                        end = len(lines_text)
+                        if not page in pagebegin:
+                            pagebegin[page] = begin
+                        pageend[page] = end #keeps overwriting
+                        id_annotations.append((row['line_id'],begin,end))
 
                 # create a derived plain text resource with all lines in the specified range
-                htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}_{beginpage}-{endpage}-lines"
+                htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
                 htr_resource = store.add_resource(id=htr_resource_id, text=lines_text)
 
                 # associate the original line IDs with the lines (HTR)
                 htr_lines = [ store.annotate(id=line_id,target=stam.Selector.textselector(htr_resource, stam.Offset.simple(begin,end)),data=LINE_TYPE_DATA) for line_id, begin, end in id_annotations ]
 
-                rgp_resource_ts = rgp_resource.textselection(stam.Offset.whole())
+                # associate the page annotations (HTR)
+                for (page,begin) in sorted(pagebegin.items()):
+                    offset = stam.Offset.simple(begin,pageend[page])
+                    store.annotate(id=f"NL-HaNA_1.04.02_{inv_nr}_{page}",data=PAGE_TYPE_DATA, target=htr_resource.textselection(offset).select())
 
-                #attempt to align each line from the HTR with the RGP
-                for htr_line in htr_lines:
-                    htr_line_id = htr_line.id()
-                    htr_line_ts = next(htr_line.textselections())
-                    htr_line_text = htr_line_ts.text().replace("\n","\\n").replace("\"","\\\"")
-                    max_errors = math.ceil(len(htr_line_ts) * args.coverage)
-                    translations = htr_line_ts.align_text(rgp_resource_ts, max_errors=max_errors,grow=True)
-                    print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
-                    for translation in translations:
-                        begin = None
-                        end = None
-                        for alignment in translation.alignments():
-                            _,rgp_found = alignment
-                            #print(f"\t{side.resource().id()}\t{side.offset()}\t\"{side.text().replace("\"","\\\"")}\"", end="")
-                            rgp_alignedtext = rgp_found.text().replace("\"","\\\"").replace("\n","\\n")
-                            print(f"{htr_line_id}\t\"{htr_line_text}\"\t{rgp_found.resource().id()}\t{rgp_found.offset()}\t\"{rgp_alignedtext}\"")
+        store.set_filename("gm-alignment.store.stam.cbor")
+        store.save()
 
+    VOLUME_KEY = store.key("globalise", "volume")
+    STARTPAGE_KEY = store.key("globalise", "startpage")
+    LETTER_KEY = store.key("globalise", "letter")
 
+    for letter in store.data(LETTER_TYPE_DATA).annotations():
+        #attempts to align whole letters
+        letter_textsel = next(letter.textselections())
+        rgp_vol = next(letter.data(VOLUME_KEY)).value().get()
+        letter_id = next(letter.data(LETTER_KEY)).value().get()
+        rgp_startpage = next(letter.data(STARTPAGE_KEY)).value().get()
+        try:
+            inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][rgp_startpage]
+        except KeyError:
+            print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}")
+            continue
+        print(f"Aligning letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} ...")
+
+        max_errors = math.ceil(len(letter_textsel) * (1.0-args.coverage))
+        htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
+        #TODO: constrain by page range rather than using the whole offset
+        htr_resource = store.resource(htr_resource_id).textselection(stam.Offset.whole())
+        translations = letter_textsel.align_text(htr_resource, max_errors=max_errors,grow=True)
+        print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
+        for translation in translations:
+            begin = None
+            end = None
+            for alignment in translation.alignments():
+                _,htr_found = alignment
+                #print(f"\t{side.resource().id()}\t{side.offset()}\t\"{side.text().replace("\"","\\\"")}\"", end="")
+                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{letter_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
 
 if __name__ == '__main__':
     main()
-
-
-
