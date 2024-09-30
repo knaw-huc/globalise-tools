@@ -66,7 +66,7 @@ def main():
                         type=str)
     parser.add_argument('--coverage', 
                         help="The percentage of characters that has to be correctly covered for an alignment to be made",
-                        default=0.75,
+                        default=0.85,
                         type=float)
     parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
@@ -192,39 +192,43 @@ def main():
         except IndexError:
             continue
         rgp_letter_textsel = rgp_letter_textsel.resource().textselection(stam.Offset.simple(newline.begin() + 1, rgp_letter_textsel.end()))
-
         rgp_vol = next(rgp_letter.data(VOLUME_KEY)).value().get()
         letter_id = next(rgp_letter.data(LETTER_KEY)).value().get()
         rgp_startpage = next(rgp_letter.data(STARTPAGE_KEY)).value().get()
+
         try:
             inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][rgp_startpage]
         except KeyError:
             print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}")
             continue
-        max_errors = math.ceil(len(rgp_letter_textsel) * (1.0-args.coverage))
-        print(f"Aligning letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...")
 
-        htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
-        #constrain by page range rather than using the whole offset
-        htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
-        htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
-        htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
-        translations = rgp_letter_textsel.align_text(htr_textsel,max_errors=max_errors,grow=True)
-        print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
-        if args.verbose:
-            print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_letter_textsel.offset()}",file=sys.stderr)
-            print(rgp_letter_textsel,file=sys.stderr)
-        for translation in translations:
-            begin = None
-            end = None
-            for alignment in translation.alignments():
-                _,htr_found = alignment
-                if args.verbose:
-                    print(f">>>>>>>> HTR {htr_resource_id} {htr_found.offset()}",file=sys.stderr)
-                    print(htr_found, file=sys.stderr)
-                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_letter_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
-        if args.verbose:
-            print("------------------------",file=sys.stderr)
+        for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds()):
+            #MAYBE TODO: make sure embedded text selections are indeed paragraphs
+
+            max_errors = math.ceil(len(rgp_paragraph_textsel) * (1.0-args.coverage))
+            print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...")
+
+            htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
+            #constrain by page range rather than using the whole offset
+            htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
+            htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
+            htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
+            translations = rgp_paragraph_textsel.align_text(htr_textsel,max_errors=max_errors,grow=True)
+            print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
+            if args.verbose:
+                print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_paragraph_textsel.offset()}",file=sys.stderr)
+                print(rgp_paragraph_textsel,file=sys.stderr)
+            for translation in translations:
+                begin = None
+                end = None
+                for alignment in translation.alignments():
+                    _,htr_found = alignment
+                    if args.verbose:
+                        print(f">>>>>>>> HTR {htr_resource_id} {htr_found.offset()}",file=sys.stderr)
+                        print(htr_found, file=sys.stderr)
+                    print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
+            if args.verbose:
+                print("------------------------",file=sys.stderr)
 
 if __name__ == '__main__':
     main()
