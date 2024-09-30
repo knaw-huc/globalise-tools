@@ -68,6 +68,7 @@ def main():
                         help="The percentage of characters that has to be correctly covered for an alignment to be made",
                         default=0.75,
                         type=float)
+    parser.add_argument("--verbose", action="store_true")
     args = parser.parse_args()
 
     print("Loading metadata mapping...",file=sys.stderr)
@@ -182,32 +183,46 @@ def main():
     STARTPAGE_KEY = store.key("globalise", "startpage")
     LETTER_KEY = store.key("globalise", "letter")
 
-    for letter in store.data(LETTER_TYPE_DATA).annotations():
+    for rgp_letter in store.data(LETTER_TYPE_DATA).annotations():
         #attempts to align whole letters
-        letter_textsel = next(letter.textselections())
-        rgp_vol = next(letter.data(VOLUME_KEY)).value().get()
-        letter_id = next(letter.data(LETTER_KEY)).value().get()
-        rgp_startpage = next(letter.data(STARTPAGE_KEY)).value().get()
+        rgp_letter_textsel = next(rgp_letter.textselections())
+        #strip the first line (the header)
+        try:
+            newline = rgp_letter_textsel.find_text("\n",1)[0]
+        except IndexError:
+            continue
+        rgp_letter_textsel = rgp_letter_textsel.resource().textselection(stam.Offset.simple(newline.begin() + 1, rgp_letter_textsel.end()))
+
+        rgp_vol = next(rgp_letter.data(VOLUME_KEY)).value().get()
+        letter_id = next(rgp_letter.data(LETTER_KEY)).value().get()
+        rgp_startpage = next(rgp_letter.data(STARTPAGE_KEY)).value().get()
         try:
             inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][rgp_startpage]
         except KeyError:
             print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}")
             continue
-        print(f"Aligning letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} ...")
+        max_errors = math.ceil(len(rgp_letter_textsel) * (1.0-args.coverage))
+        print(f"Aligning letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...")
 
-        max_errors = math.ceil(len(letter_textsel) * (1.0-args.coverage))
         htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
         #TODO: constrain by page range rather than using the whole offset
         htr_resource = store.resource(htr_resource_id).textselection(stam.Offset.whole())
-        translations = letter_textsel.align_text(htr_resource, max_errors=max_errors,grow=True)
+        translations = rgp_letter_textsel.align_text(htr_resource,max_errors=max_errors,grow=True)
         print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
+        if args.verbose:
+            print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_letter_textsel.offset()}",file=sys.stderr)
+            print(rgp_letter_textsel,file=sys.stderr)
         for translation in translations:
             begin = None
             end = None
             for alignment in translation.alignments():
                 _,htr_found = alignment
-                #print(f"\t{side.resource().id()}\t{side.offset()}\t\"{side.text().replace("\"","\\\"")}\"", end="")
-                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{letter_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
+                if args.verbose:
+                    print(f">>>>>>>> HTR {htr_resource_id} {htr_found.offset()}",file=sys.stderr)
+                    print(htr_found, file=sys.stderr)
+                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_letter_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
+        if args.verbose:
+            print("------------------------",file=sys.stderr)
 
 if __name__ == '__main__':
     main()
