@@ -166,15 +166,15 @@ def main():
 
                 # create a derived plain text resource with all lines in the specified range
                 htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
-                htr_resource = store.add_resource(id=htr_resource_id, text=lines_text)
+                htr_textsel = store.add_resource(id=htr_resource_id, text=lines_text)
 
                 # associate the original line IDs with the lines (HTR)
-                htr_lines = [ store.annotate(id=line_id,target=stam.Selector.textselector(htr_resource, stam.Offset.simple(begin,end)),data=LINE_TYPE_DATA) for line_id, begin, end in id_annotations ]
+                htr_lines = [ store.annotate(id=line_id,target=stam.Selector.textselector(htr_textsel, stam.Offset.simple(begin,end)),data=LINE_TYPE_DATA) for line_id, begin, end in id_annotations ]
 
                 # associate the page annotations (HTR)
                 for (page,begin) in sorted(pagebegin.items()):
                     offset = stam.Offset.simple(begin,pageend[page])
-                    store.annotate(id=f"NL-HaNA_1.04.02_{inv_nr}_{page}",data=PAGE_TYPE_DATA, target=htr_resource.textselection(offset).select())
+                    store.annotate(id=f"NL-HaNA_1.04.02_{inv_nr}_{page}",data=[PAGE_TYPE_DATA, {"set":"globalise","key":"page","value": page}], target=htr_textsel.textselection(offset).select())
 
         store.set_filename("gm-alignment.store.stam.cbor")
         store.save()
@@ -205,9 +205,11 @@ def main():
         print(f"Aligning letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...")
 
         htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
-        #TODO: constrain by page range rather than using the whole offset
-        htr_resource = store.resource(htr_resource_id).textselection(stam.Offset.whole())
-        translations = rgp_letter_textsel.align_text(htr_resource,max_errors=max_errors,grow=True)
+        #constrain by page range rather than using the whole offset
+        htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
+        htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
+        htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
+        translations = rgp_letter_textsel.align_text(htr_textsel,max_errors=max_errors,grow=True)
         print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
         if args.verbose:
             print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_letter_textsel.offset()}",file=sys.stderr)
