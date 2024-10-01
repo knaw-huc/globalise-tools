@@ -184,7 +184,6 @@ def main():
     LETTER_KEY = store.key("globalise", "letter")
 
     for rgp_letter in store.data(LETTER_TYPE_DATA).annotations():
-        #attempts to align whole letters
         rgp_letter_textsel = next(rgp_letter.textselections())
         #strip the first line (the header)
         try:
@@ -210,8 +209,12 @@ def main():
 
             htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
             #constrain by page range rather than using the whole offset
-            htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
-            htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
+            try:
+                htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
+                htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
+            except Exception as e:
+                print("ERROR: ", e, file=sys.stderr)
+                continue
             htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
             translations = rgp_paragraph_textsel.align_texts(htr_textsel,max_errors=max_errors,grow=True)
             print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
