@@ -213,7 +213,7 @@ def main():
             htr_beginpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_beginpage}").textselections())
             htr_endpage_ts = next(store.annotation(f"{htr_resource_id}_{htr_endpage}").textselections())
             htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
-            translations = rgp_paragraph_textsel.align_text(htr_textsel,max_errors=max_errors,grow=True)
+            translations = rgp_paragraph_textsel.align_texts(htr_textsel,max_errors=max_errors,grow=True)
             print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
             if args.verbose:
                 print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_paragraph_textsel.offset()}",file=sys.stderr)
