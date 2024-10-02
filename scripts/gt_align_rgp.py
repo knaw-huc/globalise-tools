@@ -198,14 +198,16 @@ def main():
         try:
             inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][rgp_startpage]
         except KeyError:
-            print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}")
+            print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}", file=sys.stderr)
             continue
 
         for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds()):
-            #MAYBE TODO: make sure embedded text selections are indeed paragraphs
+            #make sure embedded text selections are indeed paragraphs
+            if not rgp_paragraph_textsel.test_annotations(filter=PARAGRAPH_TYPE_DATA):
+                continue
 
             max_errors = math.ceil(len(rgp_paragraph_textsel) * (1.0-args.coverage))
-            print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...")
+            print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...", file=sys.stderr)
 
             htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
             #constrain by page range rather than using the whole offset
