@@ -1,18 +1,5 @@
 #!/usr/bin/env python3
 
-#RGP 1-554  -> 1119-0020
-
-#10-992
-
-#RGP deel 10 pagina 857 tot 10 pag 1000 ->  2250-0027 tot 2250-0798
-#     1 txt file per pagina uit                 text uit 2250-lines.tsv (paragraph only)
-#     globalise-generale-missiven-rgp
-
-
-# RGP 1-99  -> 1072-881
-
-
-#   extraheer paragraven met wat body
 
 import os
 import os.path
@@ -79,11 +66,7 @@ def main():
         for row in reader_metamap:
             if row[RGP_DEEL] and row[RGP_PAGINA] and row['Beginscan'] and row['Eindscan']:
                 rgp_deel = int(row[RGP_DEEL])
-                try:
-                    rgp_pagina = int(row[RGP_PAGINA])
-                except:
-                    print("Skipping invalid page: ", row[RGP_PAGINA],file=sys.stderr)
-                    continue
+                rgp_pagina = row[RGP_PAGINA].strip() #not necessarily an integer!
                 inv_nr = row[INV_NR] 
                 inv_nrs.add(inv_nr)
                 htr_beginpage = int(row['Beginscan'])
@@ -200,7 +183,7 @@ def main():
         rgp_startpage = next(rgp_letter.data(STARTPAGE_KEY)).value().get()
 
         try:
-            inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][rgp_startpage]
+            inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][str(rgp_startpage)]
         except KeyError:
             print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}", file=sys.stderr)
             continue
