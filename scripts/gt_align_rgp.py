@@ -170,13 +170,16 @@ def main():
     PAGE_TYPE_DATA_INSTANCE = next(store.data(PAGE_TYPE_DATA)) #grab the instance to prevent having to re-resolve it every time later 
 
 
+    # Process by letter (RGP)
     for rgp_letter in store.data(LETTER_TYPE_DATA).annotations():
         rgp_letter_textsel = next(rgp_letter.textselections())
-        #strip the first line (the header)
+        #find the header part (first line)
         try:
             newline = rgp_letter_textsel.find_text("\n",1)[0]
         except IndexError:
             continue
+        rgp_letter_header = rgp_letter_textsel.resource().textselection(stam.Offset.simple(rgp_letter_textsel.begin(), newline.begin())).text().strip()
+        #strip header from the letter
         rgp_letter_textsel = rgp_letter_textsel.resource().textselection(stam.Offset.simple(newline.begin() + 1, rgp_letter_textsel.end()))
         rgp_vol = next(rgp_letter.data(VOLUME_KEY)).value().get()
         letter_id = next(rgp_letter.data(LETTER_KEY)).value().get()
@@ -185,9 +188,11 @@ def main():
         try:
             inv_nr,htr_beginpage, htr_endpage = rgp2htr_metamap[rgp_vol][str(rgp_startpage)]
         except KeyError:
-            print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}", file=sys.stderr)
+            print(f"No match in metadata mapping for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} -- \"{rgp_letter_header}\"", file=sys.stderr)
             continue
+        print(f"Found match in metadata mapping for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} -- \"{rgp_letter_header}\"", file=sys.stderr)
 
+        # Find the paragraphs in the letter (RGP)
         for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds(), filter=PARAGRAPH_TYPE_DATA):
             max_errors = math.ceil(len(rgp_paragraph_textsel) * (1.0-args.coverage))
             print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...", file=sys.stderr)
