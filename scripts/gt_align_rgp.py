@@ -228,8 +228,12 @@ def main():
                 end = None
                 for alignment in translation.alignments():
                     _,htr_paragraph = alignment
-                    htr_page_ts = next(htr_paragraph.related_text(stam.TextSelectionOperator.overlaps(), filter=PAGE_TYPE_DATA_INSTANCE))
-                    htr_page = next(next(htr_page_ts.annotations(filter=HTR_PAGE_KEY)).data(HTR_PAGE_KEY)).value().get()
+                    try:
+                        htr_page_ts = next(htr_paragraph.related_text(stam.TextSelectionOperator.overlaps(), filter=PAGE_TYPE_DATA_INSTANCE))
+                        htr_page = next(next(htr_page_ts.annotations(filter=HTR_PAGE_KEY)).data(HTR_PAGE_KEY)).value().get()
+                    except Exception as e:
+                        print("ERROR htr page not found: ", e, file=sys.stderr)
+                        continue
                     if args.verbose:
                         print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
                         print(htr_paragraph, file=sys.stderr)
