@@ -182,6 +182,10 @@ def main():
     VOLUME_KEY = store.key("globalise", "volume")
     STARTPAGE_KEY = store.key("globalise", "startpage")
     LETTER_KEY = store.key("globalise", "letter")
+    HTR_PAGE_KEY = store.key("globalise", "page")
+    
+    PAGE_TYPE_DATA_INSTANCE = next(store.data(PAGE_TYPE_DATA)) #grab the instance to prevent having to re-resolve it every time later 
+
 
     for rgp_letter in store.data(LETTER_TYPE_DATA).annotations():
         rgp_letter_textsel = next(rgp_letter.textselections())
@@ -201,11 +205,7 @@ def main():
             print(f"No match for letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage}", file=sys.stderr)
             continue
 
-        for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds()):
-            #make sure embedded text selections are indeed paragraphs
-            if not rgp_paragraph_textsel.test_annotations(filter=PARAGRAPH_TYPE_DATA):
-                continue
-
+        for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds(), filter=PARAGRAPH_TYPE_DATA):
             max_errors = math.ceil(len(rgp_paragraph_textsel) * (1.0-args.coverage))
             print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...", file=sys.stderr)
 
@@ -227,11 +227,13 @@ def main():
                 begin = None
                 end = None
                 for alignment in translation.alignments():
-                    _,htr_found = alignment
+                    _,htr_paragraph = alignment
+                    htr_page_ts = next(htr_paragraph.related_text(stam.TextSelectionOperator.overlaps(), filter=PAGE_TYPE_DATA_INSTANCE))
+                    htr_page = next(next(htr_page_ts.annotations(filter=HTR_PAGE_KEY)).data(HTR_PAGE_KEY)).value().get()
                     if args.verbose:
-                        print(f">>>>>>>> HTR {htr_resource_id} {htr_found.offset()}",file=sys.stderr)
-                        print(htr_found, file=sys.stderr)
-                    print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_found.offset()}")
+                        print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
+                        print(htr_paragraph, file=sys.stderr)
+                    print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}")
             if args.verbose:
                 print("------------------------",file=sys.stderr)
 
