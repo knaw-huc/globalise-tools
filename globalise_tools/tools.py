@@ -693,6 +693,8 @@ def paragraph_text(lines: List[str]) -> str:
             if line0[-1] in break_chars:
                 lines[i] = line0.rstrip(line0[-1])
                 lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
+            elif line1[0] in break_chars:
+                lines[i + 1] = line1[1:]
             else:
                 lines[i] = f"{line0} "
         # ic(lines)

@@ -9,7 +9,7 @@ from loguru import logger
 from pagexml.parser import parse_pagexml_file
 
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MARGINALIUM, CAS_HEADER
-from globalise_tools.tools import is_paragraph, paragraph_text, is_signature, is_marginalia, is_header
+from globalise_tools.tools import is_paragraph, is_signature, is_marginalia, is_header, paragraph_text
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -132,8 +132,13 @@ def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[
 
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 
+word_break_chars = '„¬'
+
 
 def joined_lines(tr):
+    # tr_text, line_ranges = pxh.make_text_region_text(tr.lines,
+    #                                                  word_break_chars=word_break_chars)
+    # return tr_text.strip()
     lines = []
     for line in tr.lines:
         if line.text:
