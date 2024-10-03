@@ -41,22 +41,35 @@ def main(cfg: DictConfig) -> None:
     total = len(unprocessed_page_ids)
     for i, page_id in enumerate(unprocessed_page_ids):
         logger.info(f"examining page {page_id} ({i + 1}/{total})")
-        search_id = ca.create_search({'body.metadata.document': page_id})
-        for anno in ca.read_search_result_annotations(search_id.id):
-            if "lang" not in anno["body"]["metadata"]:
-                anno_url = anno["id"]
-                anno_name = anno_url.split("/")[-1]
-                anno_result = ca.read_annotation(anno_name)
-                etag = anno_result.etag
-                anno = anno_result.annotation
-                lang_deduction = lang_deduction_for_page[page_id]
-                # update the annotation dict
-                anno["body"]["metadata"]["lang"] = lang_deduction.langs
-                anno["body"]["metadata"]["langCorrected"] = lang_deduction.corrected
-                logger.info(f"updating annotation {anno_url}")
-                ca.update_annotation(anno_name, etag, anno)
-            project_results.pages_processed.add(page_id)
-            store_project_results(project_results)
+        success = False
+        retry = 0
+        while not success:
+            try:
+                search_id = ca.create_search({'body.metadata.document': page_id})
+                for anno in ca.read_search_result_annotations(search_id.id):
+                    if "lang" not in anno["body"]["metadata"]:
+                        anno_url = anno["id"]
+                        anno_name = anno_url.split("/")[-1]
+                        anno_result = ca.read_annotation(anno_name)
+                        etag = anno_result.etag
+                        anno = anno_result.annotation
+                        lang_deduction = lang_deduction_for_page[page_id]
+                        # update the annotation dict
+                        anno["body"]["metadata"]["lang"] = lang_deduction.langs
+                        anno["body"]["metadata"]["langCorrected"] = lang_deduction.corrected
+                        logger.info(f"updating annotation {anno_url}")
+                        ca.update_annotation(anno_name, etag, anno)
+                    project_results.pages_processed.add(page_id)
+                    store_project_results(project_results)
+                success = True
+            except ConnectionError:
+                retry += 1
+                logger.warning(f"ConnectionError caught, retry={retry}")
+                success = False
+            except Exception:
+                retry += 1
+                logger.warning(f"Exception caught, retry={retry}")
+                success = False
 
 
 def load_project_results() -> ProjectResults:
