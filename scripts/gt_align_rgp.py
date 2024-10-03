@@ -170,7 +170,10 @@ def main():
     PAGE_TYPE_DATA_INSTANCE = next(store.data(PAGE_TYPE_DATA)) #grab the instance to prevent having to re-resolve it every time later 
 
 
-    # Process by letter (RGP)
+    align_pairs = []
+    metadata = []
+
+    print(f"Gathering data for alignment...", file=sys.stderr)
     for rgp_letter in store.data(LETTER_TYPE_DATA).annotations():
         rgp_letter_textsel = next(rgp_letter.textselections())
         #find the header part (first line)
@@ -194,8 +197,7 @@ def main():
 
         # Find the paragraphs in the letter (RGP)
         for rgp_paragraph_textsel in rgp_letter_textsel.related_text(stam.TextSelectionOperator.embeds(), filter=PARAGRAPH_TYPE_DATA):
-            max_errors = math.ceil(len(rgp_paragraph_textsel) * (1.0-args.coverage))
-            print(f"Aligning paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage} (max_errors={max_errors})...", file=sys.stderr)
+            print(f"Adding paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage}...", file=sys.stderr)
 
             htr_resource_id = f"NL-HaNA_1.04.02_{inv_nr}"
             #constrain by page range rather than using the whole offset
@@ -206,28 +208,37 @@ def main():
                 print("ERROR: ", e, file=sys.stderr)
                 continue
             htr_textsel = store.resource(htr_resource_id).textselection(stam.Offset.simple(htr_beginpage_ts.begin(), htr_endpage_ts.end())) 
-            translations = rgp_paragraph_textsel.align_texts(htr_textsel,max_errors=max_errors,grow=True)
-            print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
-            if args.verbose:
-                print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_paragraph_textsel.offset()}",file=sys.stderr)
-                print(rgp_paragraph_textsel,file=sys.stderr)
-            for translation in translations:
-                begin = None
-                end = None
-                for alignment in translation.alignments():
-                    _,htr_paragraph = alignment
-                    try:
-                        htr_page_ts = next(htr_paragraph.related_text(stam.TextSelectionOperator.overlaps(), filter=PAGE_TYPE_DATA_INSTANCE))
-                        htr_page = next(next(htr_page_ts.annotations(filter=HTR_PAGE_KEY)).data(HTR_PAGE_KEY)).value().get()
-                    except Exception as e:
-                        print("ERROR htr page not found: ", e, file=sys.stderr)
-                        continue
-                    if args.verbose:
-                        print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
-                        print(htr_paragraph, file=sys.stderr)
-                    print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}")
-            if args.verbose:
-                print("------------------------",file=sys.stderr)
+
+            align_pairs.append( (rgp_paragraph_textsel, htr_textsel)) 
+            metadata.append( (rgp_vol, rgp_startpage, letter_id, htr_resource_id, inv_nr, htr_beginpage, htr_endpage) )
+
+    print(f"Aligning (this may take very long!)...", file=sys.stderr)
+    results = store.align_texts(*align_pairs, max_errors=(1.0 - args.coverage), grow=True)
+
+    print(f"Outputting alignments...", file=sys.stderr)
+    for translations, (rgp_paragraph_textsel, htr_textsel), (rgp_vol, rgp_startpage, letter_id, htr_resource_id, inv_nr, htr_beginpage, htr_endpage) in zip(results,align_pairs,metadata):
+        print(f"Aligned paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage}...", file=sys.stderr)
+        print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
+        if args.verbose:
+            print(f"<<<<<<< RGP {rgp_vol} {rgp_startpage} {letter_id} {rgp_paragraph_textsel.offset()}",file=sys.stderr)
+            print(rgp_paragraph_textsel,file=sys.stderr)
+        for translation in translations:
+            begin = None
+            end = None
+            for alignment in translation.alignments():
+                _,htr_paragraph = alignment
+                try:
+                    htr_page_ts = next(htr_paragraph.related_text(stam.TextSelectionOperator.overlaps(), filter=PAGE_TYPE_DATA_INSTANCE))
+                    htr_page = next(next(htr_page_ts.annotations(filter=HTR_PAGE_KEY)).data(HTR_PAGE_KEY)).value().get()
+                except Exception as e:
+                    print("ERROR htr page not found: ", e, file=sys.stderr)
+                    continue
+                if args.verbose:
+                    print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
+                    print(htr_paragraph, file=sys.stderr)
+                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}")
+        if args.verbose:
+            print("------------------------",file=sys.stderr)
 
 if __name__ == '__main__':
     main()
