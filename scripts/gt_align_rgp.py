@@ -240,5 +240,8 @@ def main():
         if args.verbose:
             print("------------------------",file=sys.stderr)
 
+    store.set_filename("gm-aligned.store.stam.cbor")
+    store.save()
+
 if __name__ == '__main__':
     main()
