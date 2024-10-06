@@ -1,4 +1,3 @@
-.SHELLFLAGS = -o pipefail -c
 .PHONY: setup frompagexml all
 .DELETE_ON_ERROR:
 
