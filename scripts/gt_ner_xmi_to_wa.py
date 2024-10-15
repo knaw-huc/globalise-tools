@@ -3,6 +3,7 @@ import argparse
 import glob
 import hashlib
 import json
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -20,7 +21,7 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 
-CURRENT_SCRIPT_PATH = "scripts/gt_ner_xmi_to_wa.py"
+THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 ner_data_dict = {
     'CMTY_NAME': {
@@ -123,7 +124,7 @@ class XMIProcessor:
         self.document_data = document_data
         self.xmi_path = xmi_path
         self.commit_id = commit_id
-        logger.info(f"<= {xmi_path}")
+        # logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
@@ -320,9 +321,9 @@ class XMIProcessor:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
-                  f"/{CURRENT_SCRIPT_PATH}",
+                  f"/{THIS_SCRIPT_PATH}",
             "type": "Software",
-            "name": CURRENT_SCRIPT_PATH
+            "name": THIS_SCRIPT_PATH
         }
 
     @staticmethod
@@ -665,10 +666,27 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
         json.dump(ner_annotations, fp=f, indent=4)
 
 
+def export_text(page_texts: list[str], out_path: str):
+    logger.info(f"=> {out_path}")
+    with open(out_path, 'w') as f:
+        f.write("\n".join(page_texts))
+
+
+NUMBERS = re.compile("[0-9]+")
+NO_NUMBERS = re.compile("[^0-9]+")
+
+
+def number_part(path: str) -> tuple[int, str]:
+    last = path.split("/")[-1]
+    num_part = re.sub(pattern=NO_NUMBERS, string=last, repl="")
+    other_part = re.sub(pattern=NUMBERS, string=last, repl="")
+    return int(num_part), other_part
+
+
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str):
-    ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
-    pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"))
-    xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"))
+    # ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
+    # pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"), key=number_part)
+    xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=number_part)
     # pagexml_inv_nrs = [p.split('/')[-1] for p in pagexml_dirs]
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
@@ -678,13 +696,17 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
         inv_nr = xmi_dir.split('/')[-1]
         progress_bar.set_description(f"inv.nr.: {inv_nr}")
-        out_path = f"{output_dir}/ner-annotations-{inv_nr}.json"
+        os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
+        anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
+        text_out_path = f"{output_dir}/{inv_nr}/text.txt"
         # print(out_path)
         ner_annotations = []
         progress_bar2 = tqdm(xmi_paths)
+        page_texts = []
         for xmi_path in progress_bar2:
             xp = xpf.get_xmi_processor(xmi_path)
             ner_annotations.extend(xp.get_named_entity_annotations())
+            page_texts.append(xp.text)
 
             path_parts = xmi_path.split('/')
             progress_bar2.set_description(f"page: {path_parts[-1].replace('.xmi', '')}")
@@ -699,7 +721,8 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
                     new_offset = raw_text_offset + 1 + len(w.text)
                     raw_text_range[raw_text_offset:new_offset] = w
                     raw_text_offset = new_offset
-        export_ner_annotations(ner_annotations, out_path)
+        export_ner_annotations(ner_annotations, anno_out_path)
+        export_text(page_texts, text_out_path)
         # ic(xmi_path, page_xml_path)
 
 

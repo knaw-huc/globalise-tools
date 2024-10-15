@@ -2,6 +2,7 @@
 import argparse
 import hashlib
 import json
+import os
 import re
 import uuid
 from dataclasses import dataclass
@@ -17,7 +18,7 @@ from loguru import logger
 
 import globalise_tools.git_tools as git
 
-CURRENT_SCRIPT_PATH = "scripts/gt_xmi_to_wa.py"
+THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 ner_data_dict = {
     'CMTY_NAME': {
