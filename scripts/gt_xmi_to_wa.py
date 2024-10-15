@@ -17,6 +17,8 @@ from loguru import logger
 
 import globalise_tools.git_tools as git
 
+CURRENT_SCRIPT_PATH = "scripts/gt_xmi_to_wa.py"
+
 ner_data_dict = {
     'CMTY_NAME': {
         'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
@@ -314,9 +316,9 @@ class XMIProcessor:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
-                  "/scripts/gt-xmi-to-wa.py",
+                  f"/{CURRENT_SCRIPT_PATH}",
             "type": "Software",
-            "name": "scripts/gt-xmi-to-wa.py"
+            "name": CURRENT_SCRIPT_PATH
         }
 
     @staticmethod

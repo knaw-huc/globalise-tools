@@ -20,6 +20,8 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 
+CURRENT_SCRIPT_PATH = "scripts/gt_ner_xmi_to_wa.py"
+
 ner_data_dict = {
     'CMTY_NAME': {
         'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
@@ -318,9 +320,9 @@ class XMIProcessor:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
-                  "/scripts/gt-xmi-to-wa.py",
+                  f"/{CURRENT_SCRIPT_PATH}",
             "type": "Software",
-            "name": "scripts/gt-xmi-to-wa.py"
+            "name": CURRENT_SCRIPT_PATH
         }
 
     @staticmethod
@@ -675,7 +677,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     for xmi_dir in progress_bar:
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
         inv_nr = xmi_dir.split('/')[-1]
-        progress_bar.set_description(f"inv.nr.:{inv_nr}")
+        progress_bar.set_description(f"inv.nr.: {inv_nr}")
         out_path = f"{output_dir}/ner-annotations-{inv_nr}.json"
         # print(out_path)
         ner_annotations = []
