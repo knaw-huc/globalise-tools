@@ -651,8 +651,8 @@ def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_d
         entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
         eva = xp.get_event_annotations(entity_ids)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
-        logger.info(f"=> {json_path}")
         all_web_annotations = (nea + eva)
+        logger.info(f"=> {json_path}")
         with open(json_path, 'w') as f:
             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
@@ -710,6 +710,9 @@ def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
 
 @logger.catch
 def main():
+    # make loguru logger work with tqdm
+    logger.remove()
+    logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
     args = get_arguments()
     if args.xmi_dir:
         extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.type_system, args.output_dir)
