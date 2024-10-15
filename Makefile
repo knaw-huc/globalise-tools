@@ -92,6 +92,11 @@ run-provenance:
 run-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker-compose up --detach && open http://localhost:8088/
 
+.PHONY: process-ner-xmi
+process-ner-xmi:
+#	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/e/globalise/pagexml/2023-09/1.04.02 --xmi-dir ~/e/globalise/ner/xmicas --type-system=data/typesystem.xml --output-dir=out
+	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml/2023-09/1.04.02 --xmi-dir ~/c/data/globalise/ner/xmicas --type-system=data/typesystem.xml --output-dir=out
+
 .PHONY: stop-inception
 stop-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker-compose down
@@ -132,9 +137,11 @@ help:
 	@echo
 	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
 #	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
-	@#echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
+#	@echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo
+	@echo "  process-ner-xmi            - to generate web annotationns from the ner enriched xmi files"
 	@echo
 	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
 	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
