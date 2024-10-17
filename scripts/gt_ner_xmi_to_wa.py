@@ -10,11 +10,13 @@ import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import groupby
+from multiprocessing import Value
 from typing import List, Dict, Any, Tuple
 
 import cassis as cas
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
+from dask.distributed import Client
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
@@ -107,6 +109,31 @@ wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
 time_roles = ["Time"]
 actor_roles = ["Agent", "AgentPatient", "Benefactive", "Cargo", "Instrument", "Patient"]
 place_roles = ["Location", "Path", "Source", "Target"]
+
+counter = Value('i', 0)
+total = Value('i', 0)
+start_time = Value('f', 0)
+
+
+def seconds_to_hhmmss(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = int(seconds % 60)
+
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
+
+
+def show_progress(future):
+    with counter.get_lock():  # Ensure thread-safe increment
+        counter.value += 1
+        percentage_done = 100 * (counter.value / total.value)
+        now = time.perf_counter()
+        seconds_since_start = now - start_time.value
+        average_time_per_inv = seconds_since_start / counter.value
+        eta = total.value * average_time_per_inv
+        seconds_remaining = seconds_to_hhmmss(eta - seconds_since_start)
+        logger.info(
+            f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); time remaining: {seconds_remaining}")
 
 
 @dataclass
@@ -690,21 +717,36 @@ class InventoryProcessingContext:
     output_dir: str
     pagexml_dir: str
     xpf: XMIProcessorFactory
-    total: int
 
 
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str):
     # ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
     # pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"), key=number_part)
-    xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=number_part)
+    # xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=number_part)
+    xmi_dirs = glob.glob(f"{xmi_dir}/[0-9]*")
     # pagexml_inv_nrs = [p.split('/')[-1] for p in pagexml_dirs]
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
 
     # progress_bar = tqdm(xmi_dirs)
-    total = len(xmi_dirs)
-    for xmi_dir in xmi_dirs:
-        process_inventory(InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, total))
+    total.value = len(xmi_dirs)
+    logger.info(f"{total.value} inventories to process...")
+    client = Client()
+    # xmi_dir_batches = batched(xmi_dirs, 5)
+    # for batch in xmi_dirs:
+    logger.info("mapping...")
+    futures = client.map(process_inventory,
+                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf)
+                          for xmi_dir in xmi_dirs[0:20]])
+    for future in futures:
+        future.add_done_callback(show_progress)
+
+    start_time.value = time.perf_counter()
+    logger.info("gathering...")
+    client.gather(futures)
+    logger.info("done!")
+    # for xmi_dir in xmi_dirs:
+    #     process_inventory(InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, total))
 
 
 def process_inventory(context: InventoryProcessingContext):
@@ -730,7 +772,7 @@ def process_inventory(context: InventoryProcessingContext):
         ner_annotations.extend(xp.get_named_entity_annotations())
         page_texts.append(xp.text)
 
-        path_parts = xmi_path.split('/')
+        # path_parts = xmi_path.split('/')
         # progress_bar2.set_description(f"page: {path_parts[-1].replace('.xmi', '')}")
 
         page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
