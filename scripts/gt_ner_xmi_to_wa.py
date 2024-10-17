@@ -5,6 +5,7 @@ import hashlib
 import json
 import os
 import re
+import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -683,6 +684,15 @@ def number_part(path: str) -> tuple[int, str]:
     return int(num_part), other_part
 
 
+@dataclass
+class InventoryProcessingContext:
+    xmi_dir: str
+    output_dir: str
+    pagexml_dir: str
+    xpf: XMIProcessorFactory
+    total: int
+
+
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str):
     # ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
     # pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"), key=number_part)
@@ -691,39 +701,53 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
 
-    progress_bar = tqdm(xmi_dirs)
-    for xmi_dir in progress_bar:
-        xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
-        inv_nr = xmi_dir.split('/')[-1]
-        progress_bar.set_description(f"inv.nr.: {inv_nr}")
-        os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
-        anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
-        text_out_path = f"{output_dir}/{inv_nr}/text.txt"
-        # print(out_path)
-        ner_annotations = []
-        progress_bar2 = tqdm(xmi_paths)
-        page_texts = []
-        for xmi_path in progress_bar2:
-            xp = xpf.get_xmi_processor(xmi_path)
-            ner_annotations.extend(xp.get_named_entity_annotations())
-            page_texts.append(xp.text)
+    # progress_bar = tqdm(xmi_dirs)
+    total = len(xmi_dirs)
+    for xmi_dir in xmi_dirs:
+        process_inventory(InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, total))
 
-            path_parts = xmi_path.split('/')
-            progress_bar2.set_description(f"page: {path_parts[-1].replace('.xmi', '')}")
 
-            page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
-            scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
+def process_inventory(context: InventoryProcessingContext):
+    tic = time.perf_counter()
+    xmi_dir = context.xmi_dir
+    output_dir = context.output_dir
+    pagexml_dir = context.pagexml_dir
+    xpf = context.xpf
+    logger.info(f"processing {xmi_dir}...")
 
-            raw_text_offset = 0
-            raw_text_range = IntervalTree()
-            for tr in scan_doc.get_text_regions_in_reading_order():
-                for w in tr.get_words():
-                    new_offset = raw_text_offset + 1 + len(w.text)
-                    raw_text_range[raw_text_offset:new_offset] = w
-                    raw_text_offset = new_offset
-        export_ner_annotations(ner_annotations, anno_out_path)
-        export_text(page_texts, text_out_path)
-        # ic(xmi_path, page_xml_path)
+    xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
+    inv_nr = xmi_dir.split('/')[-1]
+    # progress_bar.set_description(f"inv.nr.: {inv_nr}")
+    os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
+    anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
+    text_out_path = f"{output_dir}/{inv_nr}/text.txt"
+    # print(out_path)
+    ner_annotations = []
+    # progress_bar2 = tqdm(xmi_paths)
+    page_texts = []
+    for xmi_path in xmi_paths:
+        xp = xpf.get_xmi_processor(xmi_path)
+        ner_annotations.extend(xp.get_named_entity_annotations())
+        page_texts.append(xp.text)
+
+        path_parts = xmi_path.split('/')
+        # progress_bar2.set_description(f"page: {path_parts[-1].replace('.xmi', '')}")
+
+        page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
+        scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
+
+        raw_text_offset = 0
+        raw_text_range = IntervalTree()
+        for tr in scan_doc.get_text_regions_in_reading_order():
+            for w in tr.get_words():
+                new_offset = raw_text_offset + 1 + len(w.text)
+                raw_text_range[raw_text_offset:new_offset] = w
+                raw_text_offset = new_offset
+    export_ner_annotations(ner_annotations, anno_out_path)
+    export_text(page_texts, text_out_path)
+    toc = time.perf_counter()
+    logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.4f} seconds")
+    # ic(xmi_path, page_xml_path)
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
