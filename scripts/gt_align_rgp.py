@@ -216,6 +216,7 @@ def main():
     results = store.align_texts(*align_pairs, max_errors=(1.0 - args.coverage), grow=True)
 
     print(f"Outputting alignments...", file=sys.stderr)
+    print("RGP volume\tRGP startpage\tLetter Nr\tRGP Offset\tHTR inv nr\tHTR scan nr\tHTR offset\tRGP text\tHTR text")
     for translations, (rgp_paragraph_textsel, htr_textsel), (rgp_vol, rgp_startpage, letter_id, htr_resource_id, inv_nr, htr_beginpage, htr_endpage) in zip(results,align_pairs,metadata):
         print(f"Aligned paragraph {rgp_paragraph_textsel.offset()} from letter {letter_id} from RGP vol {rgp_vol} page >= {rgp_startpage} with inv_nr {inv_nr} scans {htr_beginpage}-{htr_endpage}...", file=sys.stderr)
         print(f"   computed {len(translations)} translation(s)",file=sys.stderr)
@@ -236,7 +237,7 @@ def main():
                 if args.verbose:
                     print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
                     print(htr_paragraph, file=sys.stderr)
-                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}")
+                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}\t{str(rgp_paragraph_textsel).replace("\n","\\n")}\t{str(htr_paragraph).replace("\n","\\n")}")
         if args.verbose:
             print("------------------------",file=sys.stderr)
 
