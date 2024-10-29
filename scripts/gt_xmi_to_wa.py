@@ -317,9 +317,9 @@ class XMIProcessor:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
-                  f"/{CURRENT_SCRIPT_PATH}",
+                  f"/{THIS_SCRIPT_PATH}",
             "type": "Software",
-            "name": CURRENT_SCRIPT_PATH
+            "name": THIS_SCRIPT_PATH
         }
 
     @staticmethod
