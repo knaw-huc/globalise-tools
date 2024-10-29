@@ -14,9 +14,9 @@ from multiprocessing import Value
 from typing import List, Dict, Any, Tuple
 
 import cassis as cas
+import dask.distributed as dask
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
-from dask.distributed import Client
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
@@ -732,6 +732,23 @@ class InventoryProcessingContext:
     xpf: XMIProcessorFactory
     trc: TextRepoClient
     plain_text_type: FileType
+    processed_inventories: list[str]
+
+
+def load_processed_inventories() -> list[str]:
+    path = "out/processed_ner_inv.json"
+    if os.path.exists(path):
+        logger.info(f"<= {path}")
+        with open(path) as f:
+            return json.load(f)
+    return []
+
+
+def store_processed_inventories(processed_inventories: list[str]):
+    path = "out/processed_ner_inv.json"
+    logger.info(f"=> {path}")
+    with open(path, "w") as f:
+        json.dump(processed_inventories, fp=f)
 
 
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str,
@@ -745,13 +762,15 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     # pagexml_inv_nrs = [p.split('/')[-1] for p in pagexml_dirs]
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
+    processed_inventories = load_processed_inventories()
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    client = Client()
+    client = dask.Client()
     logger.info(f"mapping processes...")
     futures = client.map(process_inventory,
-                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
+                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
+                                                     processed_inventories)
                           for xmi_dir in xmi_dirs])
     logger.info("adding callbacks...")
     for future in futures:
@@ -770,23 +789,30 @@ def process_inventory(context: InventoryProcessingContext):
     pagexml_dir = context.pagexml_dir
     xpf = context.xpf
     trc = context.trc
-    logger.info(f"processing {xmi_dir}...")
+    processed_inventories = context.processed_inventories
 
-    xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
     inv_nr = xmi_dir.split('/')[-1]
-    os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
-    anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
-    text_out_path = f"{output_dir}/{inv_nr}/text.txt"
-    ner_annotations = []
-    page_texts = []
-    for xmi_path in xmi_paths:
-        handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc, context.plain_text_type)
-        handle_page_xml(xmi_path, pagexml_dir)
+    if inv_nr in processed_inventories:
+        logger.info(f"skipping {xmi_dir}...")
+    else:
+        logger.info(f"processing {xmi_dir}...")
 
-    export_ner_annotations(ner_annotations, anno_out_path)
-    export_text(page_texts, text_out_path)
-    toc = time.perf_counter()
-    logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
+        xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
+        os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
+        anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
+        text_out_path = f"{output_dir}/{inv_nr}/text.txt"
+        ner_annotations = []
+        page_texts = []
+        for xmi_path in xmi_paths:
+            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc, context.plain_text_type)
+            handle_page_xml(xmi_path, pagexml_dir)
+
+        export_ner_annotations(ner_annotations, anno_out_path)
+        export_text(page_texts, text_out_path)
+        toc = time.perf_counter()
+        logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
+        processed_inventories.append(inv_nr)
+        store_processed_inventories(processed_inventories)
 
 
 def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFactory, trc: TextRepoClient,
