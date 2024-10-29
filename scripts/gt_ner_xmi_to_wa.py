@@ -119,7 +119,6 @@ def seconds_to_hhmmss(seconds):
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     seconds = int(seconds % 60)
-
     return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
@@ -133,7 +132,7 @@ def show_progress(future):
         eta = total.value * average_time_per_inv
         seconds_remaining = seconds_to_hhmmss(eta - seconds_since_start)
         logger.info(
-            f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); time remaining: {seconds_remaining}")
+            f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); estimated time remaining: {seconds_remaining}")
 
 
 @dataclass
@@ -665,27 +664,27 @@ def get_arguments():
     return parser.parse_args()
 
 
-def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
-    if not output_dir:
-        output_dir = "."
-    xpf = XMIProcessorFactory(typesystem_path)
-    for xmi_path in xmi_paths:
-        basename = xmi_path.split('/')[-1].replace('.xmi', '').replace(' ', "_")
-        xp = xpf.get_xmi_processor(xmi_path)
-
-        txt_path = f"{output_dir}/{basename}_plain-text.txt"
-        logger.info(f"=> {txt_path}")
-        with open(txt_path, 'w') as f:
-            f.write(xp.text)
-
-        nea = xp.get_named_entity_annotations()
-        entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
-        eva = xp.get_event_annotations(entity_ids)
-        json_path = f"{output_dir}/{basename}_web-annotations.json"
-        all_web_annotations = (nea + eva)
-        logger.info(f"=> {json_path}")
-        with open(json_path, 'w') as f:
-            json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
+# def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
+#     if not output_dir:
+#         output_dir = "."
+#     xpf = XMIProcessorFactory(typesystem_path)
+#     for xmi_path in xmi_paths:
+#         basename = xmi_path.split('/')[-1].replace('.xmi', '').replace(' ', "_")
+#         xp = xpf.get_xmi_processor(xmi_path)
+#
+#         txt_path = f"{output_dir}/{basename}_plain-text.txt"
+#         logger.info(f"=> {txt_path}")
+#         with open(txt_path, 'w') as f:
+#             f.write(xp.text)
+#
+#         nea = xp.get_named_entity_annotations()
+#         entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
+#         eva = xp.get_event_annotations(entity_ids)
+#         json_path = f"{output_dir}/{basename}_web-annotations.json"
+#         all_web_annotations = (nea + eva)
+#         logger.info(f"=> {json_path}")
+#         with open(json_path, 'w') as f:
+#             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
 def export_ner_annotations(ner_annotations: list, out_path: str):
@@ -728,16 +727,14 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
 
-    # progress_bar = tqdm(xmi_dirs)
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
     client = Client()
-    # xmi_dir_batches = batched(xmi_dirs, 5)
-    # for batch in xmi_dirs:
     logger.info("mapping...")
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf)
-                          for xmi_dir in xmi_dirs[0:20]])
+                          for xmi_dir in xmi_dirs])
+    logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
 
@@ -745,8 +742,6 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     logger.info("gathering...")
     client.gather(futures)
     logger.info("done!")
-    # for xmi_dir in xmi_dirs:
-    #     process_inventory(InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, total))
 
 
 def process_inventory(context: InventoryProcessingContext):
@@ -759,21 +754,15 @@ def process_inventory(context: InventoryProcessingContext):
 
     xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
     inv_nr = xmi_dir.split('/')[-1]
-    # progress_bar.set_description(f"inv.nr.: {inv_nr}")
     os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
     anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
     text_out_path = f"{output_dir}/{inv_nr}/text.txt"
-    # print(out_path)
     ner_annotations = []
-    # progress_bar2 = tqdm(xmi_paths)
     page_texts = []
     for xmi_path in xmi_paths:
         xp = xpf.get_xmi_processor(xmi_path)
         ner_annotations.extend(xp.get_named_entity_annotations())
         page_texts.append(xp.text)
-
-        # path_parts = xmi_path.split('/')
-        # progress_bar2.set_description(f"page: {path_parts[-1].replace('.xmi', '')}")
 
         page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
         scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
@@ -788,8 +777,7 @@ def process_inventory(context: InventoryProcessingContext):
     export_ner_annotations(ner_annotations, anno_out_path)
     export_text(page_texts, text_out_path)
     toc = time.perf_counter()
-    logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.4f} seconds")
-    # ic(xmi_path, page_xml_path)
+    logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
