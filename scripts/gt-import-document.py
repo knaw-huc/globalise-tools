@@ -28,6 +28,7 @@ from spacy import Language
 from textrepo.client import TextRepoClient
 from uri import URI
 
+import globalise_tools.textrepo_tools as tt
 from globalise_tools.inception_client import InceptionClient
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
 from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
@@ -112,8 +113,8 @@ class DocumentsProcessor:
         self.provenance_client = provenance_client
         self.base_provenance = base_provenance
 
-        self.xmi_file_type = get_xmi_file_type(self.textrepo_client)
-        self.plain_text_file_type = get_plain_text_file_type(self.textrepo_client)
+        self.xmi_file_type = tt.get_xmi_file_type(self.textrepo_client)
+        self.plain_text_file_type = tt.get_plain_text_file_type(self.textrepo_client)
         self.document_data = read_document_data()
 
         logger.info(f"loading {spacy_core}")
@@ -574,22 +575,6 @@ def init_inception_client(cfg) -> (InceptionClient, int):
     else:
         project_id = project.id
     return client, project_id
-
-
-def get_xmi_file_type(client: TextRepoClient):
-    return get_file_type(client, 'xmi', 'application/vnd.xmi+xml')
-
-
-def get_file_type(client, file_type_name, mimetype):
-    if client.has_file_type_with_name(file_type_name):
-        file_type = client.find_file_type(file_type_name)
-    else:
-        file_type = client.create_file_type(file_type_name, mimetype)
-    return file_type
-
-
-def get_plain_text_file_type(client: TextRepoClient):
-    return get_file_type(client, 'txt', 'text/plain')
 
 
 if __name__ == '__main__':

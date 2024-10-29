@@ -95,7 +95,7 @@ run-inception:
 .PHONY: process-ner-xmi
 process-ner-xmi:
 #	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/e/globalise/pagexml/2023-09/1.04.02 --xmi-dir ~/e/globalise/ner/xmicas --type-system=data/typesystem.xml --output-dir=out
-	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner/xmicas --type-system=data/typesystem.xml --output-dir=out
+	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner/xmicas --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY)
 
 .PHONY: stop-inception
 stop-inception:

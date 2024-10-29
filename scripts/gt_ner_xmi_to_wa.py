@@ -20,9 +20,11 @@ from dask.distributed import Client
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
+from textrepo.client import TextRepoClient, FileType
 from tqdm import tqdm
 
 import globalise_tools.git_tools as git
+import globalise_tools.textrepo_tools as tt
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -656,6 +658,18 @@ def get_arguments():
                         type=str,
                         required=True
                         )
+    parser.add_argument("-r",
+                        "--text-repo",
+                        help="The base url of the textrepo server to use",
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument("-k",
+                        "--api-key",
+                        help="The api-key for the textrepo server",
+                        type=str,
+                        required=True
+                        )
     parser.add_argument("-o",
                         "--output-dir",
                         help="The directory to write the output files in",
@@ -716,9 +730,14 @@ class InventoryProcessingContext:
     output_dir: str
     pagexml_dir: str
     xpf: XMIProcessorFactory
+    trc: TextRepoClient
+    plain_text_type: FileType
 
 
-def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str):
+def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str,
+                                textrepo_url: str, api_key: str):
+    trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
+    plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
     # ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
     # pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"), key=number_part)
     # xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=number_part)
@@ -730,9 +749,9 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
     client = Client()
-    logger.info(f"mapping {total.value} processes...")
+    logger.info(f"mapping processes...")
     futures = client.map(process_inventory,
-                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf)
+                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
                           for xmi_dir in xmi_dirs])
     logger.info("adding callbacks...")
     for future in futures:
@@ -750,6 +769,7 @@ def process_inventory(context: InventoryProcessingContext):
     output_dir = context.output_dir
     pagexml_dir = context.pagexml_dir
     xpf = context.xpf
+    trc = context.trc
     logger.info(f"processing {xmi_dir}...")
 
     xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
@@ -760,24 +780,42 @@ def process_inventory(context: InventoryProcessingContext):
     ner_annotations = []
     page_texts = []
     for xmi_path in xmi_paths:
-        xp = xpf.get_xmi_processor(xmi_path)
-        ner_annotations.extend(xp.get_named_entity_annotations())
-        page_texts.append(xp.text)
+        handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc, context.plain_text_type)
+        handle_page_xml(xmi_path, pagexml_dir)
 
-        page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
-        scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
-
-        raw_text_offset = 0
-        raw_text_range = IntervalTree()
-        for tr in scan_doc.get_text_regions_in_reading_order():
-            for w in tr.get_words():
-                new_offset = raw_text_offset + 1 + len(w.text)
-                raw_text_range[raw_text_offset:new_offset] = w
-                raw_text_offset = new_offset
     export_ner_annotations(ner_annotations, anno_out_path)
     export_text(page_texts, text_out_path)
     toc = time.perf_counter()
     logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
+
+
+def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFactory, trc: TextRepoClient,
+               plain_text_file_type: FileType):
+    xp = xpf.get_xmi_processor(xmi_path)
+    page_text = xp.text
+    page_texts.append(page_text)
+    basename = xmi_path.split("/")[-1].replace(".xmi", "")
+    txt_version_identifier = trc.import_version(
+        external_id=basename,
+        type_name=plain_text_file_type.name,
+        contents=page_text,
+        as_latest_version=True
+    )
+    xp.document_id = basename
+    xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
+    ner_annotations.extend(xp.get_named_entity_annotations())
+
+
+def handle_page_xml(xmi_path: str, pagexml_dir: str):
+    page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
+    scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
+    raw_text_offset = 0
+    raw_text_range = IntervalTree()
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        for w in tr.get_words():
+            new_offset = raw_text_offset + 1 + len(w.text)
+            raw_text_range[raw_text_offset:new_offset] = w
+            raw_text_offset = new_offset
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
@@ -794,7 +832,8 @@ def main():
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
     args = get_arguments()
     if args.xmi_dir:
-        extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.type_system, args.output_dir)
+        extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.type_system, args.output_dir, args.text_repo,
+                                    args.api_key)
 
 
 if __name__ == '__main__':
