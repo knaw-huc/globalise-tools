@@ -730,7 +730,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
     client = Client()
-    logger.info("mapping...")
+    logger.info(f"mapping {total.value} processes...")
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf)
                           for xmi_dir in xmi_dirs])
