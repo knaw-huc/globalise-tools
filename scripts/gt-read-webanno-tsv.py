@@ -42,7 +42,7 @@ from loguru import logger
 #     return f"{token.sentence_num}-{token.token_num}"
 #
 #
-# def web_anno_file_paths(folder: str) -> List[str]:
+# def web_anno_file_paths(folder: str) -> list[str]:
 #     return glob.glob(f"{folder}/*.tsv")
 #
 #

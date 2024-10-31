@@ -4,7 +4,6 @@ import json
 import sys
 from collections import defaultdict
 from itertools import groupby
-from typing import List, Dict
 
 import progressbar
 from loguru import logger
@@ -40,7 +39,7 @@ def main(root_path) -> None:
             json.dump(annotations, fp=f)
 
 
-def annotations_paths(apath: str) -> List[str]:
+def annotations_paths(apath: str) -> list[str]:
     return glob.glob(f"{apath}/NL*.json")
 
 
@@ -61,11 +60,11 @@ def group_annotations(json_path):
     return groupby(filtered_annotations, key=lambda a: a['body']['type'])
 
 
-def post_process(annotations: List[Dict[str, any]], body_type: str, nav_provider: NavProvider) -> List[Dict[str, any]]:
+def post_process(annotations: list[dict[str, any]], body_type: str, nav_provider: NavProvider) -> list[dict[str, any]]:
     return [post_processed(a, body_type, nav_provider) for a in annotations]
 
 
-def post_processed(annotation: Dict[str, any], body_type: str, nav_provider: NavProvider) -> Dict[str, any]:
+def post_processed(annotation: dict[str, any], body_type: str, nav_provider: NavProvider) -> dict[str, any]:
     if body_type == "na:File":
         meta_value = annotation['body']['metadata'].pop('file')
         annotation['body']['metadata']['na:File'] = meta_value

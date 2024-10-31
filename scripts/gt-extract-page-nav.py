@@ -2,7 +2,6 @@
 import glob
 import json
 import os
-from typing import List, Dict
 
 import progressbar
 from loguru import logger
@@ -28,11 +27,11 @@ def main() -> None:
             bar.update(i)
 
 
-def manifest_paths(directory: str) -> List[str]:
+def manifest_paths(directory: str) -> list[str]:
     return glob.glob(f"{directory}/*.json")
 
 
-def generate_prev_next_map(pagexml_ids: List[str]) -> Dict[str, Dict[str, str]]:
+def generate_prev_next_map(pagexml_ids: list[str]) -> dict[str, dict[str, str]]:
     prev_next_idx = {}
     last_idx = len(pagexml_ids) - 1
     for i, pid in enumerate(pagexml_ids):

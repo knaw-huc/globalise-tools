@@ -10,7 +10,6 @@ import sys
 from dataclasses import dataclass, field
 from datetime import datetime
 from pathlib import Path
-from typing import List, Dict, Any
 
 import hydra
 import spacy
@@ -72,7 +71,7 @@ class DocumentMetadata:
     last_scan_nr: int = field(init=False)
     hana_nr: str = field(init=False)
     external_id: str = field(init=False)
-    pagexml_ids: List[str] = field(init=False)
+    pagexml_ids: list[str] = field(init=False)
 
     def __post_init__(self):
         if self.no_of_pages:
@@ -100,7 +99,7 @@ class DocumentMetadata:
     def _external_id(self) -> str:
         return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
 
-    def _pagexml_ids(self) -> List[str]:
+    def _pagexml_ids(self) -> list[str]:
         return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
@@ -246,7 +245,7 @@ class DocumentsProcessor:
         client.set_document_metadata(document_id=document_id, key='partOf500_folio', value=metadata.partOf500_folio)
         return document_identifier
 
-    def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: List[str], links: Dict[str, Any]) -> \
+    def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: list[str], links: dict[str, any]) -> \
             tuple[str, ProvenanceData, str]:
         provenance = dataclasses.replace(self.base_provenance, sources=[], targets=[])
 
@@ -416,7 +415,7 @@ def init_typesystem():
     return typesystem
 
 
-def read_document_data() -> Dict[str, Dict[str, Any]]:
+def read_document_data() -> dict[str, dict[str, any]]:
     if os.path.exists(document_data_path):
         logger.info(f"<= {document_data_path}")
         with open(document_data_path) as f:
@@ -424,7 +423,7 @@ def read_document_data() -> Dict[str, Dict[str, Any]]:
     return {}
 
 
-# def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
+# def extract_paragraph_text(scan_doc) -> Tuple[str, list[Tuple[int, int]], Tuple[int, int], list[Tuple[int, int]]]:
 #     headers, marginalia, paragraphs = extract_text_region_summaries(scan_doc)
 #
 #     marginalia_ranges = []
@@ -484,7 +483,7 @@ def extract_text_region_summaries(
         scan_doc: PageXMLScan,
         iiif_url: str,
         canvas_url: str
-) -> (List[TextRegionSummary], List[TextRegionSummary], List[TextRegionSummary]):
+) -> (list[TextRegionSummary], list[TextRegionSummary], list[TextRegionSummary]):
     iiif_base_uri = iiif_url.replace('/full/max/0/default.jpg', '')
     paragraphs = []
     headers = []
@@ -544,7 +543,7 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-def read_document_selection(selection_file: str) -> List[DocumentMetadata]:
+def read_document_selection(selection_file: str) -> list[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         f.readline()

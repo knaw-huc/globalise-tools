@@ -2,8 +2,9 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
+from hashlib import _Hash
 from json import JSONEncoder
-from typing import Dict, Any, List, Optional
+from typing import Optional
 
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
@@ -36,7 +37,7 @@ class Document:
     htr_van_ijsberg_beschikbaar: bool
 
     @staticmethod
-    def from_dict(d: Dict[str, str]) -> 'Document':
+    def from_dict(d: dict[str, str]) -> 'Document':
         return Document(
             id=d["ID"],
             tanap_id=d["TANAP ID"],
@@ -61,7 +62,7 @@ class Document:
             htr_van_ijsberg_beschikbaar=(d['HTR van IJsberg beschikbaar?'].lower() == 'true')
         )
 
-    def scan_ids(self) -> List[str]:
+    def scan_ids(self) -> list[str]:
         base = f"NL-HaNA_1.04.02_{self.index_nr}"
         return [f"{base}_{s:04d}" for s in range(self.scan_begin, self.scan_eind + 1)]
 
@@ -78,9 +79,9 @@ def as_int(string: str) -> int:
 
 @dataclass
 class WebAnnotation:
-    body: Dict[str, Any]
-    target: Any
-    custom: dict[str, Any] = field(default_factory=dict, hash=False)
+    body: dict[str, any]
+    target: any
+    custom: dict[str, any] = field(default_factory=dict, hash=False)
 
     def wrapped(self):
         anno_uuid = uuid.uuid4()
@@ -154,7 +155,7 @@ class SimpleAnnotation:
     last_anchor: int
     text: str
     coords: Optional[Coords]
-    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
+    metadata: dict[str, any] = field(default_factory=dict, hash=False)
 
 
 @dataclass_json
@@ -169,7 +170,7 @@ class DocumentMetadata:
     last_scan_nr: int = field(init=False)
     nl_hana_nr: str = field(init=False)
     external_id: str = field(init=False)
-    pagexml_ids: List[str] = field(init=False)
+    pagexml_ids: list[str] = field(init=False)
 
     def __post_init__(self):
         # self.no_of_pages = int(self.no_of_pages)
@@ -188,7 +189,7 @@ class DocumentMetadata:
     def _external_id(self) -> str:
         return f"{self.nl_hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
 
-    def _pagexml_ids(self) -> List[str]:
+    def _pagexml_ids(self) -> list[str]:
         return [f"{self.nl_hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
@@ -196,7 +197,7 @@ class DocumentMetadata:
 @dataclass
 class DocumentMetadata2:
     inventory_number: str
-    pagexml_ids: List[str]
+    pagexml_ids: list[str]
     first_scan_nr: int = field(init=False)
     last_scan_nr: int = field(init=False)
     no_of_scans: int = field(init=False)
@@ -228,6 +229,100 @@ class LogicalAnchorRange:
     end_char_offset_exclusive: int
 
 
+@dataclass
+class TextData:
+    plain_text_source: str
+    plain_text_md5: _Hash
+    text_intervals: list
+
+
 class SegmentedTextType(Enum):
     PHYSICAL = 1,
     LOGICAL = 2
+
+
+@dataclass
+class ImageData:
+    canvas_id: str
+    iiif_base_uri: str
+    manifest_uri: str
+    xywh: str
+
+
+NER_DATA_DICT = {
+    'CMTY_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
+        'label': 'Name of Commodity',
+        'entity_type': 'urn:globalise:entityType:Commodity'
+    },
+    'CMTY_QUAL': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUAL',
+        'label': 'Commodity qualifier: colors, processing',
+        'entity_type': 'urn:globalise:entityType:CommodityQualifier'
+    },
+    'CMTY_QUANT': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUANT',
+        'label': 'Quantity',
+        'entity_type': 'urn:globalise:entityType:CommodityQuantity'
+    },
+    'DATE': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DATE',
+        'label': 'Date',
+        'entity_type': 'urn:globalise:entityType:Date'
+    },
+    'DOC': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DOC',
+        'label': 'Document',
+        'entity_type': 'urn:globalise:entityType:Document'
+    },
+    'ETH_REL': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
+        'label': 'Ethno-religious appelation or attribute, not derived from location name',
+        'entity_type': 'urn:globalise:entityType:EthnoReligiousAppelation'
+    },
+    'LOC_ADJ': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
+        'label': 'Derived (adjectival) form of location name',
+        'entity_type': 'urn:globalise:entityType:Location'
+    },
+    'LOC_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_NAME',
+        'label': 'Name of Location',
+        'entity_type': 'urn:globalise:entityType:Location'
+    },
+    'ORG': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ORG',
+        'label': 'Organisation name',
+        'entity_type': 'urn:globalise:entityType:Organisation'
+    },
+    'PER_ATTR': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_ATTR',
+        'label': 'Other persons attributes (than PER or STATUS)',
+        'entity_type': 'urn:globalise:entityType:PersonAttribute'
+    },
+    'PER_NAME': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_NAME',
+        'label': 'Name of Person',
+        'entity_type': 'urn:globalise:entityType:Person'
+    },
+    'PRF': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PRF',
+        'label': 'Profession, title',
+        'entity_type': 'urn:globalise:entityType:Profession'
+    },
+    'SHIP': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP',
+        'label': 'Ship name',
+        'entity_type': 'urn:globalise:entityType:Ship'
+    },
+    'SHIP_TYPE': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP_TYPE',
+        'label': 'Ship type',
+        'entity_type': 'urn:globalise:entityType:Ship'
+    },
+    'STATUS': {
+        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
+        'label': '(Civic) status',
+        'entity_type': 'urn:globalise:entityType:CivicStatus'
+    }
+}

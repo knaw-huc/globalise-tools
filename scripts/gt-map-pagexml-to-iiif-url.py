@@ -4,7 +4,6 @@ import csv
 import xml.etree.ElementTree as ET
 from dataclasses import dataclass
 from pathlib import Path
-from typing import List
 from xml.etree.ElementTree import Element
 
 from loguru import logger
@@ -58,7 +57,7 @@ def to_mapping_pair(div: Div, root: Element) -> (str, str):
     return b, u
 
 
-def get_mappings(file_path: str) -> List:
+def get_mappings(file_path: str) -> list:
     with open(file_path) as f:
         xml = f.read()
     root = ET.fromstring(xml)

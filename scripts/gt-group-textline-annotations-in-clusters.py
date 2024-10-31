@@ -2,7 +2,6 @@
 import glob
 import json
 import sys
-from typing import List
 
 import progressbar
 from loguru import logger
@@ -39,7 +38,7 @@ def main(root_path) -> None:
             store_chunk(textline_annotations, root_path, chunk_count)
 
 
-def annotations_paths(apath: str) -> List[str]:
+def annotations_paths(apath: str) -> list[str]:
     return glob.glob(f"{apath}/NL*.json")
 
 

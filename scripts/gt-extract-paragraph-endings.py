@@ -2,7 +2,6 @@
 import csv
 import json
 from collections import defaultdict
-from typing import List
 
 import spacy
 from loguru import logger
@@ -27,7 +26,7 @@ def main():
     print(json.dumps(paragraph_line_markers_per_pagexml, indent=2))
 
 
-def tokenize(nlp, text: str) -> List[str]:
+def tokenize(nlp, text: str) -> list[str]:
     tokens = []
     doc = nlp(text)
     for sentence in doc.sents:

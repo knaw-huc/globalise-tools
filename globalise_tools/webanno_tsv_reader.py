@@ -2,7 +2,7 @@ import itertools
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import List, Dict, Tuple, Sequence
+from typing import Tuple, Sequence
 
 # Strings that need to be escaped with a single backslash according to Webanno Appendix B
 RESERVED_STRS = ['\\', '[', ']', '|', '_', '->', ';', '\t', '\n', '*']
@@ -43,7 +43,7 @@ class SlotFeature(Feature):
 @dataclass
 class Layer:
     name: str = ""
-    features: List[Feature] = field(default_factory=list)
+    features: list[Feature] = field(default_factory=list)
 
 
 @dataclass()
@@ -72,7 +72,7 @@ class Annotation:
     id: str
     tokens: Sequence[Token]
     layer: str
-    features: Dict[str, str]
+    features: dict[str, str]
     label_id: int = NO_LABEL_ID
     linked_annotations: list[AnnotationLink] = field(default_factory=list)
 
@@ -96,11 +96,11 @@ class Annotation:
 @dataclass
 class Document:
     format: str = ""
-    layers: List[Layer] = field(default_factory=list)
-    sentences: List[Sentence] = field(default_factory=list)
-    tokens: List[Token] = field(default_factory=list)
-    annotations: List[Annotation] = field(default_factory=list)
-    _annotation_idx: Dict[str, Annotation] = field(default_factory=dict)
+    layers: list[Layer] = field(default_factory=list)
+    sentences: list[Sentence] = field(default_factory=list)
+    tokens: list[Token] = field(default_factory=list)
+    annotations: list[Annotation] = field(default_factory=list)
+    _annotation_idx: dict[str, Annotation] = field(default_factory=dict)
 
     def get_annotation_by_id(self, annotation_id: str) -> Annotation:
         annotation_idx = self.__annotation_idx()
@@ -114,8 +114,8 @@ class Document:
 
 @dataclass
 class ParseContext:
-    layer_field_names: List[Tuple[str, str]] = field(default_factory=list)
-    multi_token_annotations: Dict[str, Annotation] = field(default_factory=dict)
+    layer_field_names: list[Tuple[str, str]] = field(default_factory=list)
+    multi_token_annotations: dict[str, Annotation] = field(default_factory=dict)
 
 
 def read_webanno_tsv(path: str) -> Document:
@@ -157,7 +157,7 @@ def _todo():
     raise Exception("this function is not implemented yet!")
 
 
-def _read_span_layer_names(lines: List[str]):
+def _read_span_layer_names(lines: list[str]):
     matches = [SPAN_LAYER_DEF_RE.match(line) for line in lines]
     return [(m.group(1), m.group(2).split('|')) for m in matches if m]
 
@@ -232,7 +232,7 @@ def _parse_line(line):
     return token, raw_feature_values
 
 
-def _filter_sentences(lines: List[str]) -> List[str]:
+def _filter_sentences(lines: list[str]) -> list[str]:
     """
     Filter lines beginning with 'Text=', if multiple such lines are
     following each other, concatenate them.
@@ -277,7 +277,7 @@ def _layer_field_names(doc):
     return layer_field_names
 
 
-def _split_dict(d: dict[str, str]) -> List[Dict[str, str]]:
+def _split_dict(d: dict[str, str]) -> list[dict[str, str]]:
     values = [v.split("|") for v in d.values()]
     max_parts = max(len(v) for v in values)
     return [{k: v[i] for k, v in zip(d.keys(), values)} for i in range(max_parts)]

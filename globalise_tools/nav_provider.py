@@ -1,6 +1,5 @@
 import json
 import os
-from typing import Dict
 
 from loguru import logger
 
@@ -22,7 +21,7 @@ class NavProvider:
             logger.error(f"file not found: {self.index_path}")
             self.index = {}
 
-    def nav_fields(self, page_id: str) -> Dict[str, str]:
+    def nav_fields(self, page_id: str) -> dict[str, str]:
         try_match = True
         nav = {}
         while try_match:

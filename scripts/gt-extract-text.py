@@ -4,7 +4,7 @@ import csv
 import itertools
 import json
 import os
-from typing import List, AnyStr, Dict, Any, Tuple
+from typing import AnyStr, Tuple
 
 import pagexml.parser as pxp
 import spacy
@@ -23,7 +23,7 @@ textrepo_version_csv = "data/tr-versions.csv"
 
 metadata_records = []
 ground_truth = []
-tr_versions: Dict[str, TRVersions] = {}
+tr_versions: dict[str, TRVersions] = {}
 nlp = None
 
 
@@ -32,7 +32,7 @@ def list_pagexml_files(directory: str):
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith(".xml")])
 
 
-def index_word_ranges(words: List[gt.DisplayWord], word_range_index) -> Dict[str, Tuple[int, int]]:
+def index_word_ranges(words: list[gt.DisplayWord], word_range_index) -> dict[str, Tuple[int, int]]:
     index = {}
     for w in words:
         (range_start, range_end) = word_range_index[w.id]
@@ -89,15 +89,15 @@ def to_conll2002(token: str) -> str:
     return "\n" if token in ["", "\n"] else f"{token} O\n"
 
 
-def as_conll2002(tokens: List[str]) -> List[str]:
+def as_conll2002(tokens: list[str]) -> list[str]:
     return [to_conll2002(t) for t in tokens]
 
 
 def export(base_name: AnyStr,
-           all_text: List[AnyStr],
-           metadata: Dict[AnyStr, Any],
-           tokens: List[GTToken],
-           web_annotations: List[WebAnnotation]
+           all_text: list[AnyStr],
+           metadata: dict[AnyStr, any],
+           tokens: list[GTToken],
+           web_annotations: list[WebAnnotation]
            ):
     print(f"{base_name}:")
 
@@ -143,7 +143,7 @@ def to_base_name(path: str) -> str:
     return path.split('/')[-1].replace(".xml", "")
 
 
-def create_base_name(pagexml_files: List[str]) -> str:
+def create_base_name(pagexml_files: list[str]) -> str:
     first = to_base_name(pagexml_files[0])
     last = to_base_name(pagexml_files[-1])
     i = first.rindex("_")
@@ -153,7 +153,7 @@ def create_base_name(pagexml_files: List[str]) -> str:
     return f"{base}_{first_page}_{last_page}"
 
 
-def tokenize(all_pars: List[str]) -> (List[str], List[int]):
+def tokenize(all_pars: list[str]) -> (list[str], list[int]):
     tokens = []
     offsets = []
     text = ''.join(all_pars)
@@ -167,7 +167,7 @@ def tokenize(all_pars: List[str]) -> (List[str], List[int]):
     return tokens, offsets
 
 
-def tokenize_per_paragraph(all_pars: List[str]) -> List[GTToken]:
+def tokenize_per_paragraph(all_pars: list[str]) -> list[GTToken]:
     tokens = []
     text_offset = 0
     for par in all_pars:
@@ -181,7 +181,7 @@ def tokenize_per_paragraph(all_pars: List[str]) -> List[GTToken]:
     return tokens
 
 
-def read_metadata(basename: str) -> Dict[str, str]:
+def read_metadata(basename: str) -> dict[str, str]:
     (_a, _b, index_nr, scan_nr) = basename.split("_")
     scan = int(scan_nr)
     relevant = [r for r in metadata_records if
@@ -233,12 +233,12 @@ def make_token_annotations(base_name, tokens, scan_ranges):
     return annotations
 
 
-def make_web_annotations(annotations: List[gt.Annotation], webannotation_factory: gt.WebAnnotationFactory) \
-        -> List[WebAnnotation]:
+def make_web_annotations(annotations: list[gt.Annotation], webannotation_factory: gt.WebAnnotationFactory) \
+        -> list[WebAnnotation]:
     return [gt.to_web_annotation(a, webannotation_factory) for a in annotations]
 
 
-def ranges_per_scan(annotations: List[gt.Annotation]) -> Dict[str, Tuple[int, int]]:
+def ranges_per_scan(annotations: list[gt.Annotation]) -> dict[str, Tuple[int, int]]:
     return {
         pa.page_id: (pa.offset, pa.offset + pa.length)
         for pa in annotations
@@ -246,7 +246,7 @@ def ranges_per_scan(annotations: List[gt.Annotation]) -> Dict[str, Tuple[int, in
     }
 
 
-def segment_range(tokens: List[GTToken], char_range_begin: int, char_range_end: int):
+def segment_range(tokens: list[GTToken], char_range_begin: int, char_range_end: int):
     begin_idx = 0
     end_idx = 0
     for i, token in enumerate(tokens):
@@ -259,7 +259,7 @@ def segment_range(tokens: List[GTToken], char_range_begin: int, char_range_end: 
     return begin_idx, end_idx
 
 
-def add_anchor_range(all_annotations: List[gt.Annotation], tokens: List[GTToken]):
+def add_anchor_range(all_annotations: list[gt.Annotation], tokens: list[GTToken]):
     for a in all_annotations:
         char_range_begin = a.offset
         char_range_end = a.offset + a.length
@@ -270,7 +270,7 @@ def doc_annotation(base_name: str):
     pass
 
 
-def process_directory_group(document_id: str, directory_group: List[str],
+def process_directory_group(document_id: str, directory_group: list[str],
                             webannotation_factory: gt.WebAnnotationFactory):
     pagexml_files = list_pagexml_files_in_group(directory_group)
 
@@ -342,7 +342,7 @@ def list_pagexml_files_in_group(directory_group):
     return pagexml_files
 
 
-def process_pagexml_files(pagexml_files: List[str], document_id: str):
+def process_pagexml_files(pagexml_files: list[str], document_id: str):
     all_pars = []
     all_annotations = []
     start_offset = 0

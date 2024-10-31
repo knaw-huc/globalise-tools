@@ -1,12 +1,11 @@
 #!/usr/bin/env python3
 import argparse
-from typing import List, Dict
 
 import xmltodict
 from loguru import logger
 
 
-def get_paths(xml_dict: dict, prefix: str, elements_with_lists: List[str], element_attributes: dict) -> List[str]:
+def get_paths(xml_dict: dict, prefix: str, elements_with_lists: list[str], element_attributes: dict) -> list[str]:
     paths = []
     attributes = [k[1:] for k in xml_dict.keys() if k.startswith('@')]
     root_element = prefix.split('.')[-1]
@@ -30,7 +29,7 @@ def get_paths(xml_dict: dict, prefix: str, elements_with_lists: List[str], eleme
     return paths
 
 
-def xml_fingerprint(xml_dicts: List[Dict[str, any]]) -> tuple:
+def xml_fingerprint(xml_dicts: list[dict[str, any]]) -> tuple:
     elements_with_lists = []
     element_attributes = {}
     unsorted_paths = []
@@ -63,7 +62,7 @@ def get_arguments():
 
 
 @logger.catch
-def show_xml_fingerprints(paths: List[str]):
+def show_xml_fingerprints(paths: list[str]):
     pages = []
     for path in paths:
         with open(path) as f:

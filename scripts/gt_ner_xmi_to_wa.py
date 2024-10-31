@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from datetime import datetime
 from itertools import groupby
 from multiprocessing import Value
-from typing import List, Dict, Any, Tuple
+from typing import Tuple
 
 import cassis as cas
 import dask.distributed as dask
@@ -25,103 +25,15 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.textrepo_tools as tt
+from globalise_tools.events import wiki_base, time_roles, place_roles
+from globalise_tools.model import NER_DATA_DICT, ImageData
+from globalise_tools.tools import seconds_to_hhmmss
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
-
-ner_data_dict = {
-    'CMTY_NAME': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_NAME',
-        'label': 'Name of Commodity',
-        'entity_type': 'urn:globalise:entityType:Commodity'
-    },
-    'CMTY_QUAL': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUAL',
-        'label': 'Commodity qualifier: colors, processing',
-        'entity_type': 'urn:globalise:entityType:CommodityQualifier'
-    },
-    'CMTY_QUANT': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/CMTY_QUANT',
-        'label': 'Quantity',
-        'entity_type': 'urn:globalise:entityType:CommodityQuantity'
-    },
-    'DATE': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DATE',
-        'label': 'Date',
-        'entity_type': 'urn:globalise:entityType:Date'
-    },
-    'DOC': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/DOC',
-        'label': 'Document',
-        'entity_type': 'urn:globalise:entityType:Document'
-    },
-    'ETH_REL': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
-        'label': 'Ethno-religious appelation or attribute, not derived from location name',
-        'entity_type': 'urn:globalise:entityType:EthnoReligiousAppelation'
-    },
-    'LOC_ADJ': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
-        'label': 'Derived (adjectival) form of location name',
-        'entity_type': 'urn:globalise:entityType:Location'
-    },
-    'LOC_NAME': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_NAME',
-        'label': 'Name of Location',
-        'entity_type': 'urn:globalise:entityType:Location'
-    },
-    'ORG': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ORG',
-        'label': 'Organisation name',
-        'entity_type': 'urn:globalise:entityType:Organisation'
-    },
-    'PER_ATTR': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_ATTR',
-        'label': 'Other persons attributes (than PER or STATUS)',
-        'entity_type': 'urn:globalise:entityType:PersonAttribute'
-    },
-    'PER_NAME': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PER_NAME',
-        'label': 'Name of Person',
-        'entity_type': 'urn:globalise:entityType:Person'
-    },
-    'PRF': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/PRF',
-        'label': 'Profession, title',
-        'entity_type': 'urn:globalise:entityType:Profession'
-    },
-    'SHIP': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP',
-        'label': 'Ship name',
-        'entity_type': 'urn:globalise:entityType:Ship'
-    },
-    'SHIP_TYPE': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/SHIP_TYPE',
-        'label': 'Ship type',
-        'entity_type': 'urn:globalise:entityType:Ship'
-    },
-    'STATUS': {
-        'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/STATUS',
-        'label': '(Civic) status',
-        'entity_type': 'urn:globalise:entityType:CivicStatus'
-    }
-}
-
-wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"
-
-time_roles = ["Time"]
-actor_roles = ["Agent", "AgentPatient", "Benefactive", "Cargo", "Instrument", "Patient"]
-place_roles = ["Location", "Path", "Source", "Target"]
 
 counter = Value('i', 0)
 total = Value('i', 0)
 start_time = Value('f', 0)
-
-
-def seconds_to_hhmmss(seconds):
-    hours = int(seconds // 3600)
-    minutes = int((seconds % 3600) // 60)
-    seconds = int(seconds % 60)
-    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"
 
 
 def show_progress(future):
@@ -135,14 +47,6 @@ def show_progress(future):
         seconds_remaining = seconds_to_hhmmss(eta - seconds_since_start)
         logger.info(
             f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); estimated time remaining: {seconds_remaining}")
-
-
-@dataclass
-class ImageData:
-    canvas_id: str
-    iiif_base_uri: str
-    manifest_uri: str
-    xywh: str
 
 
 class XMIProcessor:
@@ -160,7 +64,10 @@ class XMIProcessor:
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         data = None
-        self.document_id = "unknown"
+        path_parts = xmi_path.split('/')
+        base_name = path_parts[-1].replace('.xmi', '')
+
+        self.document_id = base_name
         for k, v in document_data.items():
             if v['plain_text_md5'] == md5:
                 self.document_id = k
@@ -187,7 +94,7 @@ class XMIProcessor:
         for a in entity_annotations:
             web_annotation = self._as_web_annotation(a, self._named_entity_body(a))
             web_annotations.append(web_annotation)
-            entity_type = ner_data_dict[a['value']]['entity_type']
+            entity_type = NER_DATA_DICT[a['value']]['entity_type']
             web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
 
@@ -358,7 +265,7 @@ class XMIProcessor:
     @staticmethod
     def _named_entity_body(feature_structure: FeatureStructure):
         entity_id = feature_structure.value
-        ner_data = ner_data_dict[entity_id]
+        ner_data = NER_DATA_DICT[entity_id]
         entity_uri = ner_data['uri']
         entity_label = ner_data['label']
         return [
@@ -478,7 +385,7 @@ class XMIProcessor:
             return selectors
 
     @staticmethod
-    def _to_xywh(coords: List[Tuple[int, int]]):
+    def _to_xywh(coords: list[Tuple[int, int]]):
         min_x = min([p[0] for p in coords])
         min_y = min([p[1] for p in coords])
         max_x = max([p[0] for p in coords])
@@ -624,7 +531,7 @@ class XMIProcessorFactory:
         return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
 
     @staticmethod
-    def _read_document_data() -> Dict[str, Any]:
+    def _read_document_data() -> dict[str, any]:
         path = "data/document_data.json"
         logger.info(f"<= {path}")
         with open(path) as f:
@@ -678,7 +585,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-# def extract_web_annotations(xmi_paths: List[str], typesystem_path: str, output_dir: str):
+# def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_dir: str):
 #     if not output_dir:
 #         output_dir = "."
 #     xpf = XMIProcessorFactory(typesystem_path)
@@ -804,8 +711,8 @@ def process_inventory(context: InventoryProcessingContext):
         ner_annotations = []
         page_texts = []
         for xmi_path in xmi_paths:
+            handle_page_xml(xmi_path, pagexml_dir, xpf, trc)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc, context.plain_text_type)
-            handle_page_xml(xmi_path, pagexml_dir)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         export_text(page_texts, text_out_path)
@@ -820,7 +727,7 @@ def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFact
     xp = xpf.get_xmi_processor(xmi_path)
     page_text = xp.text
     page_texts.append(page_text)
-    basename = xmi_path.split("/")[-1].replace(".xmi", "")
+    basename = get_base_name(xmi_path)
     txt_version_identifier = trc.import_version(
         external_id=basename,
         type_name=plain_text_file_type.name,
@@ -832,7 +739,12 @@ def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFact
     ner_annotations.extend(xp.get_named_entity_annotations())
 
 
-def handle_page_xml(xmi_path: str, pagexml_dir: str):
+def get_base_name(path: str):
+    return path.split("/")[-1].replace(".xmi", "")
+
+
+def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, trc: TextRepoClient):
+    base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
     raw_text_offset = 0
@@ -842,6 +754,13 @@ def handle_page_xml(xmi_path: str, pagexml_dir: str):
             new_offset = raw_text_offset + 1 + len(w.text)
             raw_text_range[raw_text_offset:new_offset] = w
             raw_text_offset = new_offset
+    md5 = hashlib.md5(plain_text.encode()).hexdigest()
+    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    xpf.document_data[base_name] = {
+        "plain_text_source": f"{txt_version_uri}/contents",
+        "plain_text_md5": md5,
+        "text_intervals": list(raw_text_range)
+    }
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:

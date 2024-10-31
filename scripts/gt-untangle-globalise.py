@@ -9,7 +9,7 @@ import time
 from collections import defaultdict
 from datetime import datetime
 from itertools import groupby
-from typing import Tuple, List, Dict, Any, Union
+from typing import Tuple, Union
 
 import hydra
 import pagexml.helper.pagexml_helper as pxh
@@ -110,7 +110,7 @@ def read_all_metadata():
     return metadata
 
 
-def read_scan_url_mapping() -> Dict[str, str]:
+def read_scan_url_mapping() -> dict[str, str]:
     path = "data/scan_url_mapping.json"
     logger.info(f"<= {path}")
     with open(path) as f:
@@ -135,8 +135,8 @@ def process_na_file(
         prov_client: ProvenanceClient,
         tr_client: TextRepoClient,
         waf: WebAnnotationFactory,
-        scan_url_mapping: Dict[str, str],
-        results: Dict[str, any],
+        scan_url_mapping: dict[str, str],
+        results: dict[str, any],
         nav_provider: NavProvider,
         page_lang: dict[str, LangDeduction]
 ) -> bool:
@@ -237,7 +237,7 @@ def to_web_annotation(annotation: Annotation,
     return WebAnnotation(body=body, target=targets)
 
 
-def document_web_annotation(all_annotations: List[Annotation], document_id: str, inventory_number: str,
+def document_web_annotation(all_annotations: list[Annotation], document_id: str, inventory_number: str,
                             webannotation_factory: WebAnnotationFactory, physical_segmented_version_id: str,
                             logical_segmented_version_id: str) -> WebAnnotation:
     manifest_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
@@ -286,7 +286,7 @@ def document_web_annotation(all_annotations: List[Annotation], document_id: str,
     )
 
 
-def export_web_annotations(document_metadata, web_annotations: List[WebAnnotation]):
+def export_web_annotations(document_metadata, web_annotations: list[WebAnnotation]):
     root_path = f"out/{document_metadata.nl_hana_nr}"
     sorted_annotations = sorted(web_annotations, key=lambda a: a.body['type'])
     grouped_annotations = groupby(sorted_annotations, key=lambda a: a.body['type'])
@@ -338,12 +338,12 @@ def untangle_scan_doc(
         scan_doc: PageXMLScan,
         physical_start_anchor: int,
         path: str,
-        line_ids_to_anchors: Dict[str, int],
-        logical_anchor_range_for_line_id: Dict[str, LogicalAnchorRange],
-        paragraphs: List[str],
+        line_ids_to_anchors: dict[str, int],
+        logical_anchor_range_for_line_id: dict[str, LogicalAnchorRange],
+        paragraphs: list[str],
         nav_provider: NavProvider,
         page_lang: dict[str, LangDeduction]
-) -> tuple[list[Union[str, Any]], list[Annotation]]:
+) -> tuple[list[Union[str, any]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
     scan_lines = []
     scan_annotations = []
@@ -475,13 +475,13 @@ def page_id(scan_doc):
 def untangle_na_file(
         document_id: str,
         textrepo_client: TextRepoClient,
-        pagexml_ids: List[str],
+        pagexml_ids: list[str],
         base_provenance: ProvenanceData,
-        links: Dict[str, Any],
-        scan_url_mapping: Dict[str, str],
+        links: dict[str, any],
+        scan_url_mapping: dict[str, str],
         nav_provider: NavProvider(),
         page_lang: dict[str, LangDeduction]
-) -> Tuple[Dict[str, any], Dict[str, any], ProvenanceData, List[Annotation]]:
+) -> Tuple[dict[str, any], dict[str, any], ProvenanceData, list[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
 
@@ -594,14 +594,14 @@ def download_page_xml(textrepo_client: TextRepoClient, external_id, output_direc
     return page_xml_path, page_xml, error
 
 
-def store_results(results: Dict[str, any]):
+def store_results(results: dict[str, any]):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
         json.dump(results, fp=f, cls=AnnotationEncoder, indent=4, ensure_ascii=False)
 
 
-def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:
+def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
     na_base_id = rec['na_base_id']
     start_scan = int(rec['start_scan'])
     end_scan = int(rec['end_scan'])
@@ -615,7 +615,7 @@ def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:
     )
 
 
-def read_na_file_metadata(selection_file: str) -> List[DocumentMetadata]:
+def read_na_file_metadata(selection_file: str) -> list[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)

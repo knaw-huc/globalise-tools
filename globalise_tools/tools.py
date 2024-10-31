@@ -1,6 +1,6 @@
 import csv
 from dataclasses import dataclass, field
-from typing import List, Any, Tuple, Dict, Union
+from typing import Tuple, Union
 
 from dataclasses_json import dataclass_json
 from loguru import logger
@@ -54,7 +54,7 @@ class PXWord:
 @dataclass
 class DisplayWord:
     id: str
-    px_words: List[PXWord]
+    px_words: list[PXWord]
     text: str
 
 
@@ -89,7 +89,7 @@ class Annotation:
     # txt_version_id: str = ""
     # char_start: int = 0
     # char_end: int = 0
-    metadata: dict[str, Any] = field(default_factory=dict, hash=False)
+    metadata: dict[str, any] = field(default_factory=dict, hash=False)
 
 
 class IdDispenser:
@@ -164,7 +164,7 @@ class WebAnnotationFactory:
                 self.iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
         logger.info("... done")
 
-    def _make_image_targets(self, page_id: str, coords: List[Coords]) -> List[Dict[str, Any]]:
+    def _make_image_targets(self, page_id: str, coords: list[Coords]) -> list[dict[str, any]]:
         targets = []
         iiif_base_url = self.get_iiif_base_url(page_id)
         iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
@@ -221,13 +221,13 @@ class WebAnnotationFactory:
         return [_physical_text_anchor_selector_target, _physical_cutout_target,
                 _logical_text_anchor_selector_target, _logical_cutout_target]
 
-    def physical_text_anchor_selector_target(self, text_span: TextSpan) -> Dict[str, Any]:
+    def physical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, any]:
         return self._text_anchor_selector_target("Text", text_span)
 
-    def logical_text_anchor_selector_target(self, text_span: TextSpan) -> Dict[str, Any]:
+    def logical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, any]:
         return self._text_anchor_selector_target("LogicalText", text_span)
 
-    def _text_anchor_selector_target(self, target_type: str, text_span: TextSpan) -> Dict[str, Any]:
+    def _text_anchor_selector_target(self, target_type: str, text_span: TextSpan) -> dict[str, any]:
         target = {
             'source': f"{self.textrepo_base_uri}/rest/versions/{text_span.textrepo_version_id}/contents",
             'type': target_type,
@@ -250,13 +250,13 @@ class WebAnnotationFactory:
 
         return target
 
-    def physical_text_cutout_target(self, text_span: TextSpan) -> Dict[str, str]:
+    def physical_text_cutout_target(self, text_span: TextSpan) -> dict[str, str]:
         return self._text_cutout_target("Text", text_span)
 
-    def logical_text_cutout_target(self, text_span: TextSpan) -> Dict[str, str]:
+    def logical_text_cutout_target(self, text_span: TextSpan) -> dict[str, str]:
         return self._text_cutout_target("LogicalText", text_span)
 
-    def _text_cutout_target(self, target_type: str, text_span: TextSpan) -> Dict[str, str]:
+    def _text_cutout_target(self, target_type: str, text_span: TextSpan) -> dict[str, str]:
         if text_span.char_start and text_span.char_end_exclusive:
             return {
                 'source': f"{self.textrepo_base_uri}/view/versions/{text_span.textrepo_version_id}/segments/index/"
@@ -270,8 +270,8 @@ class WebAnnotationFactory:
                 'type': target_type
             }
 
-    def _canvas_target(self, canvas_url: str, xywh_list: List[str] = None,
-                       coords_list: List[List[Tuple[int, int]]] = None) -> dict:
+    def _canvas_target(self, canvas_url: str, xywh_list: list[str] = None,
+                       coords_list: list[list[Tuple[int, int]]] = None) -> dict:
         selectors = []
         if xywh_list:
             for xywh in xywh_list:
@@ -290,7 +290,7 @@ class WebAnnotationFactory:
         }
 
     def _image_target_wth_svg_selector(self, iiif_url: str,
-                                       coords_list: List) -> dict:
+                                       coords_list: list) -> dict:
         return {
             'source': iiif_url,
             'type': "Image",
@@ -336,7 +336,7 @@ def in_same_text_region(word: PXWord, next_word: PXWord) -> bool:
     return word.text_region_id == next_word.text_region_id
 
 
-def to_display_words(px_words: List[PXWord], ids: IdDispenser) -> List[DisplayWord]:
+def to_display_words(px_words: list[PXWord], ids: IdDispenser) -> list[DisplayWord]:
     new_words = []
     i = 0
     px_words_len = len(px_words)
@@ -397,7 +397,7 @@ def generate_word_id(line_id: str, n: int) -> str:
     return f"{line_id}.{n:04d}"
 
 
-def extract_px_elements(scan_doc: PageXMLScan) -> (List[PXTextRegion], List[PXTextLine], List[PXWord]):
+def extract_px_elements(scan_doc: PageXMLScan) -> (list[PXTextRegion], list[PXTextLine], list[PXWord]):
     text_regions = []
     text_lines = []
     px_words = []
@@ -491,7 +491,7 @@ def make_id_prefix(scan_doc: PageXMLScan) -> str:
 def page_annotation(
         id_prefix: str,
         page_id: str,
-        scan_doc_metadata: Dict[str, Any],
+        scan_doc_metadata: dict[str, any],
         path: str,
         physical_span: TextSpan,
         logical_span: TextSpan,
@@ -681,7 +681,7 @@ def is_signature(text_region: PageXMLTextRegion) -> bool:
     return text_region_type_is(text_region, "signature-mark")
 
 
-def paragraph_text(lines: List[str]) -> str:
+def paragraph_text(lines: list[str]) -> str:
     if lines:
         break_char1 = "„"
         break_char2 = "¬"
@@ -725,3 +725,10 @@ def join_words(px_words):
         last_text_region = w.text_region_id
         last_line = w.line_id
     return text.strip()
+
+
+def seconds_to_hhmmss(seconds):
+    hours = int(seconds // 3600)
+    minutes = int((seconds % 3600) // 60)
+    seconds = int(seconds % 60)
+    return f"{hours:02d}:{minutes:02d}:{seconds:02d}"

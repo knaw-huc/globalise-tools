@@ -2,7 +2,6 @@
 import csv
 import json
 import os.path
-from typing import Dict, Any
 
 import hydra
 from loguru import logger
@@ -14,7 +13,7 @@ from globalise_tools.tools import WebAnnotationFactory
 missiven = 'data/generale_missiven.csv'
 
 
-def as_metadata(missive_record: Dict[str, Any]) -> Dict[str, Any]:
+def as_metadata(missive_record: dict[str, any]) -> dict[str, any]:
     metadata = {"@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"}, "type": "GeneralMissiveMetadata"}
 
     for key in missive_record.keys():
@@ -133,7 +132,7 @@ def main(cfg: DictConfig) -> None:
             print(f"{m['Inv.nr. Nationaal Archief (1.04.02)']}; {m['Problemen gevonden tijdens handmatige check:']}")
 
 
-def segment_range(web_annotation: Dict[str, any]):
+def segment_range(web_annotation: dict[str, any]):
     targets = web_annotation['target']
     text_anchor_target = [t for t in targets if t['type'] == 'Text' and 'selector' in t]
     # ic(text_anchor_target, len(text_anchor_target))

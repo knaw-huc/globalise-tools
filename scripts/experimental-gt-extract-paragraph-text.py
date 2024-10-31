@@ -4,7 +4,6 @@ import json
 import os
 import re
 from collections import defaultdict
-from typing import List, Any
 
 import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as px
@@ -101,7 +100,7 @@ def check_logical_to_physical(lines, paragraphs, logical_anchor_range_for_line_a
         print()
 
 
-def pagexml_paths(inv_nr: str) -> List[str]:
+def pagexml_paths(inv_nr: str) -> list[str]:
     return sorted(glob.glob(f"../pagexml/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_*.xml"))
 
 
@@ -128,12 +127,12 @@ def tokenize():
     t2.merge_equals()
 
 
-def store_segmented_text(segments: List[str], store_path: str):
+def store_segmented_text(segments: list[str], store_path: str):
     data = {"_ordered_segments": segments}
     store_json(data, store_path)
 
 
-def store_json(data: Any, store_path: str):
+def store_json(data: any, store_path: str):
     logger.info(f"=> {store_path}")
     with open(store_path, 'w', encoding='UTF8') as filehandle:
         json.dump(data, filehandle, indent=4, ensure_ascii=False)

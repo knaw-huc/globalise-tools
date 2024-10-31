@@ -4,7 +4,6 @@ import json
 import os
 from dataclasses import field, dataclass
 from pathlib import Path
-from typing import List, Dict, Any
 
 import hydra
 import pagexml.parser as pxp
@@ -31,7 +30,7 @@ class DocumentMetadata:
     last_scan_nr: int = field(init=False)
     hana_nr: str = field(init=False)
     external_id: str = field(init=False)
-    pagexml_ids: List[str] = field(init=False)
+    pagexml_ids: list[str] = field(init=False)
 
     def __post_init__(self):
         # self.no_of_pages = int(self.no_of_pages)
@@ -50,7 +49,7 @@ class DocumentMetadata:
     def _external_id(self) -> str:
         return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
 
-    def _pagexml_ids(self) -> List[str]:
+    def _pagexml_ids(self) -> list[str]:
         return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
@@ -60,7 +59,7 @@ def create_document_directory(doc: DocumentMetadata) -> str:
     return output_directory
 
 
-def download_pagexml(trc: TextRepoClient, base_dir: str, scan_ids: List[str]) -> List[str]:
+def download_pagexml(trc: TextRepoClient, base_dir: str, scan_ids: list[str]) -> list[str]:
     paths = []
     for p in scan_ids:
         page_xml_path = f"{base_dir}/{p}.xml"
@@ -73,7 +72,7 @@ def download_pagexml(trc: TextRepoClient, base_dir: str, scan_ids: List[str]) ->
     return paths
 
 
-def parse_pagexml(path: str, document_id: str, segment_offset: int) -> (List[str], List[WebAnnotation]):
+def parse_pagexml(path: str, document_id: str, segment_offset: int) -> (list[str], list[WebAnnotation]):
     lines = []
     annotations = []
     logger.debug(f"<= {path}")
@@ -109,10 +108,10 @@ def to_base_name(path: str) -> str:
 
 
 def parse_pagexmls(
-        pagexml_paths: List[str],
+        pagexml_paths: list[str],
         doc_id: str,
         waf: gt.WebAnnotationFactory
-) -> (Dict[str, Any], List[WebAnnotation]):
+) -> (dict[str, any], list[WebAnnotation]):
     document_lines = []
     document_annotations = []
     for path in pagexml_paths:
@@ -124,7 +123,7 @@ def parse_pagexmls(
     return segmented_text, web_annotations
 
 
-def store_segmented_text(base_dir: str, segmented_text: Dict[str, Any]) -> str:
+def store_segmented_text(base_dir: str, segmented_text: dict[str, any]) -> str:
     path = f"{base_dir}/textstore.json"
     logger.debug(f"=> {path}")
     with open(path, 'w') as f:
@@ -132,7 +131,7 @@ def store_segmented_text(base_dir: str, segmented_text: Dict[str, Any]) -> str:
     return path
 
 
-def store_annotations(base_dir: str, web_annotations: List[WebAnnotation]) -> str:
+def store_annotations(base_dir: str, web_annotations: list[WebAnnotation]) -> str:
     path = f"{base_dir}/web_annotations.json"
     logger.debug(f"=> {path}")
     with open(path, 'w') as f:
@@ -158,7 +157,7 @@ def process_document(doc: DocumentMetadata, trc: TextRepoClient, arc: AnnoRepoCl
     upload_annotations(arc, annotations_path)
 
 
-def read_document_metadata(selection_file: str) -> List[DocumentMetadata]:
+def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
     logger.info(f"<= {selection_file}")
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
@@ -166,7 +165,7 @@ def read_document_metadata(selection_file: str) -> List[DocumentMetadata]:
     return metadata
 
 
-def to_document_metadata(rec: Dict[str, any]) -> DocumentMetadata:
+def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
     na_base_id = rec['na_base_id']
     start_scan = int(rec['start_scan'])
     end_scan = int(rec['end_scan'])

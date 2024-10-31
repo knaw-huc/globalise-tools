@@ -1,6 +1,6 @@
 import re
 from dataclasses import dataclass
-from typing import Dict, Any, List, TextIO, Union
+from typing import TextIO, Union
 
 import requests
 from dataclasses_json import dataclass_json
@@ -46,8 +46,8 @@ class Message:
 @dataclass
 class InceptionAPIResponse:
     response: Response
-    body: Any
-    messages: List[Message]
+    body: any
+    messages: list[Message]
 
 
 class InceptionClient:
@@ -83,7 +83,7 @@ class InceptionClient:
     def close(self):
         self.__exit__()
 
-    def get_projects(self) -> List[Project]:
+    def get_projects(self) -> list[Project]:
         path = f"{PROJECTS_PATH}"
         result = self.__get(path)
         return [Project.from_dict(d) for d in result.body]
@@ -153,7 +153,7 @@ class InceptionClient:
         else:
             return as_inception_api_response(response)
 
-    def __post(self, path: str, params: Dict, file: TextIO = None) -> InceptionAPIResponse:
+    def __post(self, path: str, params: dict, file: TextIO = None) -> InceptionAPIResponse:
         url = self.base_uri + path
         logger.debug(f"POST {url}")
         response = self.session.post(url=url,

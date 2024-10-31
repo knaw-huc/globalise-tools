@@ -4,126 +4,22 @@ import json
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
-from typing import List, Dict
 
 from loguru import logger
 from pagexml.model.physical_document_model import Coords
 
 import globalise_tools.tools as gt
+from globalise_tools.events import EVENT_LAYER_NAME, NAMED_ENTITY_LAYER_NAME, ENTITIES
 from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token, AnnotationLink, Document
 
 DATA_DIR = "data/inception_output"
 
-ENTITIES = {"CIV": "Civic/legal mention",
-            "CMTY": "Commodity",
-            "CMTY_QUAL": "Commodity qualifier, if appears to be relevant for subclassification of commodity",
-            "DOC": "Document",
-            "DYN": "Dynasty",
-            "ERL": "Ethno-religious/location-based individual",
-            "ERL_QUAL": "Ethno-religious/location-based qualifier",
-            "LOC": "Location",
-            "MES": "Measure",
-            "MES_CUR": "Currency (measure)",
-            "NUM": "Numerical (exact) quantity",
-            "ORG": "Named organisation",
-            "PER": "Person",
-            "POL": "Politie",
-            "POL_LOC": "Politie+location",
-            "PRF": "Profession",
-            "RNK": "Rank / title",
-            "SHIP": "Ship name",
-            "SHIP_TYPE": "ship type:",
-            "TIME_DATE": "Date (specific point in time)",
-            "TIME_DUR": "Duration",
-            "TIME_REL": "Time relation marker",
-            "UNFREE": "Slaves en related terms"}
-
-EVENT_PREDICATES = {
-    "AlteringARelationship": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EndingARelationship",
-    "Arriving": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Arriving",
-    "Attacking": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Attacking",
-    "BeginningARelationship": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeginningARelationship",
-    "BeginningContractualAgreement": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeginningContractualAgreement",
-    "BeingAtAPlace": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingAtAPlace",
-    "BeingDamaged": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingDamaged",
-    "BeingDead": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingDead",
-    "BeingDestroyed": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingDestroyed",
-    "BeingEmployed": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingEmployed",
-    "BeingInARelationship": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingInARelationship",
-    "BeingInConflict": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingInConflict",
-    "BeingLeader": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BeingLeader",
-    "Besieging": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Besieging",
-    "BiologicalEvent": "https://github.com/globalise-huygens/nlp-event-detection/wiki#BiologicalEvent",
-    "Buying": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Buying",
-    "ChangeOfPossession": "https://github.com/globalise-huygens/nlp-event-detection/wiki#ChangeOfPossession",
-    "Collaboration": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Collaboration",
-    "Damaging": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Damaging",
-    "Decreasing": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Decreasing",
-    "Destroying": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Destroying",
-    "Dying": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Dying",
-    "EndingARelationship": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EndingARelationship",
-    "EndingContractualAgreement": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EndingContractualAgreement",
-    "FallingIll": "https://github.com/globalise-huygens/nlp-event-detection/wiki#FallingIll",
-    "FinancialTransaction": "https://github.com/globalise-huygens/nlp-event-detection/wiki#FinancialTransaction",
-    "Getting": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Getting",
-    "Giving": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Giving",
-    "HavingAMedicalCondition": "https://github.com/globalise-huygens/nlp-event-detection/wiki#HavingAMedicalCondition",
-    "HavingInPossession": "https://github.com/globalise-huygens/nlp-event-detection/wiki#HavingInPossession",
-    "HavingInternalState": "https://github.com/globalise-huygens/nlp-event-detection/wiki#HavingInternalState-",
-    "HavingInternalState+": "https://github.com/globalise-huygens/nlp-event-detection/wiki#HavingInternalState+",
-    "Healing": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Healing",
-    "Increasing": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Increasing",
-    "IntentionalDamaging": "https://github.com/globalise-huygens/nlp-event-detection/wiki#IntentionalDamaging",
-    "IntentionalEvent": "https://github.com/globalise-huygens/nlp-event-detection/wiki#IntentionalEvent",
-    "InternalChange": "https://github.com/globalise-huygens/nlp-event-detection/wiki#InternalChange",
-    "Invasion": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Invasion",
-    "JoiningAnOrganization": "https://github.com/globalise-huygens/nlp-event-detection/wiki#JoiningAnOrganization",
-    "Leaving": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Leaving",
-    "LeavingAnOrganization": "https://github.com/globalise-huygens/nlp-event-detection/wiki#LeavingAnOrganization",
-    "Miscellaneous": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Miscellaneous",
-    "Mutiny": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Mutiny",
-    "Occupation": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Occupation",
-    "PoliticalRevolution": "https://github.com/globalise-huygens/nlp-event-detection/wiki#PoliticalRevolution",
-    "QuantityChange": "https://github.com/globalise-huygens/nlp-event-detection/wiki#QuantityChange",
-    "RelationshipChange": "https://github.com/globalise-huygens/nlp-event-detection/wiki#RelationshipChange",
-    "Repairing": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Repairing",
-    "Replacing": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Replacing",
-    "Riot": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Riot",
-    "ScalarChange": "https://github.com/globalise-huygens/nlp-event-detection/wiki#ScalarChange",
-    "Selling": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Selling",
-    "Shooting": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Shooting",
-    "SocialInteraction": "https://github.com/globalise-huygens/nlp-event-detection/wiki#SocialInteraction",
-    "SocialStatusChange": "https://github.com/globalise-huygens/nlp-event-detection/wiki#SocialStatusChange",
-    "TakingSomeoneUnderControl": "https://github.com/globalise-huygens/nlp-event-detection/wiki#TakingSomeoneUnderControl",
-    "TransLocation": "https://github.com/globalise-huygens/nlp-event-detection/wiki#TransLocation",
-    "Transportation": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Transportation",
-    "Uprising": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Uprising",
-    "ViolentContest": "https://github.com/globalise-huygens/nlp-event-detection/wiki#ViolentContest",
-    "ViolentTranslocation": "https://github.com/globalise-huygens/nlp-event-detection/wiki#ViolentTranslocation",
-    "Voyage": "https://github.com/globalise-huygens/nlp-event-detection/wiki#Voyage",
-    "War": "https://github.com/globalise-huygens/nlp-event-detection/wiki#War"}
-
-EVENT_ARGUMENTS = ["Agent",
-                   "AgentPatient",
-                   "Miscellaneous",
-                   "Benefactive",
-                   "Cargo",
-                   "Instrument",
-                   "Location",
-                   "Patient",
-                   "Source",
-                   "Target",
-                   "Time"]
-
-NAMED_ENTITY_LAYER_NAME = "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity"
-EVENT_LAYER_NAME = "webanno.custom.SemPredGLOB"
-
 
 @dataclass
 class TokenContext:
-    token_annotations: List[Dict[str, any]]
-    word_annotations: List[Dict[str, any]]
-    token_idx: Dict[str, any]
+    token_annotations: list[dict[str, any]]
+    word_annotations: list[dict[str, any]]
+    token_idx: dict[str, any]
 
 
 @logger.catch
@@ -141,11 +37,11 @@ def create_web_annotations(webannotation_factory: gt.WebAnnotationFactory, data_
     return annotations
 
 
-def web_anno_file_paths(directory: str) -> List[str]:
+def web_anno_file_paths(directory: str) -> list[str]:
     return glob.glob(f"{directory}/*.tsv")
 
 
-def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactory) -> List[Dict[str, any]]:
+def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactory) -> list[dict[str, any]]:
     doc_id = path.split('/')[-1].replace('.tsv', '')
 
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
@@ -263,7 +159,7 @@ def make_event_argument_annotation(al: AnnotationLink,
     return w3c_anno
 
 
-def make_event_body(anno: Annotation, argument_source: Dict[str, str], body_id: str) -> Dict[str, any]:
+def make_event_body(anno: Annotation, argument_source: dict[str, str], body_id: str) -> dict[str, any]:
     fields = anno.features
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
@@ -350,7 +246,7 @@ def make_targets(annotation: Annotation, token_context: TokenContext,
     return targets
 
 
-def deduplicate(dicts: List[dict]) -> List[dict]:
+def deduplicate(dicts: list[dict]) -> list[dict]:
     done = set()
     anno_list = []
     for d in sorted(dicts, key=lambda _dict: _dict["id"]):
@@ -367,7 +263,7 @@ def annotation_from_dict(wa: dict) -> gt.Annotation:
     return anno
 
 
-# def simplified(targets: List[Dict]) -> List[Dict]:
+# def simplified(targets: list[dict]) -> list[dict]:
 #     _simplified = []
 #     json_set = set(json.dumps(d) for d in targets)
 #     deduplicated = [json.loads(j) for j in json_set]

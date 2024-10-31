@@ -3,7 +3,6 @@ import itertools
 import json
 import os
 import random
-from typing import List, Dict
 
 from loguru import logger
 
@@ -70,7 +69,7 @@ def is_fragment_selector_target(target: dict) -> bool:
         and has_fragment_selector(target["selector"])
 
 
-def has_fragment_selector(selectors: List[Dict[str, str]]) -> bool:
+def has_fragment_selector(selectors: list[dict[str, str]]) -> bool:
     fragment_selectors = [s for s in selectors if s["type"] == "FragmentSelector"]
     return len(fragment_selectors) > 0
 

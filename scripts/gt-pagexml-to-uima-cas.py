@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import re
-from typing import Tuple, List
+from typing import Tuple
 
 import spacy
 from cassis import *
@@ -79,7 +79,7 @@ def convert(page_xml_path: str):
         cas.to_xmi(cas_xmi, pretty_print=True)
 
 
-def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]], Tuple[int, int], List[Tuple[int, int]]]:
+def extract_paragraph_text(scan_doc) -> Tuple[str, list[Tuple[int, int]], Tuple[int, int], list[Tuple[int, int]]]:
     paragraphs = []
     headers = []
     marginalia = []

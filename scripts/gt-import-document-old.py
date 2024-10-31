@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 import argparse
-from typing import Tuple, List
+from typing import Tuple
 
 from cassis import *
 from icecream import ic
@@ -97,7 +97,7 @@ def convert(page_xml_path: str):
         cas.to_xmi(cas_xmi, pretty_print=True)
 
 
-def paragraph_text(lines: List[str]) -> str:
+def paragraph_text(lines: list[str]) -> str:
     break_char = "„"
     # ic(lines)
     for i in range(0, len(lines) - 1):
@@ -112,7 +112,7 @@ def paragraph_text(lines: List[str]) -> str:
     return "".join(lines) + "\n"
 
 
-def extract_paragraph_text(scan_doc) -> Tuple[str, List[Tuple[int, int]]]:
+def extract_paragraph_text(scan_doc) -> Tuple[str, list[Tuple[int, int]]]:
     paragraph_ranges = []
     offset = 0
     text = ""
