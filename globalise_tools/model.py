@@ -2,7 +2,6 @@ import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
-from hashlib import _Hash
 from json import JSONEncoder
 from typing import Optional
 
@@ -232,7 +231,7 @@ class LogicalAnchorRange:
 @dataclass
 class TextData:
     plain_text_source: str
-    plain_text_md5: _Hash
+    plain_text_md5: str
     text_intervals: list
 
 
@@ -277,8 +276,8 @@ NER_DATA_DICT = {
     },
     'ETH_REL': {
         'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/ETH_REL',
-        'label': 'Ethno-religious appelation or attribute, not derived from location name',
-        'entity_type': 'urn:globalise:entityType:EthnoReligiousAppelation'
+        'label': 'Ethno-religious appellation or attribute, not derived from location name',
+        'entity_type': 'urn:globalise:entityType:EthnoReligiousAppellation'
     },
     'LOC_ADJ': {
         'uri': 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/LOC_ADJ',
