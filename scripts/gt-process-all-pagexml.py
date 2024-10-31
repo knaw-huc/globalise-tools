@@ -102,7 +102,7 @@ def print_paragraphs(file_path: str):
 
     display_words = gt.to_display_words(px_words, tr_idx)
 
-    text = join_words(px_words)
+    text = gt.join_words(px_words)
 
     print("[LINES]\n")
     print(text)
@@ -118,23 +118,6 @@ def print_paragraphs(file_path: str):
                     for w in display_words
                     if len(w.px_words) == 2]
     print("\n".join(joined_words))
-
-
-def join_words(px_words):
-    text = ""
-    last_text_region = None
-    last_line = None
-    for w in px_words:
-        if w.text_region_id == last_text_region:
-            if w.line_id != last_line:
-                text += "|\n"
-            text += " "
-        else:
-            text += "\n\n"
-        text += w.text
-        last_text_region = w.text_region_id
-        last_line = w.line_id
-    return text.strip()
 
 
 def main():

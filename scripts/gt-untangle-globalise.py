@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import csv
 import glob
 import json
 import os
@@ -599,29 +598,6 @@ def store_results(results: dict[str, any]):
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
         json.dump(results, fp=f, cls=AnnotationEncoder, indent=4, ensure_ascii=False)
-
-
-def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
-    na_base_id = rec['na_base_id']
-    start_scan = int(rec['start_scan'])
-    end_scan = int(rec['end_scan'])
-    inventory_number = na_base_id.split('_')[-1]
-    return DocumentMetadata(
-        inventory_number=inventory_number,
-        scan_range=f'{start_scan}-{end_scan}',
-        scan_start=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{start_scan:04d}',
-        scan_end=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{end_scan:04d}',
-        no_of_scans=end_scan - start_scan + 1
-    )
-
-
-def read_na_file_metadata(selection_file: str) -> list[DocumentMetadata]:
-    logger.info(f"<= {selection_file}")
-    with open(selection_file, encoding='utf8') as f:
-        reader = csv.DictReader(f)
-        metadata = [to_document_metadata(row) for row in reader]
-        # metadata = [to_document_metadata(row) for row in reader if row['Quality Check'] == 'TRUE']
-    return metadata
 
 
 def create_or_update_tr_document(client: TextRepoClient, metadata: DocumentMetadata) -> DocumentIdentifier:

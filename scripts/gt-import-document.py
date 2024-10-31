@@ -7,7 +7,7 @@ import os.path
 import re
 import subprocess
 import sys
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from datetime import datetime
 from pathlib import Path
 
@@ -15,7 +15,6 @@ import hydra
 import spacy
 from cassis import *
 from cassis.typesystem import TYPE_NAME_STRING
-from dataclasses_json import dataclass_json
 from intervaltree import IntervalTree
 from loguru import logger
 from omegaconf import DictConfig
@@ -28,6 +27,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 import globalise_tools.textrepo_tools as tt
+from globalise_tools.document_metadata import DocumentMetadata
 from globalise_tools.inception_client import InceptionClient
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
 from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
@@ -41,66 +41,6 @@ document_data_path = "out/document_data.json"
 class TextRegionSummary:
     text: str
     scan_coords: ScanCoords
-
-
-@dataclass_json
-@dataclass
-class DocumentMetadata:
-    document_id: str
-    internal_id: str
-    globalise_id: str
-    quality_check: str
-    title: str
-    year_creation_or_dispatch: str
-    inventory_number: str
-    folio_or_page: str
-    folio_or_page_range: str
-    scan_range: str
-    scan_start: str
-    scan_end: str
-    no_of_scans: str
-    no_of_pages: str
-    GM_id: str
-    tanap_id: str
-    tanap_description: str
-    remarks: str
-    marginalia: str
-    partOf500_filename: str
-    partOf500_folio: str
-    first_scan_nr: int = field(init=False)
-    last_scan_nr: int = field(init=False)
-    hana_nr: str = field(init=False)
-    external_id: str = field(init=False)
-    pagexml_ids: list[str] = field(init=False)
-
-    def __post_init__(self):
-        if self.no_of_pages:
-            self.no_of_pages = int(self.no_of_pages)
-        else:
-            self.no_of_pages = 1
-        if self.no_of_scans:
-            self.no_of_scans = int(self.no_of_scans)
-        else:
-            self.no_of_scans = 1
-        (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
-        self.hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
-        self.external_id = self._external_id()
-        self.pagexml_ids = self._pagexml_ids()
-
-    def _scan_nr_range(self) -> (int, int):
-        if '-' in self.scan_range:
-            (first_str, last_str) = self.scan_range.split('-')
-            first = int(first_str)
-            last = int(last_str)
-        else:
-            first = last = 0
-        return first, last
-
-    def _external_id(self) -> str:
-        return f"{self.hana_nr}_{self.first_scan_nr:04d}-{self.last_scan_nr:04d}"
-
-    def _pagexml_ids(self) -> list[str]:
-        return [f"{self.hana_nr}_{n:04d}" for n in range(self.first_scan_nr, self.last_scan_nr + 1)]
 
 
 class DocumentsProcessor:

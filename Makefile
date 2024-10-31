@@ -117,6 +117,10 @@ version-update-minor:
 version-update-major:
 	poetry run version major
 
+.PHONY: detect-copy-paste
+detect-copy-paste:
+	pmd cpd --minimum-tokens 50 --dir globalise_tools --dir scripts --language python | less
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
@@ -150,6 +154,7 @@ help:
 	@echo "  extract-paragraph-text     - to generate a tsv file with the paragraph text of the pagexml"
 	@echo
 	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
+	@echo "  detect-copy-paste          - find code duplication"
 	@echo
 	@echo "  browse-globalise-inception - to open the globalise inception in a browser"
 	@echo

@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import csv
 import json
 import os
 from dataclasses import field, dataclass
@@ -157,34 +156,12 @@ def process_document(doc: DocumentMetadata, trc: TextRepoClient, arc: AnnoRepoCl
     upload_annotations(arc, annotations_path)
 
 
-def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
-    logger.info(f"<= {selection_file}")
-    with open(selection_file, encoding='utf8') as f:
-        reader = csv.DictReader(f)
-        metadata = [to_document_metadata(row) for row in reader]
-    return metadata
-
-
-def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
-    na_base_id = rec['na_base_id']
-    start_scan = int(rec['start_scan'])
-    end_scan = int(rec['end_scan'])
-    inventory_number = na_base_id.split('_')[-1]
-    return DocumentMetadata(
-        inventory_number=inventory_number,
-        scan_range=f'{start_scan}-{end_scan}',
-        scan_start=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{start_scan:04d}',
-        scan_end=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{end_scan:04d}',
-        no_of_scans=end_scan - start_scan + 1
-    )
-
-
 @hydra.main(version_base=None)
 @logger.catch
 def main(cfg: DictConfig) -> None:
     meta_path = "data/metadata_1618-1793_2022-08-30.csv"
 
-    metadata = read_document_metadata(cfg.documents_file)
+    metadata = gt.read_document_metadata(cfg.documents_file)
     missive_data = gt.read_missive_metadata(meta_path)
 
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
