@@ -16,8 +16,8 @@ from intervaltree import IntervalTree, Interval
 from loguru import logger
 
 import globalise_tools.git_tools as git
-from globalise_tools.events import wiki_base, time_roles, place_roles
-from globalise_tools.model import NER_DATA_DICT, ImageData
+from globalise_tools.events import NER_DATA_DICT, wiki_base, time_roles, place_roles
+from globalise_tools.model import ImageData
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 

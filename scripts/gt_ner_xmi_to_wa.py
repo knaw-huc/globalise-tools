@@ -25,8 +25,8 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.textrepo_tools as tt
-from globalise_tools.events import wiki_base, time_roles, place_roles
-from globalise_tools.model import NER_DATA_DICT, ImageData
+from globalise_tools.events import wiki_base, time_roles, place_roles, NER_DATA_DICT
+from globalise_tools.model import ImageData
 from globalise_tools.tools import seconds_to_hhmmss
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -678,7 +678,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
                                                      processed_inventories)
-                          for xmi_dir in xmi_dirs])
+                          for xmi_dir in xmi_dirs[0:5]])
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
@@ -718,8 +718,8 @@ def process_inventory(context: InventoryProcessingContext):
         export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
-        processed_inventories.append(inv_nr)
-        store_processed_inventories(processed_inventories)
+        # processed_inventories.append(inv_nr)
+        # store_processed_inventories(processed_inventories)
 
 
 def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFactory, trc: TextRepoClient,
@@ -754,13 +754,13 @@ def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, t
             new_offset = raw_text_offset + 1 + len(w.text)
             raw_text_range[raw_text_offset:new_offset] = w
             raw_text_offset = new_offset
-    md5 = hashlib.md5(plain_text.encode()).hexdigest()
-    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-    xpf.document_data[base_name] = {
-        "plain_text_source": f"{txt_version_uri}/contents",
-        "plain_text_md5": md5,
-        "text_intervals": list(raw_text_range)
-    }
+    # md5 = hashlib.md5(plain_text.encode()).hexdigest()
+    # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    # xpf.document_data[base_name] = {
+    #     "plain_text_source": f"{txt_version_uri}/contents",
+    #     "plain_text_md5": md5,
+    #     "text_intervals": list(raw_text_range)
+    # }
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
