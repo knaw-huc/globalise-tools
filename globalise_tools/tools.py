@@ -1,4 +1,5 @@
 import csv
+import re
 from dataclasses import dataclass, field
 from typing import Tuple, Union
 
@@ -754,3 +755,71 @@ def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
         scan_end=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{end_scan:04d}',
         no_of_scans=end_scan - start_scan + 1
     )
+
+
+def extract_paragraph_text(scan_doc) -> Tuple[str, list[Tuple[int, int]], Tuple[int, int], list[Tuple[int, int]]]:
+    paragraphs = []
+    headers = []
+    marginalia = []
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        # logger.info(f"text_region: {tr.id}")
+        # logger.info(f"type: {tr.type[-1]}")
+        # line_text = [l.text for l in tr.lines]
+        # for t in line_text:
+        #     logger.info(f"line: {t}")
+        if is_marginalia(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                marginalia.append(ptext)
+        if is_header(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                headers.append(ptext)
+        if is_paragraph(tr) or is_signature(tr):
+            ptext = joined_lines(tr)
+            if ptext:
+                paragraphs.append(ptext)
+        # logger.info("")
+
+    # ic(marginalia, headers, paragraphs)
+    marginalia_ranges = []
+    header_range = None
+    paragraph_ranges = []
+    offset = 0
+    text = ""
+    for m in marginalia:
+        text += m
+        text_len = len(text)
+        marginalia_ranges.append((offset, text_len))
+        offset = text_len
+    if headers:
+        h = headers[0]
+        text += f"\n{h}\n"
+        text_len = len(text)
+        header_range = (offset + 1, text_len - 1)
+        offset = text_len
+    for m in paragraphs:
+        text += m
+        text_len = len(text)
+        paragraph_ranges.append((offset, text_len))
+        offset = text_len
+    if '  ' in text:
+        logger.error('double space in text')
+    return text, marginalia_ranges, header_range, paragraph_ranges
+
+
+_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+
+word_break_chars = '„¬'
+
+
+def joined_lines(tr):
+    # tr_text, line_ranges = pxh.make_text_region_text(tr.lines,
+    #                                                  word_break_chars=word_break_chars)
+    # return tr_text.strip()
+    lines = []
+    for line in tr.lines:
+        if line.text:
+            lines.append(line.text)
+    ptext = paragraph_text(lines)
+    return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
