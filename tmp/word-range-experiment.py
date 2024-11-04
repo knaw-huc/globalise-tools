@@ -10,6 +10,7 @@ from loguru import logger
 import globalise_tools.tools as gt
 
 page_xml_path = "/Users/bram/c/data/globalise/pagexml/10000/NL-HaNA_1.04.02_10000_0256.xml"
+xmi_path = "/Users/bram/c/data/globalise/pagexml/10000/NL-HaNA_1.04.02_10000_0256.xml"
 word_break_chars = '„'
 
 spacy_core = "nl_core_news_lg"
