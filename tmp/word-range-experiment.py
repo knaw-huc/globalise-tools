@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import re
 
+import cassis
 import pagexml.parser as px
 import spacy
 from icecream import ic
@@ -9,9 +10,12 @@ from loguru import logger
 
 import globalise_tools.tools as gt
 
-page_xml_path = "/Users/bram/c/data/globalise/pagexml/10000/NL-HaNA_1.04.02_10000_0256.xml"
-xmi_path = "/Users/bram/c/data/globalise/pagexml/10000/NL-HaNA_1.04.02_10000_0256.xml"
-word_break_chars = '„'
+inv_nr = "10009"
+page_nr = "0407"
+page_xml_path = f"/Users/bram/c/data/globalise/pagexml/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_{page_nr}.xml"
+xmi_path = f"/Users/bram/c/data/globalise/ner/xmicas/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_{page_nr}.xmi"
+typesystem_path = "data/typesystem.xml"
+word_break_chars = '„¬'
 
 spacy_core = "nl_core_news_lg"
 
@@ -101,6 +105,16 @@ def main():
             if len(overlapping_words) != 1 or (len(overlapping_words) == 1 and overlapping_words[0] != token_text):
                 ic(token_text, overlapping_words)
 
+    entity_annotations = load_entity_annotations()
+    for entity in entity_annotations:
+        ic(entity)
+        begin = entity['begin']
+        end = entity['end']
+        overlapping_intervals = sorted(list(itree[begin:end]))
+        entity_text = f"({begin}:{end}) {entity.get_covered_text()}"
+        overlapping_words = [f"({i[0]}:{i[1]}) {i[2].text}" for i in overlapping_intervals]
+        ic(entity_text, overlapping_words)
+
     # if tr_text:
     #     ic(tr_text)
     #     ic(line_ranges)
@@ -120,6 +134,18 @@ def main():
     #         start = offset
     #         calc_start += len(wt) + 1
     #     print()
+
+
+def load_entity_annotations():
+    logger.info(f"<= {typesystem_path}")
+    with open(typesystem_path, 'rb') as f:
+        typesystem = cassis.load_typesystem(f)
+    logger.info(f"<= {xmi_path}")
+    with open(xmi_path, 'rb') as f:
+        cas = cassis.load_cas_from_xmi(f, typesystem=typesystem)
+    entity_annotations = [a for a in cas.views[0].get_all_annotations() if
+                          a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+    return entity_annotations
 
 
 if __name__ == '__main__':
