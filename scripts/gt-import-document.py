@@ -30,7 +30,7 @@ import globalise_tools.textrepo_tools as tt
 from globalise_tools.document_metadata import DocumentMetadata
 from globalise_tools.inception_client import InceptionClient
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
-from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
+from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature, get_canvas_id
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -218,8 +218,8 @@ class DocumentsProcessor:
             version_location = textrepo_client.version_uri(version_identifier.id)
             provenance.sources.append(ProvenanceResource(resource=URI(version_location), relation="primary"))
 
-            iiif_url = get_iiif_url(external_id, textrepo_client)
-            canvas_id = self._get_canvas_id(external_id)
+            iiif_url = tt.get_iiif_url(textrepo_client, external_id)
+            canvas_id = get_canvas_id(external_id)
             logger.info(f"iiif_url={iiif_url}")
             page_links['iiif_url'] = iiif_url
             scan_links[external_id] = page_links
@@ -293,13 +293,6 @@ class DocumentsProcessor:
         logger.info(f"=> {document_data_path}")
         with open(document_data_path, "w") as f:
             json.dump(self.document_data, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
-
-    @staticmethod
-    def _get_canvas_id(page_id):
-        parts = page_id.split('_')
-        inventory_number = parts[-2]
-        page_num = parts[-1].lstrip("0")
-        return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
 
 
 @hydra.main(version_base=None)
@@ -457,12 +450,6 @@ def extract_text_region_summaries(
                 ))
         logger.info("")
     return marginalia, headers, paragraphs
-
-
-def get_iiif_url(external_id, textrepo_client):
-    meta = textrepo_client.find_document_metadata(external_id)[1]
-    scan_url = meta['scan_url'].replace('/info.json', '')
-    return f"{scan_url}/full/max/0/default.jpg"
 
 
 def download_page_xml(inventory_id, external_id, textrepo_client):

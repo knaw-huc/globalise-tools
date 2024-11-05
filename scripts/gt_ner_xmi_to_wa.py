@@ -34,6 +34,7 @@ THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 counter = Value('i', 0)
 total = Value('i', 0)
 start_time = Value('f', 0)
+word_break_chars = '„¬'
 
 
 def show_progress(future):
@@ -212,10 +213,10 @@ class XMIProcessor:
         ]
         overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
-        overlap_size = len(overlapping_intervals)
-        if overlap_size > 1:
-            logger.warning(
-                f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
+        # overlap_size = len(overlapping_intervals)
+        # if overlap_size > 1:
+        #     logger.warning(
+        #         f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         image_data_list = []
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
@@ -728,29 +729,89 @@ def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, t
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     logger.info(f"<= {page_xml_path}")
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
-    page_text, marginalia_ranges, header_range, paragraph_ranges = gt.extract_paragraph_text(scan_doc)
+    iiif_base_uri = tt.get_iiif_base_url(trc, base_name)
+    canvas_id = gt.get_canvas_id(base_name)
 
-    raw_text_offset = 0
-    raw_text_range = IntervalTree()
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        for w in tr.get_words():
-            new_offset = raw_text_offset + 1 + len(w.text)
-            raw_text_range[raw_text_offset:new_offset] = w
-            raw_text_offset = new_offset
-    md5 = hashlib.md5(page_text.encode()).hexdigest()
+    words, text = get_words_and_joined_text(scan_doc)
+    itree = index_word_ranges(text, words, canvas_id=canvas_id, iiif_base_uri=iiif_base_uri)
+
+    md5 = hashlib.md5(text.encode()).hexdigest()
     txt_version_identifier = trc.import_version(
         external_id=base_name,
         type_name=plain_text_file_type.name,
-        contents=page_text,
+        contents=text,
         as_latest_version=True
     )
     txt_version_uri = trc.version_uri(txt_version_identifier.version_id)
     xpf.document_data[base_name] = {
         "plain_text_source": f"{txt_version_uri}/contents",
         "plain_text_md5": md5,
-        "text_intervals": list(raw_text_range)
+        "text_intervals": list(itree)
     }
     return txt_version_uri
+
+
+
+
+def index_word_ranges(text: str, all_words: list, canvas_id: str, iiif_base_uri: str):
+    itree = IntervalTree()
+    start = 0
+    for word in all_words:
+        word_text = word.text
+        word_len = len(word_text)
+        offset = text.find(word_text, start)
+        if offset == -1:
+            cleaned_text = re.sub(f'[{word_break_chars}]', '', word_text)
+            offset = text.find(cleaned_text, start)
+            word_len = len(cleaned_text)
+        begin = offset
+        end = offset + word_len
+        # sub = text[begin:end]
+        # ic(offset, word_text, sub)
+        if end > begin:
+            itree[begin:end] = {
+                "canvas_id": canvas_id,
+                "iiif_base_uri": iiif_base_uri,
+                "coords": word.coords.points,
+                "word": word.text
+            }
+        start = offset + word_len - 1
+    return itree
+
+
+def get_words_and_joined_text(scan_doc):
+    paragraphs = []
+    paragraph_words = []
+    headers = []
+    header_words = []
+    marginalia = []
+    marginalia_words = []
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        if gt.is_marginalia(tr):
+            ptext = gt.joined_lines(tr)
+            if ptext:
+                marginalia.append(ptext)
+                marginalia_words.extend(tr.get_words())
+        if gt.is_header(tr):
+            ptext = gt.joined_lines(tr)
+            if ptext:
+                headers.append(ptext)
+                header_words.extend(tr.get_words())
+        if gt.is_paragraph(tr) or gt.is_signature(tr):
+            ptext = gt.joined_lines(tr)
+            if ptext:
+                paragraphs.append(ptext)
+                paragraph_words.extend(tr.get_words())
+    text = ""
+    for m in marginalia:
+        text += m
+    if headers:
+        h = headers[0]
+        text += f"\n{h}\n"
+    for m in paragraphs:
+        text += m
+    all_words = marginalia_words + header_words + paragraph_words
+    return all_words, text
 
 
 def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFactory, plain_text_source: str):

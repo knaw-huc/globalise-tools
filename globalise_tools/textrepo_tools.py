@@ -15,3 +15,13 @@ def get_plain_text_file_type(client: TextRepoClient) -> FileType:
 
 def get_xmi_file_type(client: TextRepoClient) -> FileType:
     return get_file_type(client, 'xmi', 'application/vnd.xmi+xml')
+
+
+def get_iiif_base_url(client: TextRepoClient, external_id: str) -> str:
+    meta = client.find_document_metadata(external_id)[1]
+    return meta['scan_url'].replace('/info.json', '')
+
+
+def get_iiif_url(client: TextRepoClient, external_id: str) -> str:
+    scan_url = get_iiif_base_url(client, external_id)
+    return f"{scan_url}/full/max/0/default.jpg"

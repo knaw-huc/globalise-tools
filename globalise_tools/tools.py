@@ -691,7 +691,7 @@ def paragraph_text(lines: list[str]) -> str:
         for i in range(0, len(lines) - 1):
             line0 = lines[i]
             line1 = lines[i + 1]
-            if line0[-1] in break_chars:
+            if line0 and line0[-1] in break_chars:
                 lines[i] = line0.rstrip(line0[-1])
                 lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
             elif line1[0] in break_chars:
@@ -823,3 +823,10 @@ def joined_lines(tr):
             lines.append(line.text)
     ptext = paragraph_text(lines)
     return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
+
+
+def get_canvas_id(page_id: str) -> str:
+    parts = page_id.split('_')
+    inventory_number = parts[-2]
+    page_num = parts[-1].lstrip("0")
+    return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"

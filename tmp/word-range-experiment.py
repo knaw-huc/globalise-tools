@@ -107,7 +107,7 @@ def main():
 
     entity_annotations = load_entity_annotations()
     for entity in entity_annotations:
-        ic(entity)
+        # ic(entity)
         begin = entity['begin']
         end = entity['end']
         overlapping_intervals = sorted(list(itree[begin:end]))
