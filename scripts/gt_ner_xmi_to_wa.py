@@ -674,20 +674,33 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
+    # execute_in_parallel(output_dir, pagexml_dir, plain_text_file_type, processed_inventories, trc, xmi_dirs, xpf)
+    execute_in_serial(output_dir, pagexml_dir, plain_text_file_type, processed_inventories, trc, xmi_dirs, xpf)
+    logger.info("done!")
+
+
+def execute_in_parallel(output_dir, pagexml_dir, plain_text_file_type, processed_inventories, trc, xmi_dirs, xpf):
     client = dask.Client()
     logger.info(f"mapping processes...")
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
                                                      processed_inventories)
-                          for xmi_dir in xmi_dirs[0:1]])
+                          for xmi_dir in xmi_dirs])
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
-
     start_time.value = time.perf_counter()
     logger.info("gathering...")
     client.gather(futures)
-    logger.info("done!")
+
+
+def execute_in_serial(output_dir, pagexml_dir, plain_text_file_type, processed_inventories, trc, xmi_dirs, xpf):
+    start_time.value = time.perf_counter()
+    contexts = [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
+                                           processed_inventories) for xmi_dir in xmi_dirs]
+    for context in contexts:
+        process_inventory(context)
+        show_progress(None)
 
 
 def process_inventory(context: InventoryProcessingContext):
@@ -727,7 +740,7 @@ def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, t
                     plain_text_file_type: FileType) -> str:
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
-    logger.info(f"<= {page_xml_path}")
+    # logger.info(f"<= {page_xml_path}")
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
     iiif_base_uri = tt.get_iiif_base_url(trc, base_name)
     canvas_id = gt.get_canvas_id(base_name)
@@ -749,8 +762,6 @@ def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, t
         "text_intervals": list(itree)
     }
     return txt_version_uri
-
-
 
 
 def index_word_ranges(text: str, all_words: list, canvas_id: str, iiif_base_uri: str):
@@ -820,7 +831,7 @@ def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFact
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
     xp.document_id = basename
-    logger.info(f"plain_text_source={plain_text_source}")
+    # logger.info(f"plain_text_source={plain_text_source}")
     xp.plain_text_source = plain_text_source
     ner_annotations.extend(xp.get_named_entity_annotations())
 
