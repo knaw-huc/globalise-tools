@@ -732,8 +732,8 @@ def process_inventory(context: InventoryProcessingContext):
         export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
-        # processed_inventories.append(inv_nr)
-        # store_processed_inventories(processed_inventories)
+        processed_inventories.append(inv_nr)
+        store_processed_inventories(processed_inventories)
 
 
 def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, trc: TextRepoClient,
