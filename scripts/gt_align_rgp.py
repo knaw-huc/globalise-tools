@@ -66,13 +66,14 @@ def main():
         for row in reader_metamap:
             if row[RGP_DEEL] and row[RGP_PAGINA] and row['Beginscan'] and row['Eindscan']:
                 rgp_deel = int(row[RGP_DEEL])
-                rgp_pagina = row[RGP_PAGINA].strip() #not necessarily an integer!
+                rgp_pagina = row[RGP_PAGINA].strip().split(';') #not necessarily an integer!
                 inv_nr = row[INV_NR] 
                 inv_nrs.add(inv_nr)
                 htr_beginpage = int(row['Beginscan'])
                 htr_endpage = int(row['Eindscan'])
 
-                rgp2htr_metamap[rgp_deel][rgp_pagina] = (inv_nr,htr_beginpage,htr_endpage)
+                for rgp_pagina in rgp_pagina:
+                    rgp2htr_metamap[rgp_deel][rgp_pagina] = (inv_nr,htr_beginpage,htr_endpage)
 
     if os.path.exists("gm-alignment.store.stam.cbor"):
         print("Loading from cache...",file=sys.stderr)
