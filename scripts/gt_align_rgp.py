@@ -238,7 +238,7 @@ def main():
                 if args.verbose:
                     print(f">>>>>>>> HTR {htr_resource_id} {htr_page} {htr_paragraph.offset()}",file=sys.stderr)
                     print(htr_paragraph, file=sys.stderr)
-                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}\t{str(rgp_paragraph_textsel).replace("\n","\\n")}\t{str(htr_paragraph).replace("\n","\\n")}")
+                print(f"{rgp_vol}\t{rgp_startpage}\t{letter_id}\t{rgp_paragraph_textsel.offset()}\t{htr_resource_id}\t{htr_page}\t{htr_paragraph.offset()}\t{str(rgp_paragraph_textsel).replace('\n','\\n')}\t{str(htr_paragraph).replace('\n','\\n')}")
         if args.verbose:
             print("------------------------",file=sys.stderr)
 
