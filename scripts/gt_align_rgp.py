@@ -41,7 +41,7 @@ def main():
         formatter_class=ArgumentDefaultsHelpFormatter)
     parser.add_argument('--metamap',
                         help="CSV file with a metadata mapping between RGP and HTR metadata. This file can be obtained from https://datasets.iisg.amsterdam/file.xhtml?fileId=14452&version=3.0",
-                        default="Overzicht van Generale Missiven in 1.04.02 v.3.csv",
+                        default="Overzicht van Generale Missiven in 1.04.02.csv",
                         type=str)
     parser.add_argument('--rgpdir',
                         help="Directory containing RGP export from WP6-missieven (a git clone of https://github.com/CLARIAH/wp6-missieven)",
