@@ -16,6 +16,12 @@ all: gtp-rgp-aligned.stam.store.cbor
 gm-aligned.stam.store.cbor:
 	gt-align-rgp --verbose 2>&1 | tee gm-aligned.log
 
+gm-aligned.tsv: gm-aligned.log
+	grep "	" $< > $@
+
+gm-nomatch.log: gm-nomatch.log
+	grep "No match" $< > $@
+
 frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed
 	gt-extract-lines -i $(PAGEXML_PATH) 
