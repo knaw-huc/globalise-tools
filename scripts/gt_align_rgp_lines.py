@@ -48,7 +48,6 @@ def main():
                 htr_line = next(htr_line_textsel.annotations(LINE_TYPE_DATA))
                 align_pairs.append( (htr_line_textsel, rgp_paragraph)) 
                 metadata.append( htr_line.id() )
-                print(htr_line.id())
 
     print(f"Gathered {len(align_pairs)} lines")
 
