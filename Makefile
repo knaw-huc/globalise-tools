@@ -90,7 +90,7 @@ run-provenance:
 
 .PHONY: run-inception
 run-inception:
-	cd ~/workspaces/globalise/inception-local/ && docker-compose up --detach && open http://localhost:8088/
+	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
 
 .PHONY: process-ner-xmi
 process-ner-xmi:
