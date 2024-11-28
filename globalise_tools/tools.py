@@ -681,19 +681,21 @@ def is_signature(text_region: PageXMLTextRegion) -> bool:
     return text_region_type_is(text_region, "signature-mark")
 
 
+break_char1 = "„"
+break_char2 = "¬"
+break_chars = [break_char1, break_char2]
+
+
 def paragraph_text(lines: list[str]) -> str:
     if lines:
-        break_char1 = "„"
-        break_char2 = "¬"
-        break_chars = [break_char1, break_char2]
         # ic(lines)
         for i in range(0, len(lines) - 1):
             line0 = lines[i]
             line1 = lines[i + 1]
-            if line0[-1] in break_chars:
+            if line0 and line0[-1] in break_chars:
                 lines[i] = line0.rstrip(line0[-1])
                 lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
-            elif line1[0] in break_chars:
+            elif line0 and line1[0] in break_chars:
                 lines[i + 1] = line1[1:]
             else:
                 lines[i] = f"{line0} "

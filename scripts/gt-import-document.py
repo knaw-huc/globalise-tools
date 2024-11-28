@@ -15,6 +15,7 @@ import hydra
 import spacy
 from cassis import *
 from cassis.typesystem import TYPE_NAME_STRING
+from icecream import ic
 from intervaltree import IntervalTree
 from loguru import logger
 from omegaconf import DictConfig
@@ -41,6 +42,16 @@ document_data_path = "out/document_data.json"
 class TextRegionSummary:
     text: str
     scan_coords: ScanCoords
+
+
+@dataclass
+class TextRepoDocumentWrapper:
+    textrepo_client: TextRepoClient
+    document_id: str
+
+    def set_metadata(self, key: str, value: any):
+        if value or value == False:
+            self.textrepo_client.set_document_metadata(document_id=self.document_id, key=key, value=value)
 
 
 class DocumentsProcessor:
@@ -153,36 +164,47 @@ class DocumentsProcessor:
             title = cut_off(dm.title, 100)
         else:
             title = "<no title>"
-        name = f'{dm.external_id} - {year} - {title}'
-        return name
+        if dm.esta_voyage_id:
+            esta = ' (ESTA)'
+        else:
+            esta = ''
+        return f'{dm.external_id}{esta} - {year} - {title}'
 
     def _create_or_update_tr_document(self, metadata: DocumentMetadata):
-        client = self.textrepo_client
-        document_identifier = client.read_document_by_external_id(metadata.external_id)
+        document_identifier = self.textrepo_client.read_document_by_external_id(metadata.external_id)
         if not document_identifier:
-            document_identifier = client.create_document(external_id=metadata.external_id)
-        document_id = document_identifier.id
-        client.set_document_metadata(document_id=document_id, key='title', value=metadata.title)
-        client.set_document_metadata(document_id=document_id, key='year_creation_or_dispatch',
-                                     value=metadata.year_creation_or_dispatch)
-        client.set_document_metadata(document_id=document_id, key='inventory_number',
-                                     value=metadata.inventory_number)
-        client.set_document_metadata(document_id=document_id, key='folio_or_page', value=metadata.folio_or_page)
-        client.set_document_metadata(document_id=document_id, key='folio_or_page_range',
-                                     value=metadata.folio_or_page_range)
-        client.set_document_metadata(document_id=document_id, key='scan_range', value=metadata.scan_range)
-        client.set_document_metadata(document_id=document_id, key='scan_start', value=metadata.scan_start)
-        client.set_document_metadata(document_id=document_id, key='scan_end', value=metadata.scan_end)
-        client.set_document_metadata(document_id=document_id, key='no_of_scans', value=str(metadata.no_of_scans))
-        client.set_document_metadata(document_id=document_id, key='no_of_pages', value=str(metadata.no_of_pages))
-        client.set_document_metadata(document_id=document_id, key='GM_id', value=metadata.GM_id)
-        client.set_document_metadata(document_id=document_id, key='tanap_id', value=metadata.tanap_id)
-        client.set_document_metadata(document_id=document_id, key='tanap_description', value=metadata.tanap_description)
-        client.set_document_metadata(document_id=document_id, key='remarks', value=metadata.remarks)
-        client.set_document_metadata(document_id=document_id, key='marginalia', value=metadata.marginalia)
-        client.set_document_metadata(document_id=document_id, key='partOf500_filename',
-                                     value=metadata.partOf500_filename)
-        client.set_document_metadata(document_id=document_id, key='partOf500_folio', value=metadata.partOf500_folio)
+            document_identifier = self.textrepo_client.create_document(external_id=metadata.external_id)
+        doc_wrapper = TextRepoDocumentWrapper(textrepo_client=self.textrepo_client,
+                                              document_id=document_identifier.id)
+        doc_wrapper.set_metadata(key='title', value=metadata.title)
+        doc_wrapper.set_metadata(key='year_creation_or_dispatch',
+                                 value=metadata.year_creation_or_dispatch)
+        doc_wrapper.set_metadata(key='inventory_number',
+                                 value=metadata.inventory_number)
+        doc_wrapper.set_metadata(key='folio_or_page', value=metadata.folio_or_page)
+        doc_wrapper.set_metadata(key='folio_or_page_range',
+                                 value=metadata.folio_or_page_range)
+        doc_wrapper.set_metadata(key='scan_range', value=metadata.scan_range)
+        doc_wrapper.set_metadata(key='scan_start', value=metadata.scan_start)
+        doc_wrapper.set_metadata(key='scan_end', value=metadata.scan_end)
+        doc_wrapper.set_metadata(key='no_of_scans',
+                                 value=str(metadata.no_of_scans))
+        doc_wrapper.set_metadata(key='no_of_pages',
+                                 value=str(metadata.no_of_pages))
+        doc_wrapper.set_metadata(key='GM_id', value=metadata.GM_id)
+        doc_wrapper.set_metadata(key='tanap_id', value=metadata.tanap_id)
+        doc_wrapper.set_metadata(key='tanap_description',
+                                 value=metadata.tanap_description)
+        doc_wrapper.set_metadata(key='remarks', value=metadata.remarks)
+        doc_wrapper.set_metadata(key='marginalia', value=metadata.marginalia)
+        doc_wrapper.set_metadata(key='partOf500_filename',
+                                 value=metadata.partOf500_filename)
+        doc_wrapper.set_metadata(key='partOf500_folio',
+                                 value=metadata.partOf500_folio)
+        doc_wrapper.set_metadata(key='ESTA_voyage_id',
+                                 value=metadata.esta_voyage_id)
+        doc_wrapper.set_metadata(key='ESTA_subvoyage_id',
+                                 value=metadata.esta_subvoyage_id)
         return document_identifier
 
     def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: list[str], links: dict[str, any]) -> \
@@ -311,8 +333,8 @@ def main(cfg: DictConfig) -> None:
     inception_client, project_id = init_inception_client(cfg)
     provenance_client = ProvenanceClient(base_url=cfg.provenance.base_uri, api_key=cfg.provenance.api_key)
 
-    metadata = read_document_selection(cfg.selection_file)
-    quality_checked_metadata = [m for m in metadata if m.quality_check == 'TRUE' and not m.document_id]
+    metadata = read_document_selection(cfg.selection_files)
+    quality_checked_metadata = [m for m in metadata if record_passes_quality_check(m)]
 
     docs_processor = DocumentsProcessor(textrepo_client=textrepo_client, inception_client=inception_client,
                                         provenance_client=provenance_client, base_provenance=base_provenance,
@@ -321,6 +343,21 @@ def main(cfg: DictConfig) -> None:
     with docs_processor:
         for dm in quality_checked_metadata:
             docs_processor.process(dm)
+
+
+acceptable_quality_codes = {'3.1.1', '3.1.2', '3.2', 'TRUE'}
+
+
+def record_passes_quality_check(m):
+    ic(m)
+    checks = m.quality_check.split(' + ')
+    disqualifying_checks = set(checks) - acceptable_quality_codes
+    ic(disqualifying_checks)
+    return not disqualifying_checks and not m.document_id
+
+
+# def record_passes_quality_check(m):
+#     return m.quality_check == 'TRUE' and not m.document_id
 
 
 def make_base_provenance(cfg):
@@ -398,7 +435,7 @@ _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 def joined_lines(tr) -> str:
     lines = []
     for line in tr.lines:
-        if line.text:
+        if line.text and len(line.text) > 0:
             lines.append(line.text)
     ptext = paragraph_text(lines)
     return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
@@ -483,19 +520,60 @@ def cut_off(string: str, max_len: int) -> str:
         return f"{string[:(max_len - 3)]}..."
 
 
-def read_document_selection(selection_file: str) -> list[DocumentMetadata]:
-    logger.info(f"<= {selection_file}")
-    with open(selection_file, encoding='utf8') as f:
-        f.readline()
-        reader = csv.DictReader(f, fieldnames=[
-            "document_id", "internal_id", "globalise_id", "quality_check", "title", "year_creation_or_dispatch",
-            "inventory_number",
-            "folio_or_page", "folio_or_page_range", "scan_range", "scan_start", "scan_end", "no_of_scans",
-            "no_of_pages", "GM_id", "tanap_id", "tanap_description", "remarks", "marginalia",
-            "partOf500_filename", "partOf500_folio"])
-        all_metadata = [DocumentMetadata.from_dict(row) for row in reader]
-    return [m for m in all_metadata if m.quality_check == 'TRUE']
-    # return all_metadata
+def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
+    metadata = []
+    for selection_file in selection_files:
+        logger.info(f"<= {selection_file}")
+        with open(selection_file, encoding='utf8') as f:
+            # f.readline()
+            reader = csv.DictReader(f)
+            # ic([r for r in reader][0])
+            metadata.extend(
+                [
+                    DocumentMetadata(
+                        document_id=r['document_id'],
+                        internal_id=r['internal_id'],
+                        globalise_id=r.get('globalise_id', ''),
+                        quality_check=r['Quality Check'],
+                        title=r['title'],
+                        year_creation_or_dispatch=r['year_creation_or_dispatch'],
+                        inventory_number=r['inventory_number'],
+                        folio_or_page=r['folio_or_page'],
+                        folio_or_page_range=r['folio_or_page_range'],
+                        scan_range=r['scan_range'],
+                        scan_start=r['scan_start'],
+                        scan_end=r['scan_end'],
+                        no_of_scans=r['no_of_scans'],
+                        no_of_pages=r['no_of_pages'],
+                        GM_id=r['GM_id'],
+                        tanap_id=r.get('TANAP_id', ''),
+                        tanap_description=r.get('TANAP_description', ''),
+                        remarks=r['remarks'],
+                        marginalia=r['marginalia'],
+                        partOf500_filename=r.get('partOf500_filename', ''),
+                        partOf500_folio=r.get('partOf500_folio', ''),
+                        esta_voyage_id=r.get('ESTA_voyage_id', ''),
+                        esta_subvoyage_id=r.get('ESTA_subvoyage_id', ''),
+                    )
+                    for r in reader
+                ])
+    return metadata
+
+
+# def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
+#     metadata = []
+#     for selection_file in selection_files:
+#         logger.info(f"<= {selection_file}")
+#         with open(selection_file, encoding='utf8') as f:
+#             f.readline()
+#             reader = csv.DictReader(f, fieldnames=[
+#                 "document_id", "internal_id", "globalise_id", "quality_check", "title", "year_creation_or_dispatch",
+#                 "inventory_number",
+#                 "folio_or_page", "folio_or_page_range", "scan_range", "scan_start", "scan_end", "no_of_scans",
+#                 "no_of_pages", "GM_id", "tanap_id", "tanap_description", "remarks", "marginalia",
+#                 "partOf500_filename", "partOf500_folio"])
+#             metadata.extend([DocumentMetadata.from_dict(row) for row in reader])
+#     return metadata
 
 
 def init_inception_client(cfg) -> (InceptionClient, int):

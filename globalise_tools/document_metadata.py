@@ -28,6 +28,8 @@ class DocumentMetadata:
     marginalia: str
     partOf500_filename: str
     partOf500_folio: str
+    esta_voyage_id: str
+    esta_subvoyage_id: str
     first_scan_nr: int = field(init=False)
     last_scan_nr: int = field(init=False)
     hana_nr: str = field(init=False)
