@@ -11,15 +11,15 @@ setup:
 	[ ! -e env ] && python3 -m venv env; source env/bin/activate; cd ../../; pip install .
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
-all: gtp-rgp-aligned.stam.store.cbor
+all: gm-aligned.store.stam.cbor
 
-gm-aligned.stam.store.cbor:
+gm-aligned.store.stam.cbor:
 	gt-align-rgp --verbose 2>&1 | tee gm-aligned.log
 
 gm-aligned.tsv: gm-aligned.log
 	grep "	" $< > $@
 
-gm-aligned-lines.tsv: gm-aligned.stam.store.cbor
+gm-aligned-lines.tsv: gm-aligned.store.stam.cbor
 	gt-align-rgp-lines --verbose 2>&1 | tee gm-aligned-lines.log
 
 gm-nomatch.log: gm-nomatch.log
