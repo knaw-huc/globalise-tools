@@ -19,6 +19,9 @@ gm-aligned.stam.store.cbor:
 gm-aligned.tsv: gm-aligned.log
 	grep "	" $< > $@
 
+gm-aligned-lines.tsv: gm-aligned.stam.store.cbor
+	gt-align-rgp-lines --verbose 2>&1 | tee gm-aligned-lines.log
+
 gm-nomatch.log: gm-nomatch.log
 	grep "No match" $< > $@
 
