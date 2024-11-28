@@ -51,6 +51,7 @@ gt-xmi-to-wa = "globalise_tools.scripts.gt_xmi_to_wa:main"
 gt-fix-reading-order = "globalise_tools.scripts.gt_fix_reading_order:main"
 gt-merge-manual-corrections = "globalise_tools.scripts.gt_merge_manual_corrections:main"
 gt-align-rgp = "globalise_tools.scripts.gt_align_rgp:main"
+gt-align-rgp-lines = "globalise_tools.scripts.gt_align_rgp_lines:main"
 version = 'poetry_scripts:version'
 
 [build-system]
