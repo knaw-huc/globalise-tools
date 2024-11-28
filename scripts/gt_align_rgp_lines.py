@@ -49,12 +49,12 @@ def main():
                 align_pairs.append( (htr_line_textsel, rgp_paragraph)) 
                 metadata.append( htr_line.id() )
 
-    print(f"Gathered {len(align_pairs)} lines")
+    print(f"Gathered {len(align_pairs)} lines", file=sys.stderr)
 
     print(f"Aligning (this may take very long!)...", file=sys.stderr)
     results = store.align_texts(*align_pairs, max_errors=(1.0 - args.coverage), grow=True)
 
-    print("\tHTR line id\tHTR line\tRGP line")
+    print("HTR line id\tHTR line\tRGP line")
     for translations, htr_line_id in zip(results, metadata):
         for translation in translations:
             for htr_line, rgp_line in translation.alignments():
