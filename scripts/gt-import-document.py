@@ -1,5 +1,4 @@
 #!/usr/bin/env python3
-import csv
 import dataclasses
 import hashlib
 import json
@@ -28,7 +27,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 import globalise_tools.textrepo_tools as tt
-from globalise_tools.document_metadata import DocumentMetadata
+from globalise_tools.document_metadata import DocumentMetadata, read_document_selection
 from globalise_tools.inception_client import InceptionClient
 from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
 from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
@@ -36,6 +35,10 @@ from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, i
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
 document_data_path = "out/document_data.json"
+
+"""
+script to generate xmi from sets of pagexml files from a document definition, and upload the xmi to inception
+"""
 
 
 @dataclass
@@ -518,46 +521,6 @@ def cut_off(string: str, max_len: int) -> str:
         return string
     else:
         return f"{string[:(max_len - 3)]}..."
-
-
-def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
-    metadata = []
-    for selection_file in selection_files:
-        logger.info(f"<= {selection_file}")
-        with open(selection_file, encoding='utf8') as f:
-            # f.readline()
-            reader = csv.DictReader(f)
-            # ic([r for r in reader][0])
-            metadata.extend(
-                [
-                    DocumentMetadata(
-                        document_id=r['document_id'],
-                        internal_id=r['internal_id'],
-                        globalise_id=r.get('globalise_id', ''),
-                        quality_check=r['Quality Check'],
-                        title=r['title'],
-                        year_creation_or_dispatch=r['year_creation_or_dispatch'],
-                        inventory_number=r['inventory_number'],
-                        folio_or_page=r['folio_or_page'],
-                        folio_or_page_range=r['folio_or_page_range'],
-                        scan_range=r['scan_range'],
-                        scan_start=r['scan_start'],
-                        scan_end=r['scan_end'],
-                        no_of_scans=r['no_of_scans'],
-                        no_of_pages=r['no_of_pages'],
-                        GM_id=r['GM_id'],
-                        tanap_id=r.get('TANAP_id', ''),
-                        tanap_description=r.get('TANAP_description', ''),
-                        remarks=r['remarks'],
-                        marginalia=r['marginalia'],
-                        partOf500_filename=r.get('partOf500_filename', ''),
-                        partOf500_folio=r.get('partOf500_folio', ''),
-                        esta_voyage_id=r.get('ESTA_voyage_id', ''),
-                        esta_subvoyage_id=r.get('ESTA_subvoyage_id', ''),
-                    )
-                    for r in reader
-                ])
-    return metadata
 
 
 # def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:

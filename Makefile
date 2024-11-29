@@ -61,7 +61,7 @@ convert-example-xmi:
 .PHONY: fix-reading-order
 fix-reading-order:
 #	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
-	poetry run scripts/gt_fix_reading_order.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
+	poetry run scripts/gt_fix_reading_order.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
 
 .PHONY: extract-paragraph-text
 extract-paragraph-text:

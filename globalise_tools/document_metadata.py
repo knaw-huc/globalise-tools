@@ -2,6 +2,7 @@ import csv
 from dataclasses import dataclass, field
 
 from dataclasses_json import dataclass_json
+from loguru import logger
 
 
 @dataclass_json
@@ -77,3 +78,43 @@ def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
             "partOf500_filename", "partOf500_folio"])
         all_metadata = [DocumentMetadata.from_dict(row) for row in reader]
     return all_metadata
+
+
+def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
+    metadata = []
+    for selection_file in selection_files:
+        logger.info(f"<= {selection_file}")
+        with open(selection_file, encoding='utf8') as f:
+            # f.readline()
+            reader = csv.DictReader(f)
+            # ic([r for r in reader][0])
+            metadata.extend(
+                [
+                    DocumentMetadata(
+                        document_id=r['document_id'],
+                        internal_id=r['internal_id'],
+                        globalise_id=r.get('globalise_id', ''),
+                        quality_check=r['Quality Check'],
+                        title=r['title'],
+                        year_creation_or_dispatch=r['year_creation_or_dispatch'],
+                        inventory_number=r['inventory_number'],
+                        folio_or_page=r['folio_or_page'],
+                        folio_or_page_range=r['folio_or_page_range'],
+                        scan_range=r['scan_range'],
+                        scan_start=r['scan_start'],
+                        scan_end=r['scan_end'],
+                        no_of_scans=r['no_of_scans'],
+                        no_of_pages=r['no_of_pages'],
+                        GM_id=r['GM_id'],
+                        tanap_id=r.get('TANAP_id', ''),
+                        tanap_description=r.get('TANAP_description', ''),
+                        remarks=r['remarks'],
+                        marginalia=r['marginalia'],
+                        partOf500_filename=r.get('partOf500_filename', ''),
+                        partOf500_folio=r.get('partOf500_folio', ''),
+                        esta_voyage_id=r.get('ESTA_voyage_id', ''),
+                        esta_subvoyage_id=r.get('ESTA_subvoyage_id', ''),
+                    )
+                    for r in reader
+                ])
+    return metadata

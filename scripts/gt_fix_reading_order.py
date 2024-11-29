@@ -37,7 +37,8 @@ def get_arguments():
     parser.add_argument("-m",
                         "--document-metadata-path",
                         required=True,
-                        help="The path to the document_metadata.csv file containing the document definitions.",
+                        help="The path(s) to the document_metadata.csv file(s) containing the document definitions.",
+                        nargs="+",
                         type=str)
     # parser.add_argument("pagexml_path",
     #                     help="The path to the pagexml file",
@@ -244,9 +245,8 @@ class PageXmlFixer:
 
 
 @logger.catch
-def fix_reading_order(input_directory: str, output_directory: str, document_metadata_path: str):
-    logger.info(f"<= {document_metadata_path}")
-    relevant_documents = [r for r in DM.read_document_metadata(document_metadata_path) if is_relevant(r)]
+def fix_reading_order(input_directory: str, output_directory: str, document_metadata_paths: list[str]):
+    relevant_documents = [r for r in DM.read_document_selection(document_metadata_paths) if is_relevant(r)]
     pagexml_paths = []
     quality_check = {}
     for dm in relevant_documents:
