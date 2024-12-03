@@ -11,6 +11,11 @@ LINE_TYPE_DATA = {
     "key": "type",
     "value": "line",
 }
+PAGE_TYPE_DATA = {
+    "set": "globalise",
+    "key": "type",
+    "value": "page",
+}
 PARAGRAPH_TYPE_DATA = {
     "set": "globalise",
     "key": "type",
@@ -35,6 +40,13 @@ def main():
     print("Loading 'paragraph' alignments...",file=sys.stderr)
     store = stam.AnnotationStore(file="gm-aligned.store.stam.cbor")
 
+    print(f"Computing line->page mapping")
+    line2page = {}
+    for page in store.data(PAGE_TYPE_DATA).annotations():
+        for htr_line_textsel in page.related_text(stam.TextSelectionOperator.embeds(), filter=LINE_TYPE_DATA):
+            htr_line = next(htr_line_textsel.annotations(LINE_TYPE_DATA))
+            line2page[htr_line.id()] = page.id()
+
     print(f"Gathering data for alignment...", file=sys.stderr)
     align_pairs = []
     metadata = []
@@ -54,11 +66,12 @@ def main():
     print(f"Aligning (this may take very long!)...", file=sys.stderr)
     results = store.align_texts(*align_pairs, max_errors=(1.0 - args.coverage), grow=True)
 
-    print("HTR line id\tHTR line\tRGP line")
+    print("HTR line id\tHTR line\tRGP line\tPage URL")
     for translations, htr_line_id in zip(results, metadata):
         for translation in translations:
             for htr_line, rgp_line in translation.alignments():
-                print(f"{htr_line_id}\t{htr_line}\t{rgp_line}")
+                htr_page_id = line2page[htr_line.id()]
+                print(f"{htr_line_id}\t{htr_line}\t{rgp_line}\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:{htr_page_id}")
 
     store.set_filename("gm-aligned-lines.store.stam.cbor")
     store.save()
