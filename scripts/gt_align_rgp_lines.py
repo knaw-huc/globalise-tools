@@ -22,6 +22,14 @@ PARAGRAPH_TYPE_DATA = {
     "value": "paragraph",
 }
 
+
+def pad(s):
+    """Pad a string with leading zeroes"""
+    if len(s) < 4:
+        return " " * (4 - len(s)) + s
+    else:
+        return s
+
 def main():
     parser = ArgumentParser(
         description="Align ",
@@ -45,7 +53,10 @@ def main():
     for page in store.data(PAGE_TYPE_DATA).annotations():
         for htr_line_textsel in page.related_text(stam.TextSelectionOperator.embeds(), filter=LINE_TYPE_DATA):
             htr_line = next(htr_line_textsel.annotations(LINE_TYPE_DATA))
-            line2page[htr_line.id()] = page.id()
+            page_id = page.id().split("_")
+            #pad the last two components with leading zeroes so they have length 4, otherwise the URLs aren't valid
+            page_id = "_".join(page_id[:-2]) + f"_{pad(page_id[-2])}_{pad(page_id[-1])}"
+            line2page[htr_line.id()] = page_id
 
     print(f"Gathering data for alignment...", file=sys.stderr)
     align_pairs = []
