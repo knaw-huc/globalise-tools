@@ -69,9 +69,9 @@ def main():
     print("HTR line id\tHTR line\tRGP line\tPage URL")
     for translations, htr_line_id in zip(results, metadata):
         for translation in translations:
-            for htr_line, rgp_line in translation.alignments():
-                htr_page_id = line2page[htr_line.id()]
-                print(f"{htr_line_id}\t{htr_line}\t{rgp_line}\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:{htr_page_id}")
+            for htr_line_textsel, rgp_line_textsel in translation.alignments():
+                htr_page_id = line2page[htr_line_id]
+                print(f"{htr_line_id}\t{htr_line_textsel}\t{rgp_line_textsel}\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:{htr_page_id}")
 
     store.set_filename("gm-aligned-lines.store.stam.cbor")
     store.save()
