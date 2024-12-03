@@ -26,7 +26,7 @@ PARAGRAPH_TYPE_DATA = {
 def pad(s):
     """Pad a string with leading zeroes"""
     if len(s) < 4:
-        return " " * (4 - len(s)) + s
+        return "0" * (4 - len(s)) + s
     else:
         return s
 
