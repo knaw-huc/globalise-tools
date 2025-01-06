@@ -145,7 +145,7 @@ help:
 	@echo "  test-xmi-generation        - to generate xmi using test settings"
 	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
 	@echo
-	@echo "  process-ner-xmi            - to generate web annotationns from the ner enriched xmi files"
+	@echo "  process-ner-xmi            - to generate web annotations from the ner enriched xmi files"
 	@echo
 	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
 	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
