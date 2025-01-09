@@ -1,10 +1,13 @@
 import csv
+import re
 from dataclasses import dataclass, field
 from typing import Tuple, Union
 
 from dataclasses_json import dataclass_json
+from icecream import ic
+from intervaltree import IntervalTree
 from loguru import logger
-from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion
+from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion, PageXMLWord
 
 from globalise_tools.lang_deduction import LangDeduction
 from globalise_tools.model import Document, WebAnnotation, DocumentMetadata
@@ -695,8 +698,8 @@ def paragraph_text(lines: list[str]) -> str:
             if line0 and line0[-1] in break_chars:
                 lines[i] = line0.rstrip(line0[-1])
                 lines[i + 1] = line1.lstrip(break_char1).lstrip(break_char2)
-            elif line0 and line1[0] in break_chars:
-                lines[i + 1] = line1[1:]
+            # elif line0 and line1[0] in break_chars:
+            #     lines[i + 1] = line1[1:]
             else:
                 lines[i] = f"{line0} "
         # ic(lines)
@@ -756,3 +759,160 @@ def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
         scan_end=f'https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inventory_number}/file/{na_base_id}_{end_scan:04d}',
         no_of_scans=end_scan - start_scan + 1
     )
+
+
+@dataclass
+class TextPair:
+    text: str
+    words: list[PageXMLWord]
+
+
+def make_word_interval_tree(
+        text: str,
+        iiif_base_uri: str,
+        canvas_id: str,
+        text_words: list[PageXMLWord],
+        debug: bool = False
+) -> IntervalTree:
+    if debug:
+        text_from_words = " ".join([w.text for w in text_words])
+        ic(text, text_from_words)
+    itree = IntervalTree()
+    find_start = 0
+    for w in text_words:
+        substring = w.text
+        if substring not in word_break_chars and substring != '„.':
+            notice = ''
+            find_end = find_start + len(substring) + 10
+            index = text.find(substring, find_start, find_end)
+            if index < 0:
+                if debug:
+                    print(f"!<{substring}> | <{text[find_start:find_end]}>")
+                substring = substring.replace('„', '').replace('¬', '')
+                notice = '!'
+                find_end = find_start + len(substring) + 10
+                index = text.find(substring, find_start, find_end)
+                if index < 0:
+                    raise Exception(f"index={index}")
+            offset = index
+            if substring:
+                end_exc = offset + len(substring)
+                if debug:
+                    print(f"[{offset:4}:{end_exc:4}]{notice} <{substring}> | <{text[offset:end_exc]}>")
+                itree[offset:end_exc] = {
+                    "iiif_base_uri": iiif_base_uri,
+                    "canvas_id": canvas_id,
+                    "coords": w.coords.points
+                }
+                find_start = end_exc
+    return itree
+
+
+def make_word_interval_tree0(text: str, text_words: list[PageXMLWord]) -> IntervalTree:
+    text_from_words = " ".join([w.text for w in text_words])
+    ic(text, text_from_words)
+    itree = IntervalTree()
+    find_start = 0
+    end_exc = 1
+    hold = []
+    for w in text_words:
+        find_end = find_start + len(w.text) + 2 + len(" ".join([h[1].text for h in hold]))
+        index = text.find(w.text, find_start, find_end)
+        if index < 0:
+            hold.append([end_exc, w])
+        else:
+            for h in hold:
+                offset = h[0]
+                end_exc = index
+                print(f"[{offset:4}:{end_exc:4}]! <{h[1].text}> | <{text[offset:end_exc]}>")
+                itree[offset:end_exc] = h[1]
+            hold = []
+            offset = index
+            end_exc = offset + len(w.text)
+            print(f"[{offset:4}:{end_exc:4}] <{w.text}> | <{text[offset:end_exc]}>")
+            itree[offset:end_exc] = w
+            find_start = end_exc
+    return itree
+
+
+def extract_paragraph_text(
+        scan_doc: PageXMLScan,
+        iiif_base_uri: str = "<missing iiif_base_uri>",
+        canvas_id: str = "<missing canvas_id>",
+        verbose: bool = False,
+) -> Tuple[str, list[Tuple[int, int]], Tuple[int, int], list[Tuple[int, int]], IntervalTree]:
+    paragraphs = []
+    headers = []
+    marginalia = []
+    text_words = []
+    for tr in scan_doc.get_text_regions_in_reading_order():
+        if verbose:
+            logger.info(f"text_region: {tr.id}")
+            logger.info(f"type: {tr.type[-1]}")
+            line_text = [l.text for l in tr.lines]
+            for t in line_text:
+                logger.info(f"line: {t}")
+        if is_marginalia(tr):
+            text_words_pair = joined_lines(tr)  # also: words
+            if text_words_pair.text:
+                marginalia.append(text_words_pair)  # add the words
+        if is_header(tr):
+            text_words_pair = joined_lines(tr)
+            if text_words_pair.text:
+                headers.append(text_words_pair)
+        if is_paragraph(tr) or is_signature(tr):
+            text_words_pair = joined_lines(tr)
+            if text_words_pair.text:
+                paragraphs.append(text_words_pair)
+        if verbose:
+            logger.info("")
+
+    # ic(marginalia, headers, paragraphs)
+    marginalia_ranges = []
+    header_range = None
+    paragraph_ranges = []
+    offset = 0
+    text = ""
+    for m in marginalia:
+        text += m.text
+        text_len = len(text)
+        marginalia_ranges.append((offset, text_len))
+        offset = text_len
+        text_words.extend(m.words)
+    if headers:
+        h = headers[0]
+        text += f"\n{h.text}\n"
+        text_len = len(text)
+        header_range = (offset + 1, text_len - 1)
+        offset = text_len
+        text_words.extend(h.words)
+    for m in paragraphs:
+        text += m.text
+        text_len = len(text)
+        paragraph_ranges.append((offset, text_len))
+        offset = text_len
+        text_words.extend(m.words)
+    itree = make_word_interval_tree(text=text, text_words=text_words, iiif_base_uri=iiif_base_uri, canvas_id=canvas_id)
+    if '  ' in text:
+        logger.error('double space in text')
+    return text, marginalia_ranges, header_range, paragraph_ranges, itree
+
+
+_RE_COMBINE_WHITESPACE = re.compile(r"\s+")
+
+word_break_chars = '„¬'
+
+
+def joined_lines(tr) -> TextPair:
+    # tr_text, line_ranges = pxh.make_text_region_text(tr.lines,
+    #                                                  word_break_chars=word_break_chars)
+    # return tr_text.strip()
+    lines = []
+    words = []
+    for line in tr.lines:
+        if line.text:
+            lines.append(line.text)
+            words.extend(line.words)
+    ptext = paragraph_text(lines)
+    text = _RE_COMBINE_WHITESPACE.sub(" ", ptext)
+    return TextPair(text=text, words=words)

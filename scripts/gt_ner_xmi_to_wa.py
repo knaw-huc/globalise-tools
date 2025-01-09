@@ -25,9 +25,9 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.textrepo_tools as tt
+import globalise_tools.tools as gt
 from globalise_tools.events import wiki_base, time_roles, place_roles, NER_DATA_DICT
 from globalise_tools.model import ImageData
-from globalise_tools.tools import seconds_to_hhmmss
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -44,7 +44,7 @@ def show_progress(future):
         seconds_since_start = now - start_time.value
         average_time_per_inv = seconds_since_start / counter.value
         eta = total.value * average_time_per_inv
-        seconds_remaining = seconds_to_hhmmss(eta - seconds_since_start)
+        seconds_remaining = gt.seconds_to_hhmmss(eta - seconds_since_start)
         logger.info(
             f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); estimated time remaining: {seconds_remaining}")
 
@@ -63,6 +63,7 @@ class XMIProcessor:
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
+        # ic(md5)
         data = None
         path_parts = xmi_path.split('/')
         base_name = path_parts[-1].replace('.xmi', '')
@@ -80,14 +81,14 @@ class XMIProcessor:
         else:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             # raise Exception(f"No document data found for {xmi_path}")
-            # todo: create plain_text_source and itree
+            # # todo: create plain_text_source and itree
             self.plain_text_source = "urn:placeholder"
             self.itree = IntervalTree()
 
     def text(self) -> str:
         return self.text
 
-    def get_named_entity_annotations(self):
+    def get_named_entity_annotations(self) -> list:
         entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         web_annotations = []
@@ -97,6 +98,16 @@ class XMIProcessor:
             entity_type = NER_DATA_DICT[a['value']]['entity_type']
             web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
+
+    def get_open_annotations(self) -> list:
+        entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+                              a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+        open_annotations = []
+        for a in entity_annotations:
+            entity_type = NER_DATA_DICT[a['value']]['entity_type']
+            open_annotation = self._as_open_annotation(a, entity_type)
+            open_annotations.append(open_annotation)
+        return open_annotations
 
     def get_event_annotations(self, entity_ids: list[str]):
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
@@ -253,6 +264,112 @@ class XMIProcessor:
             "target": targets
         }
 
+    def _as_open_annotation(self, feature_structure: FeatureStructure, entity_type: str) -> dict[str, any]:
+        original_fs = feature_structure
+        if feature_structure['begin'] is None:
+            feature_structure = feature_structure['target']
+        if not feature_structure:
+            ic(original_fs)
+            logger.error("missing feature_structure")
+            text = ""
+        else:
+            text = feature_structure.get_covered_text()
+        feature_structure_begin = feature_structure['begin']
+        feature_structure_end = feature_structure['end']
+        overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
+        # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
+        overlap_size = len(overlapping_intervals)
+        # ic(feature_structure_begin, feature_structure_end, overlap_size)
+        if overlap_size > 1:
+            logger.warning(
+                f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
+        image_data_list = []
+        for iv in sorted(list(overlapping_intervals)):
+            iv_begin, iv_end, iv_data = iv
+            # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
+            canvas_id = iv_data["canvas_id"]
+            coords = iv_data["coords"]
+            manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
+            xywh = self._to_xywh(coords)
+            iiif_base_uri = iv_data["iiif_base_uri"]
+            image_data = ImageData(
+                canvas_id,
+                iiif_base_uri,
+                manifest_uri,
+                xywh
+            )
+            image_data_list.append(image_data)
+        grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
+        manifest_uri = []
+        canvas_ids = []
+        svg_list = []
+        xywh_list = []
+        for canvas_id, image_data_groups in grouped_image_data:
+            canvas_ids.append(canvas_id)
+            image_data_list = [i for i in image_data_groups]
+            manifest_uri = [d.manifest_uri for d in image_data_list][0]
+            xywh = [d.xywh for d in image_data_list]
+            svg_list.append(self._svg_selector(xywh_list=xywh))
+            xywh_list.extend(xywh)
+        if canvas_ids:
+            canvas_url = canvas_ids[0]
+        else:
+            canvas_url = "TODO"
+        if xywh_list:
+            xywh = xywh_list[0]
+        else:
+            xywh = "TODO"
+        if svg_list:
+            svg = svg_list[0]
+        else:
+            svg = "TODO"
+        if manifest_uri:
+            manifest = manifest_uri[0]
+        else:
+            manifest = "TODO"
+
+        return {
+            "@id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "@type": "oa:Annotation",
+            "motivation": [
+                "oa:commenting",
+                "oa:Tagging"
+            ],
+            "on": [
+                {
+                    "@type": "oa:SpecificResource",
+                    "full": canvas_url,
+                    "selector": {
+                        "@type": "oa:Choice",
+                        "default": {
+                            "@type": "oa:FragmentSelector",
+                            "value": f"xywh={xywh}"
+                        },
+                        "item": {
+                            "@type": "oa:SvgSelector",
+                            "value": svg
+                        }
+                    },
+                    "within": {
+                        "@id": manifest,
+                        "@type": "sc:Manifest"
+                    }
+                }
+            ],
+            "resource": [
+                {
+                    "@type": "dctypes:Text",
+                    "format": "text/html",
+                    "chars": text
+                },
+                {
+                    "@type": "oa:Tag",
+                    "format": "text/html",
+                    "chars": entity_type.replace('urn:globalise:entityType:', "")
+                }
+            ]
+        }
+
     def _generator(self):
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
@@ -393,6 +510,40 @@ class XMIProcessor:
         w = max_x - min_x
         h = max_y - min_y
         return f"{min_x},{min_y},{w},{h}"
+
+    @staticmethod
+    def _to_coords(x: int, y: int, w: int, h: int) -> list[Tuple[int, int]]:
+        # x, y, w, h = [int(p) for p in xywh.split(',')]
+        return [
+            (x, y),
+            (x + w, y),
+            (x + w, y + h),
+            (x, y + h)
+        ]
+
+    def _svg_selector(self, coords_list: list = None, xywh_list: list[str] = None) -> str:
+        path_defs = []
+        height = 0
+        width = 0
+        if coords_list:
+            for coords in coords_list:
+                ic(coords)
+                height = max(height, max([c[1] for c in coords]))
+                width = max(width, max([c[0] for c in coords]))
+                path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+                path_def = 'M' + path_def[1:]
+                path_defs.append(path_def)
+        else:
+            for xywh in xywh_list:
+                x, y, w, h = [int(p) for p in xywh.split(",")]
+                coords = self._to_coords(x, y, w, h)
+                height = max(height, h)
+                width = max(width, w)
+                path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+                path_def = 'M' + path_def[1:]
+                path_defs.append(path_def)
+        path = f"""<path d="{' '.join(path_defs)}"/>"""
+        return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
     def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
@@ -614,6 +765,18 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
         json.dump(ner_annotations, fp=f, indent=4)
 
 
+def export_annotation_list(open_annotations: list, out_path: str):
+    anno_list = {
+        "@id": f"{out_path}",
+        "@context": "http://iiif.io/api/presentation/2/context.json",
+        "@type": "sc:AnnotationList",
+        "resources": open_annotations
+    }
+    logger.info(f"=> {out_path}")
+    with open(out_path, 'w') as f:
+        json.dump(anno_list, fp=f, indent=4)
+
+
 def export_text(page_texts: list[str], out_path: str):
     logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
@@ -678,7 +841,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
                                                      processed_inventories)
-                          for xmi_dir in xmi_dirs[0:5]])
+                          for xmi_dir in xmi_dirs[0:1]])
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
@@ -706,28 +869,39 @@ def process_inventory(context: InventoryProcessingContext):
 
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
         os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
+        anno_list_path = f"{output_dir}/{inv_nr}/annotation-list-{inv_nr}.json"
         anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
         text_out_path = f"{output_dir}/{inv_nr}/text.txt"
         ner_annotations = []
+        open_annotations = []
         page_texts = []
         for xmi_path in xmi_paths:
-            handle_page_xml(xmi_path, pagexml_dir, xpf, trc)
-            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc, context.plain_text_type)
+            handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
+            handle_xmi(xmi_path, ner_annotations, open_annotations, page_texts, xpf, trc, context.plain_text_type)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         export_text(page_texts, text_out_path)
+        export_annotation_list(open_annotations, anno_list_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
         # processed_inventories.append(inv_nr)
         # store_processed_inventories(processed_inventories)
 
 
-def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFactory, trc: TextRepoClient,
-               plain_text_file_type: FileType):
+def handle_xmi(
+        xmi_path: str,
+        ner_annotations: list,
+        open_annotations: list,
+        page_texts: list,
+        xpf: XMIProcessorFactory,
+        trc: TextRepoClient,
+        plain_text_file_type: FileType
+):
     xp = xpf.get_xmi_processor(xmi_path)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
+    # ic(xpf.document_data[basename])
     txt_version_identifier = trc.import_version(
         external_id=basename,
         type_name=plain_text_file_type.name,
@@ -737,30 +911,65 @@ def handle_xmi(xmi_path: str, ner_annotations, page_texts, xpf: XMIProcessorFact
     xp.document_id = basename
     xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
     ner_annotations.extend(xp.get_named_entity_annotations())
+    open_annotations.extend(xp.get_open_annotations())
 
 
 def get_base_name(path: str):
     return path.split("/")[-1].replace(".xmi", "")
 
 
-def handle_page_xml(xmi_path: str, pagexml_dir: str, xpf: XMIProcessorFactory, trc: TextRepoClient):
+def handle_page_xml(
+        xmi_path: str,
+        pagexml_dir: str,
+        xpf: XMIProcessorFactory,
+        trc: TextRepoClient,
+        plain_text_file_type: FileType
+):
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
-    raw_text_offset = 0
-    raw_text_range = IntervalTree()
-    for tr in scan_doc.get_text_regions_in_reading_order():
-        for w in tr.get_words():
-            new_offset = raw_text_offset + 1 + len(w.text)
-            raw_text_range[raw_text_offset:new_offset] = w
-            raw_text_offset = new_offset
-    # md5 = hashlib.md5(plain_text.encode()).hexdigest()
-    # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-    # xpf.document_data[base_name] = {
-    #     "plain_text_source": f"{txt_version_uri}/contents",
-    #     "plain_text_md5": md5,
-    #     "text_intervals": list(raw_text_range)
-    # }
+    iiif_base_uri = "TODO: iiif_base_uri"
+    base_name_parts = base_name.split("_")
+    inv_nr = base_name_parts[-2]
+    page_nr = int(base_name_parts[-1])
+    canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_nr}"
+    # raw_text_offset = 0
+    # raw_text_range = IntervalTree()
+    text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(scan_doc,
+                                                                                                            iiif_base_uri=iiif_base_uri,
+                                                                                                            canvas_id=canvas_id)
+
+    # tr_texts = []x
+    # for tr in scan_doc.get_text_regions_in_reading_order():
+    #     if "paragraph" in tr.type or "marginalia" in tr.type or "header" in tr.type or "signature-mark" in tr.type:
+    #         word_texts = []
+    #         for w in tr.get_words():
+    #             if w.text:
+    #                 new_offset = raw_text_offset + 1 + len(w.text)
+    #                 raw_text_range[raw_text_offset:new_offset] = w
+    #                 raw_text_offset = new_offset
+    #                 word_texts.append(w.text)
+    #         tr_texts.append(" ".join(word_texts))
+    plain_text = text
+    # path = f"out/{base_name}-words-text.txt"
+    # logger.info(f"=> {path}")
+    # with open(path, "w") as f:
+    #     f.write(plain_text)
+
+    md5 = hashlib.md5(plain_text.encode()).hexdigest()
+    txt_version_identifier = trc.import_version(
+        external_id=base_name,
+        type_name=plain_text_file_type.name,
+        contents=plain_text,
+        as_latest_version=True
+    )
+
+    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    xpf.document_data[base_name] = {
+        "plain_text_source": f"{txt_version_uri}/contents",
+        "plain_text_md5": md5,
+        "text_intervals": list(word_interval_tree)
+    }
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
