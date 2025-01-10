@@ -223,10 +223,10 @@ class XMIProcessor:
         ]
         overlapping_intervals = self.itree[feature_structure_begin:feature_structure_end]
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
-        overlap_size = len(overlapping_intervals)
-        if overlap_size > 1:
-            logger.warning(
-                f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
+        # overlap_size = len(overlapping_intervals)
+        # if overlap_size > 1:
+        #     logger.warning(
+        #         f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         image_data_list = []
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
@@ -280,9 +280,6 @@ class XMIProcessor:
         # logger.info(f"source interval: [{nea.begin},{nea.end}] {nea.get_covered_text()}")
         overlap_size = len(overlapping_intervals)
         # ic(feature_structure_begin, feature_structure_end, overlap_size)
-        if overlap_size > 1:
-            logger.warning(
-                f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         image_data_list = []
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
@@ -766,8 +763,9 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
 
 
 def export_annotation_list(open_annotations: list, out_path: str):
+    list_id = out_path.replace("out/", "https://brambg.github.io/static-file-server/globalise/")
     anno_list = {
-        "@id": f"{out_path}",
+        "@id": list_id,
         "@context": "http://iiif.io/api/presentation/2/context.json",
         "@type": "sc:AnnotationList",
         "resources": open_annotations
@@ -841,7 +839,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     futures = client.map(process_inventory,
                          [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
                                                      processed_inventories)
-                          for xmi_dir in xmi_dirs[0:1]])
+                          for xmi_dir in xmi_dirs])
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
@@ -869,38 +867,47 @@ def process_inventory(context: InventoryProcessingContext):
 
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
         os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
-        anno_list_path = f"{output_dir}/{inv_nr}/annotation-list-{inv_nr}.json"
         anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
         text_out_path = f"{output_dir}/{inv_nr}/text.txt"
         ner_annotations = []
-        open_annotations = []
         page_texts = []
+        manifest = load_manifest(inv_nr)
         for xmi_path in xmi_paths:
             handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
-            handle_xmi(xmi_path, ner_annotations, open_annotations, page_texts, xpf, trc, context.plain_text_type)
+            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
+                       context.plain_text_type, manifest)
+        store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         export_text(page_texts, text_out_path)
-        export_annotation_list(open_annotations, anno_list_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
         # processed_inventories.append(inv_nr)
         # store_processed_inventories(processed_inventories)
 
 
-def handle_xmi(
-        xmi_path: str,
-        ner_annotations: list,
-        open_annotations: list,
-        page_texts: list,
-        xpf: XMIProcessorFactory,
-        trc: TextRepoClient,
-        plain_text_file_type: FileType
-):
+def load_manifest(inv_nr: str) -> dict[str, any]:
+    manifest_path = f"/Users/bram/workspaces/globalise/manifests/inventories/{inv_nr}.json"
+    logger.info(f"<= {manifest_path}")
+    with open(manifest_path) as f:
+        manifest = json.load(f)
+    return manifest
+
+
+def store_manifest(inv_nr: str, manifest: dict[str, any]):
+    manifest_path = f"out/{inv_nr}/{inv_nr}.json"
+    logger.info(f"=> {manifest_path}")
+    with open(manifest_path, 'w') as f:
+        json.dump(obj=manifest, fp=f)
+
+
+def handle_xmi(xmi_path: str, ner_annotations: list, page_texts: list, xpf: XMIProcessorFactory, trc: TextRepoClient,
+               plain_text_file_type: FileType, manifest: dict[str, any]):
     xp = xpf.get_xmi_processor(xmi_path)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
+    basename_parts = basename.split("_")
     # ic(xpf.document_data[basename])
     txt_version_identifier = trc.import_version(
         external_id=basename,
@@ -911,7 +918,24 @@ def handle_xmi(
     xp.document_id = basename
     xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
     ner_annotations.extend(xp.get_named_entity_annotations())
-    open_annotations.extend(xp.get_open_annotations())
+    inv_nr = basename_parts[-2]
+    annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
+    export_annotation_list(xp.get_open_annotations(), annotation_list_path)
+    manifest_items = manifest["items"]
+    relevant_item_index = find_relevant_item_index(manifest_items, basename)
+    manifest_items[relevant_item_index]["annotations"] = [
+        {
+            "id": f"https://brambg.github.io/static-file-server/globalise/10000/iiif-annotations-{basename}.json",
+            "type": "AnnotationPage"
+        }
+    ]
+
+
+def find_relevant_item_index(items: list[dict[str, any]], basename: str) -> int:
+    for i, item in enumerate(items):
+        if item["label"]["en"][0] == basename:
+            return i
+    return None
 
 
 def get_base_name(path: str):
