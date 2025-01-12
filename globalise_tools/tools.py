@@ -780,17 +780,17 @@ def make_word_interval_tree(
     itree = IntervalTree()
     find_start = 0
     for w in text_words:
-        substring = w.text
-        if substring not in word_break_chars and substring != '„.':
+        substring = w.text.strip(word_break_chars)
+        if needs_finding(substring):
             notice = ''
-            find_end = find_start + len(substring) + 10
+            find_end = find_start + len(substring) + 1000
             index = text.find(substring, find_start, find_end)
             if index < 0:
                 if debug:
                     print(f"!<{substring}> | <{text[find_start:find_end]}>")
-                substring = substring.replace('„', '').replace('¬', '')
+                substring = substring.strip(word_break_chars)
                 notice = '!'
-                find_end = find_start + len(substring) + 10
+                find_end = find_start + len(substring) + 1000
                 index = text.find(substring, find_start, find_end)
                 if index < 0:
                     raise Exception(f"index={index}")
@@ -806,6 +806,14 @@ def make_word_interval_tree(
                 }
                 find_start = end_exc
     return itree
+
+
+def needs_finding(substring):
+    return any(char.isdigit() or char.isalpha() for char in substring)
+
+
+def needs_finding0(substring):
+    return substring not in word_break_chars and substring not in ['„.', '.„', '-„', '„-', '_„', '„_']
 
 
 def make_word_interval_tree0(text: str, text_words: list[PageXMLWord]) -> IntervalTree:
@@ -892,7 +900,8 @@ def extract_paragraph_text(
         paragraph_ranges.append((offset, text_len))
         offset = text_len
         text_words.extend(m.words)
-    itree = make_word_interval_tree(text=text, text_words=text_words, iiif_base_uri=iiif_base_uri, canvas_id=canvas_id)
+    itree = make_word_interval_tree(text=text, text_words=text_words, iiif_base_uri=iiif_base_uri, canvas_id=canvas_id,
+                                    debug=False)
     if '  ' in text:
         logger.error('double space in text')
     return text, marginalia_ranges, header_range, paragraph_ranges, itree
