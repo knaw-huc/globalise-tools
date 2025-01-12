@@ -770,7 +770,7 @@ def export_annotation_list(open_annotations: list, out_path: str):
         "@type": "sc:AnnotationList",
         "resources": open_annotations
     }
-    logger.info(f"=> {out_path}")
+    # logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
         json.dump(anno_list, fp=f, indent=4)
 
@@ -800,7 +800,6 @@ class InventoryProcessingContext:
     xpf: XMIProcessorFactory
     trc: TextRepoClient
     plain_text_type: FileType
-    processed_inventories: list[str]
 
 
 def load_processed_inventories() -> list[str]:
@@ -830,24 +829,42 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     # pagexml_inv_nrs = [p.split('/')[-1] for p in pagexml_dirs]
     # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
     xpf = XMIProcessorFactory(type_system_path)
-    processed_inventories = load_processed_inventories()
+    # processed_inventories = load_processed_inventories()
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
+    # run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    logger.info("done!")
+
+
+def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
     client = dask.Client()
     logger.info(f"mapping processes...")
     futures = client.map(process_inventory,
-                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type,
-                                                     processed_inventories)
+                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
                           for xmi_dir in xmi_dirs])
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
-
     start_time.value = time.perf_counter()
     logger.info("gathering...")
     client.gather(futures)
-    logger.info("done!")
+
+
+def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
+    start_time.value = time.perf_counter()
+    for xmi_dir in xmi_dirs:
+        context = InventoryProcessingContext(
+            xmi_dir,
+            output_dir,
+            pagexml_dir,
+            xpf,
+            trc,
+            plain_text_file_type
+        )
+        process_inventory(context)
+        show_progress(None)
 
 
 def process_inventory(context: InventoryProcessingContext):
@@ -857,11 +874,11 @@ def process_inventory(context: InventoryProcessingContext):
     pagexml_dir = context.pagexml_dir
     xpf = context.xpf
     trc = context.trc
-    processed_inventories = context.processed_inventories
 
     inv_nr = xmi_dir.split('/')[-1]
-    if inv_nr in processed_inventories:
-        logger.info(f"skipping {xmi_dir}...")
+    new_manifest_path = f"{output_dir}/{inv_nr}/{inv_nr}.json"
+    if os.path.isfile(new_manifest_path):
+        logger.info(f"annotated manifest {new_manifest_path} found, skipping {xmi_dir}")
     else:
         logger.info(f"processing {xmi_dir}...")
 
@@ -872,18 +889,21 @@ def process_inventory(context: InventoryProcessingContext):
         ner_annotations = []
         page_texts = []
         manifest = load_manifest(inv_nr)
+        manifest_item_idx = index_manifest_items(manifest)
         for xmi_path in xmi_paths:
             handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
-                       context.plain_text_type, manifest)
+                       context.plain_text_type, manifest, manifest_item_idx)
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
-        # processed_inventories.append(inv_nr)
-        # store_processed_inventories(processed_inventories)
+
+
+def index_manifest_items(manifest: dict[str, any]) -> dict[str, int]:
+    return {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
 
 
 def load_manifest(inv_nr: str) -> dict[str, any]:
@@ -901,41 +921,45 @@ def store_manifest(inv_nr: str, manifest: dict[str, any]):
         json.dump(obj=manifest, fp=f)
 
 
-def handle_xmi(xmi_path: str, ner_annotations: list, page_texts: list, xpf: XMIProcessorFactory, trc: TextRepoClient,
-               plain_text_file_type: FileType, manifest: dict[str, any]):
+def handle_xmi(
+        xmi_path: str,
+        ner_annotations: list,
+        page_texts: list,
+        xpf: XMIProcessorFactory,
+        trc: TextRepoClient,
+        plain_text_file_type: FileType,
+        manifest: dict[str, any],
+        manifest_item_idx: dict[str, int]
+):
     xp = xpf.get_xmi_processor(xmi_path)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
     basename_parts = basename.split("_")
     # ic(xpf.document_data[basename])
-    txt_version_identifier = trc.import_version(
-        external_id=basename,
-        type_name=plain_text_file_type.name,
-        contents=page_text,
-        as_latest_version=True
-    )
+    try:
+        txt_version_identifier = trc.import_version(
+            external_id=basename,
+            type_name=plain_text_file_type.name,
+            contents=page_text,
+            as_latest_version=True
+        )
+        xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
+    except Exception:
+        logger.warning("caught exception on import_version to textrepo")
     xp.document_id = basename
-    xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
     ner_annotations.extend(xp.get_named_entity_annotations())
     inv_nr = basename_parts[-2]
     annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
     export_annotation_list(xp.get_open_annotations(), annotation_list_path)
     manifest_items = manifest["items"]
-    relevant_item_index = find_relevant_item_index(manifest_items, basename)
+    relevant_item_index = manifest_item_idx[basename]
     manifest_items[relevant_item_index]["annotations"] = [
         {
             "id": f"https://brambg.github.io/static-file-server/globalise/10000/iiif-annotations-{basename}.json",
             "type": "AnnotationPage"
         }
     ]
-
-
-def find_relevant_item_index(items: list[dict[str, any]], basename: str) -> int:
-    for i, item in enumerate(items):
-        if item["label"]["en"][0] == basename:
-            return i
-    return None
 
 
 def get_base_name(path: str):
@@ -957,38 +981,25 @@ def handle_page_xml(
     inv_nr = base_name_parts[-2]
     page_nr = int(base_name_parts[-1])
     canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_nr}"
-    # raw_text_offset = 0
-    # raw_text_range = IntervalTree()
     text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(scan_doc,
                                                                                                             iiif_base_uri=iiif_base_uri,
                                                                                                             canvas_id=canvas_id)
 
-    # tr_texts = []x
-    # for tr in scan_doc.get_text_regions_in_reading_order():
-    #     if "paragraph" in tr.type or "marginalia" in tr.type or "header" in tr.type or "signature-mark" in tr.type:
-    #         word_texts = []
-    #         for w in tr.get_words():
-    #             if w.text:
-    #                 new_offset = raw_text_offset + 1 + len(w.text)
-    #                 raw_text_range[raw_text_offset:new_offset] = w
-    #                 raw_text_offset = new_offset
-    #                 word_texts.append(w.text)
-    #         tr_texts.append(" ".join(word_texts))
     plain_text = text
-    # path = f"out/{base_name}-words-text.txt"
-    # logger.info(f"=> {path}")
-    # with open(path, "w") as f:
-    #     f.write(plain_text)
+
+    try:
+        txt_version_identifier = trc.import_version(
+            external_id=base_name,
+            type_name=plain_text_file_type.name,
+            contents=plain_text,
+            as_latest_version=True
+        )
+        txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    except Exception:
+        logger.warning("exception when trying to import_version to textrepo")
+        txt_version_uri = f"{trc.base_uri}/rest/versions/placeholder"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
-    txt_version_identifier = trc.import_version(
-        external_id=base_name,
-        type_name=plain_text_file_type.name,
-        contents=plain_text,
-        as_latest_version=True
-    )
-
-    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
     xpf.document_data[base_name] = {
         "plain_text_source": f"{txt_version_uri}/contents",
         "plain_text_md5": md5,
