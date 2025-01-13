@@ -581,6 +581,17 @@ files = [
 ]
 
 [[package]]
+name = "circuitbreaker"
+version = "2.0.0"
+description = "Python Circuit Breaker pattern implementation"
+optional = false
+python-versions = "*"
+files = [
+    {file = "circuitbreaker-2.0.0-py2.py3-none-any.whl", hash = "sha256:c8c6f044b616cd5066368734ce4488020392c962b4bd2869d406d883c36d9859"},
+    {file = "circuitbreaker-2.0.0.tar.gz", hash = "sha256:28110761ca81a2accbd6b33186bc8c433e69b0933d85e89f280028dbb8c1dd14"},
+]
+
+[[package]]
 name = "click"
 version = "8.1.8"
 description = "Composable command line interface toolkit"
@@ -4418,4 +4429,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.10,<3.13"
-content-hash = "bb6a477eaf63fea9ffc49498cbee451195a1165bf51753154af2c7becd835d5c"
+content-hash = "2360eb82cab0ba6fb422d97c5f45576615ee7a674606be6b61b12e89e032c5be"

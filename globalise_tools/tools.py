@@ -780,7 +780,7 @@ def make_word_interval_tree(
     itree = IntervalTree()
     find_start = 0
     for w in text_words:
-        substring = w.text.strip(word_break_chars)
+        substring = w.text.strip(WORD_BREAK_CHARACTERS)
         if needs_finding(substring):
             notice = ''
             find_end = find_start + len(substring) + 1000
@@ -788,7 +788,7 @@ def make_word_interval_tree(
             if index < 0:
                 if debug:
                     print(f"!<{substring}> | <{text[find_start:find_end]}>")
-                substring = substring.strip(word_break_chars)
+                substring = substring.strip(WORD_BREAK_CHARACTERS)
                 notice = '!'
                 find_end = find_start + len(substring) + 1000
                 index = text.find(substring, find_start, find_end)
@@ -813,7 +813,7 @@ def needs_finding(substring):
 
 
 def needs_finding0(substring):
-    return substring not in word_break_chars and substring not in ['„.', '.„', '-„', '„-', '_„', '„_']
+    return substring not in WORD_BREAK_CHARACTERS and substring not in ['„.', '.„', '-„', '„-', '_„', '„_']
 
 
 def make_word_interval_tree0(text: str, text_words: list[PageXMLWord]) -> IntervalTree:
@@ -902,14 +902,14 @@ def extract_paragraph_text(
         text_words.extend(m.words)
     itree = make_word_interval_tree(text=text, text_words=text_words, iiif_base_uri=iiif_base_uri, canvas_id=canvas_id,
                                     debug=False)
-    if '  ' in text:
-        logger.error('double space in text')
+    # if '  ' in text:
+    #     logger.error('double space in text')
     return text, marginalia_ranges, header_range, paragraph_ranges, itree
 
 
 _RE_COMBINE_WHITESPACE = re.compile(r"\s+")
 
-word_break_chars = '„¬'
+WORD_BREAK_CHARACTERS = '„¬'
 
 
 def joined_lines(tr) -> TextPair:
@@ -925,3 +925,14 @@ def joined_lines(tr) -> TextPair:
     ptext = paragraph_text(lines)
     text = _RE_COMBINE_WHITESPACE.sub(" ", ptext)
     return TextPair(text=text, words=words)
+
+
+NUMBERS = re.compile("[0-9]+")
+NO_NUMBERS = re.compile("[^0-9]+")
+
+
+def inv_nr_sort_key(path: str) -> tuple[int, str]:
+    last = path.split("/")[-1]
+    num_part = re.sub(pattern=NO_NUMBERS, string=last, repl="")
+    other_part = re.sub(pattern=NUMBERS, string=last, repl="")
+    return int(num_part), other_part.lower()

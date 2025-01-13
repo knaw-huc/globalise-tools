@@ -36,6 +36,7 @@ xlsxwriter = "^3.0.3"
 xmldict = "^0.4.1"
 
 # use `poetry install --with dev-bram` to use these dependencies
+circuitbreaker = "^2.0.0"
 [tool.poetry.group.dev-bram.dependencies]
 retry = "^0.9.2"
 annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }

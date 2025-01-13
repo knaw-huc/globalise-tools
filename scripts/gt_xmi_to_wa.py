@@ -198,7 +198,8 @@ class XMIProcessor:
                 canvas_id,
                 iiif_base_uri,
                 manifest_uri,
-                xywh
+                xywh,
+                coords
             )
             image_data_list.append(image_data)
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)

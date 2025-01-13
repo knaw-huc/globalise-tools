@@ -246,3 +246,4 @@ class ImageData:
     iiif_base_uri: str
     manifest_uri: str
     xywh: str
+    coords: list

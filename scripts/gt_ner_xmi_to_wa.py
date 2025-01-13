@@ -17,10 +17,11 @@ import cassis as cas
 import dask.distributed as dask
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
+from circuitbreaker import circuit
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
-from textrepo.client import TextRepoClient, FileType
+from textrepo.client import TextRepoClient, FileType, VersionInfo
 from tqdm import tqdm
 
 import globalise_tools.git_tools as git
@@ -28,6 +29,7 @@ import globalise_tools.textrepo_tools as tt
 import globalise_tools.tools as gt
 from globalise_tools.events import wiki_base, time_roles, place_roles, NER_DATA_DICT
 from globalise_tools.model import ImageData
+from globalise_tools.tools import inv_nr_sort_key
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -240,7 +242,8 @@ class XMIProcessor:
                 canvas_id,
                 iiif_base_uri,
                 manifest_uri,
-                xywh
+                xywh,
+                coords
             )
             image_data_list.append(image_data)
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
@@ -293,7 +296,8 @@ class XMIProcessor:
                 canvas_id,
                 iiif_base_uri,
                 manifest_uri,
-                xywh
+                xywh,
+                coords
             )
             image_data_list.append(image_data)
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
@@ -306,7 +310,8 @@ class XMIProcessor:
             image_data_list = [i for i in image_data_groups]
             manifest_uri = [d.manifest_uri for d in image_data_list][0]
             xywh = [d.xywh for d in image_data_list]
-            svg_list.append(self._svg_selector(xywh_list=xywh))
+            coords = [d.coords for d in image_data_list]
+            svg_list.append(self._svg_selector(coords_list=coords, xywh_list=xywh))
             xywh_list.extend(xywh)
         if canvas_ids:
             canvas_url = canvas_ids[0]
@@ -524,7 +529,6 @@ class XMIProcessor:
         width = 0
         if coords_list:
             for coords in coords_list:
-                ic(coords)
                 height = max(height, max([c[1] for c in coords]))
                 width = max(width, max([c[0] for c in coords]))
                 path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
@@ -822,19 +826,13 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
                                 textrepo_url: str, api_key: str):
     trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
     plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
-    # ic(pagexml_dir, xmi_dir, type_system_path, output_dir)
-    # pagexml_dirs = sorted(glob.glob(f"{pagexml_dir}/[0-9]*"), key=number_part)
-    # xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=number_part)
-    xmi_dirs = glob.glob(f"{xmi_dir}/[0-9]*")
-    # pagexml_inv_nrs = [p.split('/')[-1] for p in pagexml_dirs]
-    # xmi_inv_nrs = [p.split('/')[-1] for p in xmi_dirs]
+    xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=inv_nr_sort_key)
     xpf = XMIProcessorFactory(type_system_path)
-    # processed_inventories = load_processed_inventories()
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    # run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
-    run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
 
 
@@ -894,6 +892,7 @@ def process_inventory(context: InventoryProcessingContext):
             handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
                        context.plain_text_type, manifest, manifest_item_idx)
+        manifest['id'] = f"https://brambg.github.io/static-file-server/globalise/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
@@ -937,16 +936,8 @@ def handle_xmi(
     basename = get_base_name(xmi_path)
     basename_parts = basename.split("_")
     # ic(xpf.document_data[basename])
-    try:
-        txt_version_identifier = trc.import_version(
-            external_id=basename,
-            type_name=plain_text_file_type.name,
-            contents=page_text,
-            as_latest_version=True
-        )
-        xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
-    except Exception:
-        logger.warning("caught exception on import_version to textrepo")
+    txt_version_identifier = upload_to_textrepo(trc, basename, page_text, plain_text_file_type)
+    xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
     xp.document_id = basename
     ner_annotations.extend(xp.get_named_entity_annotations())
     inv_nr = basename_parts[-2]
@@ -956,10 +947,25 @@ def handle_xmi(
     relevant_item_index = manifest_item_idx[basename]
     manifest_items[relevant_item_index]["annotations"] = [
         {
-            "id": f"https://brambg.github.io/static-file-server/globalise/10000/iiif-annotations-{basename}.json",
+            "id": f"https://brambg.github.io/static-file-server/globalise/{inv_nr}/iiif-annotations-{basename}.json",
             "type": "AnnotationPage"
         }
     ]
+
+
+@circuit
+def upload_to_textrepo(
+        trc: TextRepoClient,
+        external_id: str, contents: str,
+        plain_text_file_type: FileType
+) -> VersionInfo:
+    txt_version_identifier = trc.import_version(
+        external_id=external_id,
+        type_name=plain_text_file_type.name,
+        contents=contents,
+        as_latest_version=True
+    )
+    return txt_version_identifier
 
 
 def get_base_name(path: str):
@@ -986,18 +992,8 @@ def handle_page_xml(
                                                                                                             canvas_id=canvas_id)
 
     plain_text = text
-
-    try:
-        txt_version_identifier = trc.import_version(
-            external_id=base_name,
-            type_name=plain_text_file_type.name,
-            contents=plain_text,
-            as_latest_version=True
-        )
-        txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-    except Exception:
-        logger.warning("exception when trying to import_version to textrepo")
-        txt_version_uri = f"{trc.base_uri}/rest/versions/placeholder"
+    txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
+    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
     xpf.document_data[base_name] = {
