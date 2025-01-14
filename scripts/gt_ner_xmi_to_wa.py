@@ -37,6 +37,8 @@ counter = Value('i', 0)
 total = Value('i', 0)
 start_time = Value('f', 0)
 
+MANIFEST_BASE_URL = "https://globalise-mirador.tt.di.huc.knaw.nl/globalise"
+
 
 def show_progress(future):
     with counter.get_lock():  # Ensure thread-safe increment
@@ -767,7 +769,7 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
 
 
 def export_annotation_list(open_annotations: list, out_path: str):
-    list_id = out_path.replace("out/", "https://brambg.github.io/static-file-server/globalise/")
+    list_id = out_path.replace("out/", "%s/" % MANIFEST_BASE_URL)
     anno_list = {
         "@id": list_id,
         "@context": "http://iiif.io/api/presentation/2/context.json",
@@ -831,9 +833,17 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
-    # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    # run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
+
+
+# def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
+#     logger.info(f"mapping processes...")
+#     contexts = [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
+#                 for xmi_dir in xmi_dirs]
+#     with Pool(5) as p:
+#         p.map(process_inventory, contexts)
 
 
 def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
@@ -862,7 +872,7 @@ def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dir
             plain_text_file_type
         )
         process_inventory(context)
-        show_progress(None)
+        # show_progress(None)
 
 
 def process_inventory(context: InventoryProcessingContext):
@@ -892,13 +902,14 @@ def process_inventory(context: InventoryProcessingContext):
             handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
                        context.plain_text_type, manifest, manifest_item_idx)
-        manifest['id'] = f"https://brambg.github.io/static-file-server/globalise/{inv_nr}/{inv_nr}.json"
+        manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
+    show_progress(None)
 
 
 def index_manifest_items(manifest: dict[str, any]) -> dict[str, int]:
@@ -944,13 +955,16 @@ def handle_xmi(
     annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
     export_annotation_list(xp.get_open_annotations(), annotation_list_path)
     manifest_items = manifest["items"]
-    relevant_item_index = manifest_item_idx[basename]
-    manifest_items[relevant_item_index]["annotations"] = [
-        {
-            "id": f"https://brambg.github.io/static-file-server/globalise/{inv_nr}/iiif-annotations-{basename}.json",
-            "type": "AnnotationPage"
-        }
-    ]
+    if basename in manifest_item_idx:
+        relevant_item_index = manifest_item_idx[basename]
+        manifest_items[relevant_item_index]["annotations"] = [
+            {
+                "id": f"{MANIFEST_BASE_URL}/{inv_nr}/iiif-annotations-{basename}.json",
+                "type": "AnnotationPage"
+            }
+        ]
+    else:
+        logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
 
 
 @circuit
