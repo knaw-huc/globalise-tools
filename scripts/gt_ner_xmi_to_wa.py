@@ -897,9 +897,9 @@ def process_inventory(context: InventoryProcessingContext):
         ner_annotations = []
         page_texts = []
         manifest = load_manifest(inv_nr)
-        manifest_item_idx = index_manifest_items(manifest)
+        manifest_item_idx, iiif_base_uri_idx, canvas_id_idx = index_manifest_items(manifest)
         for xmi_path in xmi_paths:
-            handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type)
+            handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type, iiif_base_uri_idx, canvas_id_idx)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
                        context.plain_text_type, manifest, manifest_item_idx)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
@@ -912,8 +912,12 @@ def process_inventory(context: InventoryProcessingContext):
     show_progress(None)
 
 
-def index_manifest_items(manifest: dict[str, any]) -> dict[str, int]:
-    return {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
+def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+    manifest_item_idx = {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
+    iiif_base_uri_idx = {item["label"]["en"][0]: item['items'][0]['items'][0]['body']['service'][0]['@id'] for item in
+                         manifest["items"]}
+    canvas_id_idx = {item["label"]["en"][0]: item['id'] for item in manifest["items"]}
+    return manifest_item_idx, iiif_base_uri_idx, canvas_id_idx
 
 
 def load_manifest(inv_nr: str) -> dict[str, any]:
@@ -991,16 +995,19 @@ def handle_page_xml(
         pagexml_dir: str,
         xpf: XMIProcessorFactory,
         trc: TextRepoClient,
-        plain_text_file_type: FileType
-):
+        plain_text_file_type: FileType,
+        iiif_base_uri_for_base_name: dict[str, str],
+        canvas_id_for_base_name: dict[str, str]):
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
-    iiif_base_uri = "TODO: iiif_base_uri"
-    base_name_parts = base_name.split("_")
-    inv_nr = base_name_parts[-2]
-    page_nr = int(base_name_parts[-1])
-    canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_nr}"
+    if base_name in iiif_base_uri_for_base_name:
+        iiif_base_uri = iiif_base_uri_for_base_name[base_name]
+        canvas_id = canvas_id_for_base_name[base_name]
+    else:
+        logger.warning(f"base_name {base_name} not found in manifest")
+        iiif_base_uri = f"http://canvas-{base_name}-not-found-in-manifest"
+        canvas_id = f"http://canvas-{base_name}-not-found-in-manifest"
     text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(scan_doc,
                                                                                                             iiif_base_uri=iiif_base_uri,
                                                                                                             canvas_id=canvas_id)
