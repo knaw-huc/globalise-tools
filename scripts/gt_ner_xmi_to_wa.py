@@ -17,7 +17,7 @@ import cassis as cas
 import dask.distributed as dask
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
-from circuitbreaker import circuit
+from circuitbreaker import circuit, CircuitBreakerMonitor
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
@@ -37,7 +37,10 @@ counter = Value('i', 0)
 total = Value('i', 0)
 start_time = Value('f', 0)
 
+# MANIFEST_BASE_URL = "https://brambg.github.io/static-file-server/globalise"
 MANIFEST_BASE_URL = "https://globalise-mirador.tt.di.huc.knaw.nl/globalise"
+# MANIFEST_BASE_URL = "http://localhost:8000/globalise"
+PRESENTATION_VERSION = 3
 
 
 def show_progress(future):
@@ -51,16 +54,18 @@ def show_progress(future):
         seconds_remaining = gt.seconds_to_hhmmss(eta - seconds_since_start)
         logger.info(
             f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); estimated time remaining: {seconds_remaining}")
+        # logger.info(f"all circuits closed: {CircuitBreakerMonitor.all_closed()}")
 
 
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str):
+    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2):
         self.typesystem = typesystem
         self.document_data = document_data
         self.xmi_path = xmi_path
         self.commit_id = commit_id
+        self.presentation_version = presentation_version
         # logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
@@ -103,15 +108,15 @@ class XMIProcessor:
             web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
 
-    def get_open_annotations(self) -> list:
+    def get_iiif_annotations(self) -> list:
         entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
-        open_annotations = []
+        iiif_annotations = []
         for a in entity_annotations:
             entity_type = NER_DATA_DICT[a['value']]['entity_type']
-            open_annotation = self._as_open_annotation(a, entity_type)
-            open_annotations.append(open_annotation)
-        return open_annotations
+            annotation = self._as_iiif_annotation(a, entity_type, self.presentation_version)
+            iiif_annotations.append(annotation)
+        return iiif_annotations
 
     def get_event_annotations(self, entity_ids: list[str]):
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
@@ -269,7 +274,8 @@ class XMIProcessor:
             "target": targets
         }
 
-    def _as_open_annotation(self, feature_structure: FeatureStructure, entity_type: str) -> dict[str, any]:
+    def _as_iiif_annotation(self, feature_structure: FeatureStructure, entity_type: str,
+                            presentation_version: int = 2) -> dict[str, any]:
         original_fs = feature_structure
         if feature_structure['begin'] is None:
             feature_structure = feature_structure['target']
@@ -332,6 +338,16 @@ class XMIProcessor:
         else:
             manifest = "TODO"
 
+        printable_entity_type = entity_type.replace('urn:globalise:entityType:', "")
+        if presentation_version == 2:
+            return self._version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
+        elif presentation_version == 3:
+            return self._version_3_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
+        else:
+            raise Exception(f"unknown presentation_version: {presentation_version}")
+
+    @staticmethod
+    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh):
         return {
             "@id": f"urn:globalise:annotation:{uuid.uuid4()}",
             "@type": "oa:Annotation",
@@ -369,9 +385,37 @@ class XMIProcessor:
                 {
                     "@type": "oa:Tag",
                     "format": "text/html",
-                    "chars": entity_type.replace('urn:globalise:entityType:', "")
+                    "chars": printable_entity_type
                 }
             ]
+        }
+
+    @staticmethod
+    def _version_3_annotation(canvas_id, manifest, printable_entity_type, svg, text, xywh):
+        return {
+            "@context": "http://iiif.io/api/presentation/3/context.json",
+            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "type": "Annotation",
+            "motivation": "commenting",
+            "body": [
+                {
+                    "type": "TextualBody",
+                    "language": "nl",
+                    "value": text
+                },
+                {
+                    "type": "TextualBody",
+                    "purpose": "tagging",
+                    "value": printable_entity_type
+                }
+            ],
+            "target": {
+                "source": canvas_id,
+                "selector": {
+                    "type": "SvgSelector",
+                    "value": svg
+                }
+            }
         }
 
     def _generator(self):
@@ -681,8 +725,9 @@ class XMIProcessorFactory:
         self.document_data = self._read_document_data()
         self.commit_id = self._read_current_commit_id()
 
-    def get_xmi_processor(self, xmi_path: str) -> XMIProcessor:
-        return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
+    def get_xmi_processor(self, xmi_path: str, presentation_version: int = 2) -> XMIProcessor:
+        return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path,
+                            presentation_version=presentation_version)
 
     @staticmethod
     def _read_document_data() -> dict[str, any]:
@@ -768,14 +813,22 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
         json.dump(ner_annotations, fp=f, indent=4)
 
 
-def export_annotation_list(open_annotations: list, out_path: str):
-    list_id = out_path.replace("out/", "%s/" % MANIFEST_BASE_URL)
+def export_annotation_list(annotations: list[dict[str, any]], out_path: str, presentation_version: int = 2):
+    list_id = out_path.replace("out/", f"{MANIFEST_BASE_URL}/")
     anno_list = {
-        "@id": list_id,
-        "@context": "http://iiif.io/api/presentation/2/context.json",
-        "@type": "sc:AnnotationList",
-        "resources": open_annotations
+        "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json"
     }
+    if presentation_version == 2:
+        anno_list["@id"] = list_id
+        anno_list["@type"] = "sc:AnnotationList"
+        anno_list["resources"] = annotations
+    elif presentation_version == 3:
+        anno_list["id"] = list_id
+        anno_list["type"] = "AnnotationPage"
+        anno_list["items"] = annotations
+    else:
+        raise Exception(f"presentation_version {presentation_version} unknown")
+
     # logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
         json.dump(anno_list, fp=f, indent=4)
@@ -806,6 +859,7 @@ class InventoryProcessingContext:
     xpf: XMIProcessorFactory
     trc: TextRepoClient
     plain_text_type: FileType
+    presentation_version: int
 
 
 def load_processed_inventories() -> list[str]:
@@ -849,9 +903,19 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
 def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
     client = dask.Client()
     logger.info(f"mapping processes...")
-    futures = client.map(process_inventory,
-                         [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
-                          for xmi_dir in xmi_dirs])
+    contexts = [
+        InventoryProcessingContext(
+            xmi_dir,
+            output_dir,
+            pagexml_dir,
+            xpf,
+            trc,
+            plain_text_file_type,
+            PRESENTATION_VERSION
+        )
+        for xmi_dir in xmi_dirs
+    ]
+    futures = client.map(process_inventory, contexts)
     logger.info("adding callbacks...")
     for future in futures:
         future.add_done_callback(show_progress)
@@ -869,7 +933,8 @@ def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dir
             pagexml_dir,
             xpf,
             trc,
-            plain_text_file_type
+            plain_text_file_type,
+            PRESENTATION_VERSION
         )
         process_inventory(context)
         # show_progress(None)
@@ -901,7 +966,7 @@ def process_inventory(context: InventoryProcessingContext):
         for xmi_path in xmi_paths:
             handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type, iiif_base_uri_idx, canvas_id_idx)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
-                       context.plain_text_type, manifest, manifest_item_idx)
+                       context.plain_text_type, manifest, manifest_item_idx, context.presentation_version)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest)
 
@@ -912,7 +977,7 @@ def process_inventory(context: InventoryProcessingContext):
     show_progress(None)
 
 
-def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict[str, int], dict[str, int]]:
+def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
     manifest_item_idx = {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
     iiif_base_uri_idx = {item["label"]["en"][0]: item['items'][0]['items'][0]['body']['service'][0]['@id'] for item in
                          manifest["items"]}
@@ -943,9 +1008,10 @@ def handle_xmi(
         trc: TextRepoClient,
         plain_text_file_type: FileType,
         manifest: dict[str, any],
-        manifest_item_idx: dict[str, int]
+        manifest_item_idx: dict[str, int],
+        presentation_version: int = 2
 ):
-    xp = xpf.get_xmi_processor(xmi_path)
+    xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
@@ -957,12 +1023,14 @@ def handle_xmi(
     ner_annotations.extend(xp.get_named_entity_annotations())
     inv_nr = basename_parts[-2]
     annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
-    export_annotation_list(xp.get_open_annotations(), annotation_list_path)
+    export_annotation_list(annotations=xp.get_iiif_annotations(), out_path=annotation_list_path,
+                           presentation_version=presentation_version)
     manifest_items = manifest["items"]
     if basename in manifest_item_idx:
         relevant_item_index = manifest_item_idx[basename]
         manifest_items[relevant_item_index]["annotations"] = [
             {
+                "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json",
                 "id": f"{MANIFEST_BASE_URL}/{inv_nr}/iiif-annotations-{basename}.json",
                 "type": "AnnotationPage"
             }
@@ -971,7 +1039,7 @@ def handle_xmi(
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
 
 
-@circuit
+@circuit(failure_threshold=10, expected_exception=ConnectionError)
 def upload_to_textrepo(
         trc: TextRepoClient,
         external_id: str, contents: str,
