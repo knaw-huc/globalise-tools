@@ -17,7 +17,7 @@ import cassis as cas
 import dask.distributed as dask
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
-from circuitbreaker import circuit, CircuitBreakerMonitor
+from circuitbreaker import circuit
 from icecream import ic
 from intervaltree import IntervalTree, Interval
 from loguru import logger
@@ -116,6 +116,13 @@ class XMIProcessor:
             entity_type = NER_DATA_DICT[a['value']]['entity_type']
             annotation = self._as_iiif_annotation(a, entity_type, self.presentation_version)
             iiif_annotations.append(annotation)
+
+        event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+                             a.type.name == "webanno.custom.SemPredGLOB"]
+        for a in event_annotations[:-1]:
+            annotation = self._as_iiif_annotation(a, f"{a['relationtype']}:{a['category']}", self.presentation_version)
+            iiif_annotations.append(annotation)
+
         return iiif_annotations
 
     def get_event_annotations(self, entity_ids: list[str]):
@@ -342,7 +349,7 @@ class XMIProcessor:
         if presentation_version == 2:
             return self._version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
         elif presentation_version == 3:
-            return self._version_3_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
+            return self._version_3_annotation(canvas_url, printable_entity_type, svg, text)
         else:
             raise Exception(f"unknown presentation_version: {presentation_version}")
 
@@ -391,24 +398,26 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _version_3_annotation(canvas_id, manifest, printable_entity_type, svg, text, xywh):
+    def _version_3_annotation(canvas_id, printable_entity_type, svg, text):
+        body = [
+            {
+                "type": "TextualBody",
+                "language": "nl",
+                "value": text
+            }
+        ]
+        for value in printable_entity_type.split(':'):
+            body.append({
+                "type": "TextualBody",
+                "purpose": "tagging",
+                "value": value
+            })
         return {
             "@context": "http://iiif.io/api/presentation/3/context.json",
             "id": f"urn:globalise:annotation:{uuid.uuid4()}",
             "type": "Annotation",
             "motivation": "commenting",
-            "body": [
-                {
-                    "type": "TextualBody",
-                    "language": "nl",
-                    "value": text
-                },
-                {
-                    "type": "TextualBody",
-                    "purpose": "tagging",
-                    "value": printable_entity_type
-                }
-            ],
+            "body": body,
             "target": {
                 "source": canvas_id,
                 "selector": {
@@ -1020,7 +1029,11 @@ def handle_xmi(
     txt_version_identifier = upload_to_textrepo(trc, basename, page_text, plain_text_file_type)
     xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
     xp.document_id = basename
-    ner_annotations.extend(xp.get_named_entity_annotations())
+    nea = xp.get_named_entity_annotations()
+    ner_annotations.extend(nea)
+    entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
+    eva = xp.get_event_annotations(entity_ids)
+    ner_annotations.extend(eva)
     inv_nr = basename_parts[-2]
     annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
     export_annotation_list(annotations=xp.get_iiif_annotations(), out_path=annotation_list_path,

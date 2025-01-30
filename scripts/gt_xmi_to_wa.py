@@ -56,7 +56,7 @@ class XMIProcessor:
     def text(self) -> str:
         return self.text
 
-    def get_named_entity_annotations(self):
+    def get_named_entity_annotations(self) -> list:
         entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         web_annotations = []
@@ -363,6 +363,39 @@ class XMIProcessor:
         w = max_x - min_x
         h = max_y - min_y
         return f"{min_x},{min_y},{w},{h}"
+
+    @staticmethod
+    def _to_coords(x: int, y: int, w: int, h: int) -> list[Tuple[int, int]]:
+        # x, y, w, h = [int(p) for p in xywh.split(',')]
+        return [
+            (x, y),
+            (x + w, y),
+            (x + w, y + h),
+            (x, y + h)
+        ]
+
+    def _svg_selector(self, coords_list: list = None, xywh_list: list[str] = None) -> str:
+        path_defs = []
+        height = 0
+        width = 0
+        if coords_list:
+            for coords in coords_list:
+                height = max(height, max([c[1] for c in coords]))
+                width = max(width, max([c[0] for c in coords]))
+                path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+                path_def = 'M' + path_def[1:]
+                path_defs.append(path_def)
+        else:
+            for xywh in xywh_list:
+                x, y, w, h = [int(p) for p in xywh.split(",")]
+                coords = self._to_coords(x, y, w, h)
+                height = max(height, h)
+                width = max(width, w)
+                path_def = ' '.join([f"L{c[0]} {c[1]}" for c in coords]) + " Z"
+                path_def = 'M' + path_def[1:]
+                path_defs.append(path_def)
+        path = f"""<path d="{' '.join(path_defs)}"/>"""
+        return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
     def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
