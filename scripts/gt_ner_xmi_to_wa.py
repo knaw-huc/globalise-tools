@@ -119,7 +119,7 @@ class XMIProcessor:
 
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
-        for a in event_annotations[:-1]:
+        for a in event_annotations:
             annotation = self._as_iiif_annotation(a, f"{a['relationtype']}:{a['category']}", self.presentation_version)
             iiif_annotations.append(annotation)
 
@@ -1125,3 +1125,15 @@ def main():
 
 if __name__ == '__main__':
     main()
+
+
+"""
+Om de ner/event annotaties uit de xmi te kunnen mappen op de documenten zoals in tav gebruikt:
+- in tav: per inv.nr alle pagexml text achter elkaar, op line nivo voor physical, op para nivo voor logical
+- in xmi: per pagexml, voor logical text (met alternatieve afbrekingsoplossing?)
+
+Er moeten verschillende mappings komen:
+op logical word nivo -> physical textrepo coords -> pagexml word coords -> xmi text ranges
+via de pagexml words?
+xmi tokens -> pagexml words -> physical offset -> logical offset
+"""
