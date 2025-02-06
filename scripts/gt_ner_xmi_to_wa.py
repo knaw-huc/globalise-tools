@@ -7,6 +7,7 @@ import os
 import re
 import time
 import uuid
+from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import groupby
@@ -14,7 +15,6 @@ from multiprocessing import Value
 from typing import Tuple
 
 import cassis as cas
-import multiprocess as mp
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
@@ -914,8 +914,10 @@ def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs
         )
         for xmi_dir in xmi_dirs
     ]
-    with mp.Pool(5) as p:
-        p.map(func=process_inventory, iterable=contexts)
+    # with mp.Pool(6) as p:
+    #     p.map(func=process_inventory, iterable=contexts)
+    with ThreadPoolExecutor() as executor:
+        executor.map(process_inventory, contexts)
 
 
 def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
