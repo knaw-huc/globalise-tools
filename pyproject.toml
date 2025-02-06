@@ -35,6 +35,7 @@ xlsxwriter = "^3.0.3"
 xmldict = "^0.4.1"
 
 # use `poetry install --with dev-bram` to use these dependencies
+multiprocess = "^0.70.17"
 [tool.poetry.group.dev-bram.dependencies]
 circuitbreaker = "^2.0.0"
 dask = {extras = ["distributed"], version = "^2024.12.1"}

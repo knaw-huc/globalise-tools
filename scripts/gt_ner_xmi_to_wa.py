@@ -14,7 +14,7 @@ from multiprocessing import Value
 from typing import Tuple
 
 import cassis as cas
-import dask.distributed as dask
+import multiprocess as mp
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
@@ -896,22 +896,12 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    # run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
-    run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
 
 
-# def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
-#     logger.info(f"mapping processes...")
-#     contexts = [InventoryProcessingContext(xmi_dir, output_dir, pagexml_dir, xpf, trc, plain_text_file_type)
-#                 for xmi_dir in xmi_dirs]
-#     with Pool(5) as p:
-#         p.map(process_inventory, contexts)
-
-
 def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
-    client = dask.Client()
-    logger.info(f"mapping processes...")
     contexts = [
         InventoryProcessingContext(
             xmi_dir,
@@ -924,13 +914,8 @@ def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs
         )
         for xmi_dir in xmi_dirs
     ]
-    futures = client.map(process_inventory, contexts)
-    logger.info("adding callbacks...")
-    for future in futures:
-        future.add_done_callback(show_progress)
-    start_time.value = time.perf_counter()
-    logger.info("gathering...")
-    client.gather(futures)
+    with mp.Pool(5) as p:
+        p.map(func=process_inventory, iterable=contexts)
 
 
 def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
@@ -973,14 +958,15 @@ def process_inventory(context: InventoryProcessingContext):
         manifest = load_manifest(inv_nr)
         manifest_item_idx, iiif_base_uri_idx, canvas_id_idx = index_manifest_items(manifest)
         for xmi_path in xmi_paths:
-            handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type, iiif_base_uri_idx, canvas_id_idx)
-            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, trc,
-                       context.plain_text_type, manifest, manifest_item_idx, context.presentation_version)
+            plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type,
+                                                iiif_base_uri_idx, canvas_id_idx)
+            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, plain_text_source, manifest, manifest_item_idx,
+                       context.presentation_version)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
-        export_text(page_texts, text_out_path)
+        # export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
     show_progress(None)
@@ -1014,8 +1000,7 @@ def handle_xmi(
         ner_annotations: list,
         page_texts: list,
         xpf: XMIProcessorFactory,
-        trc: TextRepoClient,
-        plain_text_file_type: FileType,
+        plain_text_source: str,
         manifest: dict[str, any],
         manifest_item_idx: dict[str, int],
         presentation_version: int = 2
@@ -1025,9 +1010,7 @@ def handle_xmi(
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
     basename_parts = basename.split("_")
-    # ic(xpf.document_data[basename])
-    txt_version_identifier = upload_to_textrepo(trc, basename, page_text, plain_text_file_type)
-    xp.plain_text_source = trc.version_uri(txt_version_identifier.version_id)
+    xp.plain_text_source = plain_text_source
     xp.document_id = basename
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
@@ -1035,9 +1018,9 @@ def handle_xmi(
     eva = xp.get_event_annotations(entity_ids)
     ner_annotations.extend(eva)
     inv_nr = basename_parts[-2]
-    annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
-    export_annotation_list(annotations=xp.get_iiif_annotations(), out_path=annotation_list_path,
-                           presentation_version=presentation_version)
+    # annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
+    # export_annotation_list(annotations=xp.get_iiif_annotations(), out_path=annotation_list_path,
+    #                        presentation_version=presentation_version)
     manifest_items = manifest["items"]
     if basename in manifest_item_idx:
         relevant_item_index = manifest_item_idx[basename]
@@ -1078,7 +1061,7 @@ def handle_page_xml(
         trc: TextRepoClient,
         plain_text_file_type: FileType,
         iiif_base_uri_for_base_name: dict[str, str],
-        canvas_id_for_base_name: dict[str, str]):
+        canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
@@ -1096,13 +1079,15 @@ def handle_page_xml(
     plain_text = text
     txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
     txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    plain_text_source = f"{txt_version_uri}/contents"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
     xpf.document_data[base_name] = {
-        "plain_text_source": f"{txt_version_uri}/contents",
+        "plain_text_source": plain_text_source,
         "plain_text_md5": md5,
         "text_intervals": list(word_interval_tree)
     }
+    return plain_text_source
 
 
 def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
@@ -1125,7 +1110,6 @@ def main():
 
 if __name__ == '__main__':
     main()
-
 
 """
 Om de ner/event annotaties uit de xmi te kunnen mappen op de documenten zoals in tav gebruikt:
