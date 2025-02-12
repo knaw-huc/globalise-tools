@@ -767,6 +767,9 @@ class TextPair:
     words: list[PageXMLWord]
 
 
+SEARCH_WINDOW = 10000
+
+
 def make_word_interval_tree(
         text: str,
         iiif_base_uri: str,
@@ -783,16 +786,17 @@ def make_word_interval_tree(
         substring = w.text.strip(WORD_BREAK_CHARACTERS)
         if needs_finding(substring):
             notice = ''
-            find_end = find_start + len(substring) + 1000
+            find_end = find_start + len(substring) + SEARCH_WINDOW
             index = text.find(substring, find_start, find_end)
             if index < 0:
                 if debug:
                     print(f"!<{substring}> | <{text[find_start:find_end]}>")
                 substring = substring.strip(WORD_BREAK_CHARACTERS)
                 notice = '!'
-                find_end = find_start + len(substring) + 1000
+                find_end = find_start + len(substring) + SEARCH_WINDOW
                 index = text.find(substring, find_start, find_end)
                 if index < 0:
+                    logger.info(substring, find_start, find_end)
                     raise Exception(f"index={index}")
             offset = index
             if substring:

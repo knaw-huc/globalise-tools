@@ -7,7 +7,6 @@ import os
 import re
 import time
 import uuid
-from concurrent.futures import ThreadPoolExecutor
 from dataclasses import dataclass
 from datetime import datetime
 from itertools import groupby
@@ -15,6 +14,7 @@ from multiprocessing import Value
 from typing import Tuple
 
 import cassis as cas
+import multiprocess as mp
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
@@ -914,10 +914,14 @@ def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs
         )
         for xmi_dir in xmi_dirs
     ]
-    # with mp.Pool(6) as p:
-    #     p.map(func=process_inventory, iterable=contexts)
-    with ThreadPoolExecutor() as executor:
-        executor.map(process_inventory, contexts)
+    with mp.Pool(5) as p:
+        results = p.map(func=process_inventory, iterable=contexts)
+    for result in results:
+        logger.info(f"finished {result}")
+    # with ThreadPoolExecutor() as executor:
+    #     results = executor.map(process_inventory, contexts)
+    #     for result in results:
+    #         logger.info(f"finished {result}")
 
 
 def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
@@ -972,6 +976,7 @@ def process_inventory(context: InventoryProcessingContext):
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
     show_progress(None)
+    return xmi_dir
 
 
 def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
@@ -1122,4 +1127,16 @@ Er moeten verschillende mappings komen:
 op logical word nivo -> physical textrepo coords -> pagexml word coords -> xmi text ranges
 via de pagexml words?
 xmi tokens -> pagexml words -> physical offset -> logical offset
+
+
+manifest
+4085
+9524I
+9524II
+ontbreken
+
+geen ner-annotations:
+10179
+10467
+4069
 """
