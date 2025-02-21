@@ -1,6 +1,6 @@
 [[analiticcl]]
 id = "nl_voc_analiticcl"
-name = "NL VOC lexicon (extracted)"
+name = "NL VOC groundtruth lexicon"
 alphabet = "simple.alphabet.tsv"
 
 [[analiticcl.lexicons]]
@@ -8,7 +8,6 @@ filename = "../langdetect/lexicons/nl_voc.tsv"
 
 [[fst]]
 id = "nl_voc_fst"
-name = "NL VOC lexicon (extracted)"
-alphabet = "simple.alphabet.tsv"
+name = "NL VOC groundtruth lexicon"
 file = "../langdetect/lexicons/nl_voc.tsv"
 distance = 2
