@@ -138,3 +138,6 @@ conf/
 tests/example.stam.json
 scripts/gt-experiment.py
 scripts/try-hydra.py
+
+#prevent committing INT historical lexicon (not open unfortunately)
+pipelines/queryexpansion/int_*tsv
