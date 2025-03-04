@@ -1,0 +1,4 @@
+[[lookup]]
+id = "odwn"
+name = "Open Dutch Wordnet"
+file = "odwn.tsv"
