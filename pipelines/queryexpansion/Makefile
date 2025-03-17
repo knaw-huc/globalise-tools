@@ -19,8 +19,11 @@ all: all.freqs docker
 docker:
 	docker build -t registry.diginfra.net/mvg/globalise-kweepeer:latest .
 
-run: docker
+docker-run: docker
 	docker run --rm -t -i -p 8080:8080 registry.diginfra.net/mvg/globalise-kweepeer:latest
+
+run:
+	kweepeer --config all.config.toml
 
 frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed

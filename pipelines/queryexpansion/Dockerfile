@@ -8,4 +8,4 @@ COPY . /usr/src/
 EXPOSE 8080
 WORKDIR /usr/src/
 
-ENTRYPOINT ["/usr/bin/kweepeer","--config","all.config.toml"]
+ENTRYPOINT ["/usr/bin/kweepeer","--bind","0.0.0.0:8080", "--config","all.config.toml"]
