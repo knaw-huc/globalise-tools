@@ -14,7 +14,13 @@ setup:
 	cargo install finalfusion-utils
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
-all: all.freqs
+all: all.freqs docker
+
+docker:
+	docker build -t registry.diginfra.net/mvg/globalise-kweepeer:latest .
+
+run: docker
+	docker run --rm -t -i -p 8080:8080 registry.diginfra.net/mvg/globalise-kweepeer:latest
 
 frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed

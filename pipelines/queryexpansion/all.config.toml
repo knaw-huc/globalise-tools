@@ -4,12 +4,12 @@ name = "NL VOC groundtruth lexicon"
 alphabet = "simple.alphabet.tsv"
 
 [[analiticcl.lexicons]]
-filename = "../langdetect/lexicons/nl_voc.tsv"
+filename = "nl_voc.tsv"
 
 [[fst]]
 id = "nl_voc_fst"
 name = "NL VOC groundtruth lexicon"
-file = "../langdetect/lexicons/nl_voc.tsv"
+file = "nl_voc.tsv"
 distance = 2
 
 [[analiticcl]]
@@ -18,7 +18,7 @@ name = "Extracted Globalise lexicon (all t>1)"
 alphabet = "simple.alphabet.tsv"
 
 [[analiticcl.lexicons]]
-filename = "all.freqs"
+filename = "extracted.freqs"
 
 [[fst]]
 id = "extracted_fst"
@@ -37,3 +37,8 @@ id = "odwn"
 name = "Open Dutch Wordnet"
 file = "odwn.tsv"
 
+[[finalfusion]]
+id = "embeddings"
+name = "Globalise Word Embeddings"
+file = "globalize-embeddings.fifu"
+k = 10
