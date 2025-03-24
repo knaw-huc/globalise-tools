@@ -17,7 +17,7 @@ setup:
 all: all.freqs docker
 
 docker:
-	docker build -t registry.diginfra.net/mvg/globalise-kweepeer:latest .
+	docker build --no-cache -t registry.diginfra.net/mvg/globalise-kweepeer:latest .
 
 docker-run: docker
 	docker run --rm -t -i -p 8080:8080 registry.diginfra.net/mvg/globalise-kweepeer:latest

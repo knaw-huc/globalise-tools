@@ -23,7 +23,6 @@ filename = "extracted.freqs"
 [[fst]]
 id = "extracted_fst"
 name = "Extracted Globalise lexicon (all t>1)"
-alphabet = "simple.alphabet.tsv"
 file = "extracted.freqs"
 distance = 2
 
