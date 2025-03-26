@@ -55,3 +55,7 @@ nl_voc.tsv:
 	ucto -Lgeneric -l -m -n $@.tmp $@.tok.tmp 
 	cat $@.tok.tmp | lingua-cli --confidence 0.6 -n -l nl,en,fr,de,la,it,pt,es,da,id | awk -F "\t" '{ if ($$1 == "nl") print $$3 }' | sed -e 's/ /\n/g' | grep -E "[[:alpha:]:\-]{2,}+" | sort | uniq -c | sort -rn | awk '{ print $$2"\t"$$1 }' > $@
 	rm $@.tmp $@.tok.tmp
+
+%.tsv: %.jsonld
+	#Convert a SKOS JSON-LD to a TSV file that can be used by kweepeer's lookup module or analiticcl module
+	skos2variants --dataset $< > $@

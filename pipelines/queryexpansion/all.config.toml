@@ -41,3 +41,9 @@ id = "embeddings"
 name = "Globalise Word Embeddings"
 file = "globalize-embeddings.fifu"
 k = 10
+
+[[lookup]]
+id = "beroepen"
+name = "Beroepen Thesaurus"
+file = "beroepen.tsv"
+delimiter2 = ";"
