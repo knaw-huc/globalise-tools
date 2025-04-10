@@ -4,7 +4,7 @@ This contains the [configuration](all.config.toml) and [build files](Makefile)
 for the query expansion service for Globalise, powered by 
 [kweepeer](https://github.com/knaw-huc/kweepeer). An
 internal test instance is deployed at <https://kweepeer.dev.huc.knaw.nl> (KNAW
-VPN required).
+VPN required). The docker container sources are in this directory.
  
 The following modules are configured:
 
