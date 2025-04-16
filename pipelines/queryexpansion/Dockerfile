@@ -5,13 +5,14 @@ RUN cargo install --root /usr --git https://github.com/knaw-huc/kweepeer kweepee
 
 COPY . /usr/src/
 
+WORKDIR /usr/src/
+
 RUN git clone https://github.com/knaw-huc/kweepeer-frontend &&\
-    mv /usr/src/etc/kweepeer.run.sh /etc/service/kweepeer/run &&\
-    mv /usr/src/etc/nginx.run.sh /etc/service/nginx/run &&\
-    mv /usr/src/etc/nginx.conf /etc/nginx/http.d/default.conf &&\
+    mv etc/kweepeer.run.sh /etc/service/kweepeer/run &&\
+    mv etc/nginx.run.sh /etc/service/nginx/run &&\
+    mv etc/nginx.conf /etc/nginx/http.d/default.conf &&\
     apk del git
 
 EXPOSE 80
-WORKDIR /usr/src/
 
 ENTRYPOINT ["runsvdir","-P","/etc/service"]
