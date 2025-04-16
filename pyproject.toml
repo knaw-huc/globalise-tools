@@ -1,7 +1,7 @@
 [tool.poetry]
 name = "globalise-tools"
 version = "0.2.0"
-description = ""
+description = "A diverse assortment of command-line tools and python libraries for the Globalise Project"
 authors = ["Bram Buitendijk <bram.buitendijk@di.huc.knaw.nl>", "Maarten van Gompel <proycon@anaproy.nl>"]
 readme = "README.md"
 packages = [
