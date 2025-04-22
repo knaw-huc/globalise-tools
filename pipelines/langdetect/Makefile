@@ -27,7 +27,7 @@ setup:
 	command -v lexmatch || cargo install lexmatch@0.3.0
 	@echo "Setting up Python virtual environment and installing globalise-tools"
 	[ ! -e env ] && python3 -m venv env; source env/bin/activate; cd ../../; pip install .
-	if [ ! -e "$MANUAL_CORRECTIONS" ]; then git clone git@github.com:globalise-huygens/language-identification-data/ && ln -s globalise-language-identification-data/corrections/corrections.lang.tsv && ln -s /home/proycon/work/globalise-language-identification-data/latin-script-pages/ publish; fi
+	if [ ! -e "$MANUAL_CORRECTIONS" ]; then git clone git@github.com:globalise-huygens/language-identification-data/ && ln -s language-identification-data/corrections/corrections.lang.tsv && ln -s language-identification-data/latin-script-pages/ publish; fi
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
 clean:
