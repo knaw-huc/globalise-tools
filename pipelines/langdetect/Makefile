@@ -109,5 +109,5 @@ dev-proycon:
 	#set up personal dev environment 
 	ln -s /home/proycon/exp/globalize-pagexml/
 	ln -s /home/proycon/exp/voc-groundtruth/
-    ln -s /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
+	ln -s /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
 	ln -s /home/proycon/work/globalise-language-identification-data/latin-script-pages/ publish
