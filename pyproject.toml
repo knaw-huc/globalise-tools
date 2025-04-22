@@ -24,7 +24,7 @@ loguru = "^0.7.0"
 pagexml-tools = "^0.7.0"
 progressbar2 = "^4.2.0"
 pycaprio = "^0.3.0"
-python = ">=3.10,<3.13"
+python = "^3.12.0"
 spacy = { version = "^3.4.3" }
 stam = ">=0.10.0"
 tabulate = "^0.9.0"
@@ -41,7 +41,7 @@ circuitbreaker = "^2.0.0"
 dask = {extras = ["distributed"], version = "^2024.12.1"}
 retry = "^0.9.2"
 annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
-#pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
+pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
 provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-python-client", develop = true }
 spacy = { extras = ["apple"], version = "^3.4.3" }
 textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
