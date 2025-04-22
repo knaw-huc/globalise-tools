@@ -2,11 +2,12 @@
 .PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections
 .DELETE_ON_ERROR:
 
-#these can be injected/overriden via the environment:
-PAGEXML_PATH = /home/proycon/exp/globalize-pagexml/
-VOC_GROUNDTRUTH_PATH = /home/proycon/exp/voc-groundtruth/
-MANUAL_CORRECTIONS = /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
-PUBLISH_DIR = /home/proycon/work/globalise-language-identification-data/latin-script-pages/
+#these can be injected/overriden via the environment or you can set up symlinks
+#(@proycon: use make dev-proycon to set up symlinks on pollux)
+PAGEXML_PATH = ./globalize-pagexml/
+VOC_GROUNDTRUTH_PATH = ./voc-groundtruth/
+MANUAL_CORRECTIONS = corrections.lang.tsv
+PUBLISH_DIR = ./publish
 
 lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
@@ -26,6 +27,7 @@ setup:
 	command -v lexmatch || cargo install lexmatch@0.3.0
 	@echo "Setting up Python virtual environment and installing globalise-tools"
 	[ ! -e env ] && python3 -m venv env; source env/bin/activate; cd ../../; pip install .
+	if [ ! -e "$MANUAL_CORRECTIONS" ]; then git clone git@github.com:globalise-huygens/language-identification-data/ && ln -s globalise-language-identification-data/corrections/corrections.lang.tsv && ln -s /home/proycon/work/globalise-language-identification-data/latin-script-pages/ publish; fi
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
 clean:
@@ -102,3 +104,10 @@ nl_voc.tsv:
 frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed
 	gt-extract-lines -i $(PAGEXML_PATH) 
+
+dev-proycon:
+	#set up personal dev environment 
+	ln -s /home/proycon/exp/globalize-pagexml/
+	ln -s /home/proycon/exp/voc-groundtruth/
+    ln -s /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
+	ln -s /home/proycon/work/globalise-language-identification-data/latin-script-pages/ publish
