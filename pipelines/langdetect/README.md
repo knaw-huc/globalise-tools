@@ -3,7 +3,7 @@ This is a pipeline for language detection on the Globalise HTR output.
 ## Usage
 
 You will need a Linux/BSD/macOS system with `make`, `cargo`, `rustc` and a
-recent enough `python3`. On Ubuntu/Debian Linux this is accomplished with `apt
+recent enough `python3` (>= 3.12). On Ubuntu/Debian Linux this is accomplished with `apt
 install make cargo python`.
 
 First clone this git repository. Then from this directory, run the following to
@@ -30,14 +30,23 @@ inventory numbers). This will create many `*-lines.tsv` files that will be the
 input for the actual pipeline:
 
 ```
-$ make fromxml PAGEXML_PATH=/path/to/globalise-pagexml
+$ make fromxml 
 ```
+
+You can pass the path where the PageXML files are extracted (as obtained from https://hdl.handle.net/10622/LVXSBW) by appending or prepending the following to the above command:
+
+```
+PAGEXML_PATH=/path/to/pagexml
+```
+
+It defaults to a `pagexml/` directory in the current working directory.
 
 Then run the actual language detection pipeline as follows:
 
 ```
 $ make all
 ```
+
 
 **Note:** Processing may take a long time if done serially, it is therefore
 strongly recommended to make use of multiple CPU cores by passing `-j 20`
@@ -46,3 +55,7 @@ strongly recommended to make use of multiple CPU cores by passing `-j 20`
 The main results will be in `pages.lang.tsv`, secondary results in
 `nondutch-pages.lang.tsv` (everything that includes another language) and
 `unknown-pages.lang.tsv` (everything that could not be identified).
+
+## Docker
+
+You can also run all of this in a docker container. First run `make docker` from the repository root directory (i.e. not this one!). Then copy and edit `docker.template.env` to set your paths and run `make docker-run` from THIS directory.

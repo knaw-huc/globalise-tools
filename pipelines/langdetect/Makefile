@@ -1,13 +1,15 @@
 .SHELLFLAGS = -o pipefail -c
-.PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections
+.PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections clean docker-run
 .DELETE_ON_ERROR:
 
 #these can be injected/overriden via the environment or you can set up symlinks
-#(@proycon: use make dev-proycon to set up symlinks on pollux)
-PAGEXML_PATH = ./globalize-pagexml/
+#(@proycon: use make links-proycon-pollux to set up symlinks on pollux, do not use in combination with docker)
+PAGEXML_PATH = ./pagexml/
 VOC_GROUNDTRUTH_PATH = ./voc-groundtruth/
-MANUAL_CORRECTIONS = corrections.lang.tsv
-PUBLISH_DIR = ./publish
+MANUAL_CORRECTIONS = ./language-identification-data/corrections/corrections.lang.tsv
+PUBLISH_PATH = ./publish/
+
+DOCKER_ENV_FILE = ./docker.env
 
 lineinput_tsv := $(wildcard *-lines.tsv)
 lineoutput_tsv := $(lineinput_tsv:%-lines.tsv=%-lines.lang.tsv)
@@ -23,12 +25,16 @@ setup:
 	@echo "Checking if common dependencies are available"
 	command -V sed awk paste cat wc tee tr cut head tail python3
 	@echo "Installing dependencies (requires cargo+rustc)"
-	command -v lingua-cli || cargo install lingua-cli@0.4.0
-	command -v lexmatch || cargo install lexmatch@0.3.0
+	command -v lingua-cli || cargo install lingua-cli
+	command -v lexmatch || cargo install lexmatch
 	@echo "Setting up Python virtual environment and installing globalise-tools"
 	[ ! -e env ] && python3 -m venv env; source env/bin/activate; cd ../../; pip install .
 	if [ ! -e "$MANUAL_CORRECTIONS" ]; then git clone git@github.com:globalise-huygens/language-identification-data/ && ln -s language-identification-data/corrections/corrections.lang.tsv && ln -s language-identification-data/latin-script-pages/ publish; fi
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
+
+docker-run:
+	@echo "(Note: this requires a docker.env file, copy and edit docker.template.env)"
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
 
 clean:
 	-rm *.lang.tsv *.lst stats *.tmp
@@ -81,9 +87,9 @@ pages-withcorrections.lang.tsv: pages.lang.tsv
 withcorrections: pages-withcorrections.lang.tsv nondutch-pages-withcorrections.lang.tsv unknown-pages-withcorrections.lang.tsv
 
 publish: withcorrections
-	cp -f pages-withcorrections.lang.tsv "$(PUBLISH_DIR)pages.lang.tsv"
-	cp -f nondutch-pages-withcorrections.lang.tsv "$(PUBLISH_DIR)nondutch-pages.lang.tsv"
-	cp -f unknown-pages-withcorrections.lang.tsv "$(PUBLISH_DIR)unknown-pages.lang.tsv"
+	cp -f pages-withcorrections.lang.tsv "$(PUBLISH_PATH)pages.lang.tsv"
+	cp -f nondutch-pages-withcorrections.lang.tsv "$(PUBLISH_PATH)nondutch-pages.lang.tsv"
+	cp -f unknown-pages-withcorrections.lang.tsv "$(PUBLISH_PATH)unknown-pages.lang.tsv"
 
 dist: globalise-langdetect.tar.xz
 
@@ -105,9 +111,8 @@ frompagexml:
 	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed
 	gt-extract-lines -i $(PAGEXML_PATH) 
 
-dev-proycon:
-	#set up personal dev environment 
-	ln -s /home/proycon/exp/globalize-pagexml/
-	ln -s /home/proycon/exp/voc-groundtruth/
-	ln -s /home/proycon/work/globalise-language-identification-data/corrections/corrections.lang.tsv
-	ln -s /home/proycon/work/globalise-language-identification-data/latin-script-pages/ publish
+links-proycon-pollux:
+	#set up personal dev environment using symlinks (do not user in combination with docker)
+	ln -s /home/proycon/exp/globalize-pagexml/ $(PAGEXML_PATH)
+	ln -s /home/proycon/exp/voc-groundtruth/ $(VOC_GROUNDTRUTH_PATH)
+	ln -s /home/proycon/work/globalise-language-identification-data $(LANGIDENT_DATA_PATH)

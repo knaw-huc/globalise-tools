@@ -5,8 +5,8 @@ THREADS = 20
 
 
 #these can be injected/overriden via the environment:
-PAGEXML_PATH = /home/proycon/exp/globalize-pagexml/
-VOC_GROUNDTRUTH_PATH = /home/proycon/exp/voc-groundtruth/
+PAGEXML_PATH = ./globalize-pagexml/
+VOC_GROUNDTRUTH_PATH = ./voc-groundtruth/
 
 setup:
 	@echo "Checking if common dependencies are available"
@@ -62,3 +62,8 @@ nl_voc.tsv:
 %.tsv: %.jsonld
 	#Convert a SKOS JSON-LD to a TSV file that can be used by kweepeer's lookup module or analiticcl module
 	skos2variants --dataset $< > $@
+
+links-proycon-pollux:
+	#personal dev environment
+	ln -s /home/proycon/exp/globalize-pagexml/
+	ln -s /home/proycon/exp/voc-groundtruth/

@@ -139,5 +139,9 @@ tests/example.stam.json
 scripts/gt-experiment.py
 scripts/try-hydra.py
 
+#omit large files
+pipelines/queryexpansion/all.tok.txt
+pipelines/queryexpansion/*.fifu
+
 #prevent committing INT historical lexicon (not open unfortunately)
 pipelines/queryexpansion/int_*tsv

@@ -120,6 +120,14 @@ version-update-major:
 detect-copy-paste:
 	pmd cpd --minimum-tokens 50 --dir globalise_tools --dir scripts --language python | less
 
+.PHONY: docker
+docker:
+	docker build -t knaw-huc/globalise-tools .
+
+.PHONY: docker-run
+docker-run:
+	docker -t -i -v .:/data knaw-huc/globalise-tools
+
 .PHONY: help
 help:
 	@echo "make-tools for globalise-tools"
@@ -127,6 +135,9 @@ help:
 	@echo "Please use \`make <target>', where <target> is one of:"
 	@echo "  install                    - to install the necessary requirements"
 	@echo "  install-spacy-model        - to load the 'nl_core_news_lg' language model used by spacy"
+	@echo
+	@echo "  docker                     - build a docker container containing everything"
+	@echo "  docker-run                 - run the docker container interactively (build it first)"
 #	@echo "  extract-all            		to extract text and annotations from all document directories"
 #	@echo "  web-annotations            - to generate the web-annotations"
 	@echo
