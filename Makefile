@@ -126,7 +126,7 @@ docker:
 
 .PHONY: docker-run
 docker-run:
-	docker -t -i -v .:/data knaw-huc/globalise-tools
+	docker run -t -i -v .:/data knaw-huc/globalise-tools
 
 .PHONY: help
 help:
