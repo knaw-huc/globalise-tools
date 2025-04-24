@@ -7,7 +7,7 @@
 PAGEXML_PATH = ./pagexml/
 VOC_GROUNDTRUTH_PATH = ./voc-groundtruth/
 MANUAL_CORRECTIONS = ./language-identification-data/corrections/corrections.lang.tsv
-PUBLISH_PATH = ./publish/
+PUBLISH_PATH = ./language-identification-data/latin-script-pages/
 
 DOCKER_ENV_FILE = ./docker.env
 
