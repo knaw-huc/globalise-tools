@@ -1,5 +1,7 @@
 This is a pipeline for language detection on the Globalise HTR output.
 
+The raw results are delivered in <https://github.com/globalise-huygens/language-identification-data> , where the methodology is also described in detail. An architecture schema is provided at the bottom of this readme.
+
 ## Usage
 
 You will need a Linux/BSD/macOS system with `make`, `cargo`, `rustc` and a
@@ -59,3 +61,69 @@ The main results will be in `pages.lang.tsv`, secondary results in
 ## Docker
 
 You can also run all of this in a docker container. First run `make docker` from the repository root directory (i.e. not this one!). Then copy and edit `docker.template.env` to set your paths and run `make docker-run` from THIS directory.
+
+## Architecture
+
+```mermaid
+%%{init: {"flowchart": {"htmlLabels": true}} }%%
+flowchart TD
+    pagexml@{ shape: docs, label: "Globalise PageXML input"}
+    gt_extract_lines["gt-extract-lines<br>(extracts lines)"]
+    gt_classify_language["gt-classify-language<br>(language classification per page/paragraph/region)"]
+
+    pagexml --> gt_extract_lines --> lines_tsv
+
+    lines_tsv@{ shape: docs, label: "*-lines.tsv<br><i>(Raw lines)</i>"}
+    lines_lang_tsv@{ shape: docs, label: "*-lines.tsv<br><i>(Raw lines with language information)</i>"}
+
+    lexicons@{ shape: docs, label: "Lexicons<br><i>(per-language)</i>"}
+    lexicons --> lexmatch
+
+    linguacli["<b>lingua-cli</b><br><i>(Language classification via built-in character n-gram models)</i>"]
+    lexmatch["<b>lexmatch</b><br><i>(Language classification via lexicon lookup)</i>"]
+
+    lines_tsv --> linguacli 
+    lines_tsv --> lexmatch 
+    linguacli  --> lines_lang_tsv
+    lexmatch  --> lines_lang_tsv
+
+    lines_lang_tsv --> gt_classify_language
+
+    gt_classify_language --> pages_lang_tsv
+    gt_classify_language --> nondutchpages_lang_tsv
+    gt_classify_language --> unknownpages_lang_tsv
+
+
+    pages_lang_tsv@{ shape: docs, label: "pages.lang.tsv<br>(pages that have dutch)"}
+    nondutchpages_lang_tsv@{ shape: docs, label: "nondutch-pages.lang.tsv<br>(pages that have another language than dutch)"}
+    unknownpages_lang_tsv@{ shape: docs, label: "unknown-pages.lang.tsv<br>(pages that could not be identified)"}
+
+    subgraph intermediate_results
+        direction LR
+        pages_lang_tsv@{ shape: docs, label: "pages.lang.tsv<br>(pages that have dutch)"}
+        nondutchpages_lang_tsv@{ shape: docs, label: "nondutch-pages.lang.tsv<br>(pages that have another language than dutch)"}
+        unknownpages_lang_tsv@{ shape: docs, label: "unknown-pages.lang.tsv<br>(pages that could not be identified)"}
+    end
+
+    corrections_lang_tsv@{ shape: doc, label: "corrections.lang.tsv<br><i>Manual corrections (input)</i>"}
+
+    gt_merge_manual_corrections["gt-merge-manual-corrections<br>(consolidates automatic output with manual corrections)"]
+
+    corrections_lang_tsv --> gt_merge_manual_corrections
+    pages_lang_tsv --> gt_merge_manual_corrections --> pages_withcorrections_lang_tsv
+    nondutchpages_lang_tsv --> gt_merge_manual_corrections --> nondutchpages_withcorrections_lang_tsv
+    unknownpages_lang_tsv --> gt_merge_manual_corrections --> unknownpages_withcorrections_lang_tsv
+
+    subgraph final_results
+        direction LR
+        pages_withcorrections_lang_tsv@{ shape: docs, label: "pages.lang.tsv<br>(pages that have dutch)"}
+        nondutchpages_withcorrections_lang_tsv@{ shape: docs, label: "nondutch-pages.lang.tsv<br>(pages that have another language than dutch)"}
+        unknownpages_withcorrections_lang_tsv@{ shape: docs, label: "unknown-pages.lang.tsv<br>(pages that could not be identified)"}
+    end
+```
+
+* Arrow follow data flow direction
+* Rectangles represent processes
+* All ``gt-*`` processes refer to globalise-tools, as provided by this repository
+
+

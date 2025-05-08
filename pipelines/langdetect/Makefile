@@ -116,3 +116,11 @@ links-proycon-pollux:
 	ln -s /home/proycon/exp/globalize-pagexml/ $(PAGEXML_PATH)
 	ln -s /home/proycon/exp/voc-groundtruth/ $(VOC_GROUNDTRUTH_PATH)
 	ln -s /home/proycon/work/globalise-language-identification-data $(LANGIDENT_DATA_PATH)
+
+%.html: %.md
+	@echo "Note: for this to work you require pandoc, mermaid-filter with mermaid 11.4 or above)"""
+	sed -e 's/```mermaid/```{.mermaid format=svg}/' $< | pandoc -t html -F mermaid-filter -o $@
+
+%.pdf: %.md
+	@echo "Note: for this to work you require pandoc, mermaid-filter with mermaid 11.4 or above and latex)"""
+	sed -e 's/```mermaid/```{.mermaid format=pdf}/' $< | pandoc -t pdf -F mermaid-filter -o $@
