@@ -112,7 +112,7 @@ class PageXmlFixer:
         labels.append(self._label_element("githash", commit_id))
         script_permalink = f"https://github.com/knaw-huc/globalise-tools/blob/{commit_id}/scripts/{self.script}"
         labels.append(self._label_element("url", script_permalink))
-        labels.append(self._label_element("fixed_error_codes", error_codes))
+        # labels.append(self._label_element("fixed_error_codes", error_codes))
         metadata[-1].addprevious(metadata_item)
 
     @staticmethod
