@@ -105,7 +105,7 @@ class PageXmlFixer:
             attrib={
                 "type": "processingStep",
                 "name": "fix-reading-order",
-                "value": f"globalise-tools/scripts/{self.script}}"
+                "value": f"globalise-tools/scripts/{self.script}"
             }
         )
         labels = etree.SubElement(metadata_item, "Labels")
