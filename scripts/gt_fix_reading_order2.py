@@ -26,11 +26,16 @@ def get_arguments():
                         required=True,
                         help="The directory to store the modified PageXML files in.",
                         type=str)
+    parser.add_argument("inventory_numbers",
+                        nargs='+',
+                        help="The inventory numbers to process.",
+                        type=str)
     return parser.parse_args()
 
 
 @logger.catch
 def fix_reading_order(input_directory: str, output_directory: str, inventory_numbers: list[str]):
+    os.makedirs(output_directory, exist_ok=True)
     pagexml_paths = []
     quality_check = {}
     for inv in inventory_numbers:
@@ -58,7 +63,7 @@ def list_pagexml_files(directory: str):
 def main():
     args = get_arguments()
     if args.input_directory:
-        fix_reading_order(args.input_directory, args.output_directory, ["9999"])
+        fix_reading_order(args.input_directory, args.output_directory, args.inventory_numbers)
 
 
 if __name__ == '__main__':
