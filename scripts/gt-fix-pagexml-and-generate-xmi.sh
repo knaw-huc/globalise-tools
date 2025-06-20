@@ -9,4 +9,5 @@ poetry run ./scripts/gt_fix_reading_order2.py -i out-local/fixed-pagexml -o $OUT
 poetry run ./scripts/gt-pagexml-to-uima-cas.py -o $OUTDIR $OUTDIR/*.xml
 chmod a-x $OUTDIR/*.xm?
 (cd out-local/fixed-pagexml && zip -qrm $INV-pagexml.zip $INV/*.xml && zip -qrm $INV-xmi.zip $INV/*.xmi)
+.local/upload-to-hucdrive.sh $INV
 echo "done!"
