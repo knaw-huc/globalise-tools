@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os.path
+import sys
 
 from loguru import logger
 
@@ -67,4 +68,7 @@ def main():
 
 
 if __name__ == '__main__':
+    logger.remove()
+    logger.add(sys.stdout, level="WARNING")
+
     main()

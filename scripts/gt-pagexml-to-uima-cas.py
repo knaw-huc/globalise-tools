@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import sys
 
 import spacy
 from cassis import *
@@ -40,6 +41,9 @@ def output_path(page_xml_path: str, output_directory: str) -> str:
 
 @logger.catch
 def convert(page_xml_paths: list[str], output_directory: str = "out"):
+    logger.remove()
+    logger.add(sys.stdout, level="WARNING")
+
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
