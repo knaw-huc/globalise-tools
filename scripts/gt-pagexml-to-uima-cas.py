@@ -13,6 +13,9 @@ from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MA
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
 
+logger.remove()
+logger.add(sys.stdout, level="WARNING")
+
 logger.info(f"loading {spacy_core}")
 nlp = spacy.load(spacy_core)
 
@@ -41,9 +44,6 @@ def output_path(page_xml_path: str, output_directory: str) -> str:
 
 @logger.catch
 def convert(page_xml_paths: list[str], output_directory: str = "out"):
-    logger.remove()
-    logger.add(sys.stdout, level="WARNING")
-
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
