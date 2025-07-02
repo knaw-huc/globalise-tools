@@ -8,6 +8,14 @@ PAGEXML_PATH = ./pagexml/
 VOC_GROUNDTRUTH_PATH = ./voc-groundtruth/
 MANUAL_CORRECTIONS = ./language-identification-data/corrections/corrections.lang.tsv
 PUBLISH_PATH = ./language-identification-data/latin-script-pages/
+THREADS = 12
+
+ifneq ($(wildcard /usr/src/pipelines/langdetect/lexicons/),"")
+	#docker environments
+	LEXICON_PATH ?= /usr/src/pipelines/langdetect/lexicons/
+else
+	LEXICON_PATH ?= ./lexicons
+endif
 
 DOCKER_ENV_FILE = ./docker.env
 
@@ -32,17 +40,21 @@ setup:
 	if [ ! -e "$MANUAL_CORRECTIONS" ]; then git clone git@github.com:globalise-huygens/language-identification-data/ && ln -s language-identification-data/corrections/corrections.lang.tsv && ln -s language-identification-data/latin-script-pages/ publish; fi
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
-docker-run:
+docker-run-shell:
 	@echo "(Note: this requires a docker.env file, copy and edit docker.template.env)"
 	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
+
+docker-run:
+	@echo "(Note: this requires a docker.env file, copy and edit docker.template.env)"
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","-j","$(THREADS)","all"]' knaw-huc/globalise-tools 
 
 clean:
 	-rm *.lang.tsv *.lst stats *.tmp
 
 %-lines.lang.tsv: %-lines.tsv
-	cut -f 1,2,3,4,5 "$<" | tail --lines +2  > "$@.left.tmp"
-	cut -f 6 "$<" | tail --lines +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.linguacli.tmp"
-	cut -f 6 "$<" | tail --lines +2 | lexmatch -i --coverage-matrix -l lexicons/nl_voc.tsv -l lexicons/nl.tsv -l lexicons/en.tsv -l lexicons/de.tsv -l lexicons/da.tsv -l lexicons/fr.tsv -l lexicons/la.tsv -l lexicons/it.tsv -l lexicons/es.tsv -l lexicons/pt.tsv -l lexicons/id.tsv --min-token-length 3 - | tail --lines +2 | cut -f 2- >  "$@.lexmatch.tmp"
+	cut -f 1,2,3,4,5 "$<" | tail -n +2  > "$@.left.tmp"
+	cut -f 6 "$<" | tail -n +2 | lingua-cli -n -l nl,en,fr,de,la,it,pt,es,da,id > "$@.linguacli.tmp"
+	cut -f 6 "$<" | tail -n +2 | lexmatch -i --coverage-matrix -l $(LEXICON_PATH)/nl_voc.tsv -l $(LEXICON_PATH)/nl.tsv -l $(LEXICON_PATH)/en.tsv -l $(LEXICON_PATH)/de.tsv -l $(LEXICON_PATH)/da.tsv -l $(LEXICON_PATH)/fr.tsv -l $(LEXICON_PATH)/la.tsv -l $(LEXICON_PATH)/it.tsv -l $(LEXICON_PATH)/es.tsv -l $(LEXICON_PATH)/pt.tsv -l $(LEXICON_PATH)/id.tsv --min-token-length 3 - | tail -n +2 | cut -f 2- >  "$@.lexmatch.tmp"
 	echo -e "inv_nr	page_no	textregion_id	textregion_type	line_id	lang	confidence	line_text	nl_voc	nl	en	de	da	fr	la	it	es	pt	id	total" > "$@"
 	paste "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp" >> "$@"
 	rm "$@.left.tmp" "$@.linguacli.tmp" "$@.lexmatch.tmp"
