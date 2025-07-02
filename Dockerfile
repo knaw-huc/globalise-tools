@@ -1,4 +1,4 @@
-FROM alpine:3.21
+FROM alpine:3.22
 
 RUN apk update &&\
     apk add build-base bash python3 python3-dev linux-headers py3-psutil py3-pip py3-wheel poetry cargo git &&\
