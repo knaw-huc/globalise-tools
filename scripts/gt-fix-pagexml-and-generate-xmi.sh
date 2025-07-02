@@ -1,7 +1,8 @@
 #!/usr/bin/env bash
 INV=$1
 echo "processing $INV..."
-INDIR=~/c/data/globalise/pagexml/$INV
+#INDIR=~/c/data/globalise/pagexml/$INV
+INDIR=.local/xml/$INV
 OUTDIR=out-local/fixed-pagexml/$INV
 mkdir -p $OUTDIR
 cp -a $INDIR/*xml $OUTDIR

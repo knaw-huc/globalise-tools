@@ -68,7 +68,7 @@ def main():
 
 
 if __name__ == '__main__':
-    logger.remove()
-    logger.add(sys.stdout, level="WARNING")
+    # logger.remove()
+    # logger.add(sys.stdout, level="WARNING")
 
     main()
