@@ -142,10 +142,11 @@ class PageXmlFixer:
 
     def _set_new_reading_order(self, page, new_reading_order):
         reading_order_index = self._element_index(page, 'ReadingOrder')
-        reading_order = page[reading_order_index]
-        ordered_group = reading_order[0]
-        for index, region_ref in new_reading_order.items():
-            ordered_group[index] = etree.Element("RegionRefIndexed", {"index": str(index), "regionRef": region_ref})
+        if reading_order_index:
+            reading_order = page[reading_order_index]
+            ordered_group = reading_order[0]
+            for index, region_ref in new_reading_order.items():
+                ordered_group[index] = etree.Element("RegionRefIndexed", {"index": str(index), "regionRef": region_ref})
 
     def _get_metadata_element(self, root):
         metadata_index = self._element_index(root, 'Metadata')
