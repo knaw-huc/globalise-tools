@@ -60,7 +60,7 @@ The main results will be in `pages.lang.tsv`, secondary results in
 
 ## Docker
 
-You can also run all of this in a docker container. First run `make docker` from the repository root directory (i.e. not this one!). Then copy and edit `docker.template.env` to set your paths and run `make docker-run` from THIS directory.
+You can also run all of this in a docker container. First run `make docker` from the repository root directory (i.e. not this one!). Then copy and edit `docker.template.env` to set your paths. You can then run `make docker-run` from THIS directory, it will first run the `frompagexml` make target and then the `all` step. Alternatively, you can run `make docker-run-shell` to be dropped in an interactive shell so you can run these yourself.
 
 ## Architecture
 

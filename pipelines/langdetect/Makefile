@@ -1,5 +1,5 @@
 .SHELLFLAGS = -o pipefail -c
-.PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections clean docker-run
+.PHONY: setup lists lines pages stats dist top100tokens frompagexml withcorrections clean clean-partial docker-run docker-run-shell
 .DELETE_ON_ERROR:
 
 #these can be injected/overriden via the environment or you can set up symlinks
@@ -41,15 +41,29 @@ setup:
 	@echo "Activate the virtual environment with: source env/bin/activate , then run: make frompagexml PAGEXML_PATH=/path/to/globalise-pagexml && make all"
 
 docker-run-shell:
-	@echo "(Note: this requires a docker.env file, copy and edit docker.template.env)"
-	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
+ifeq ($(wildcard $DOCKER_ENV_FILE),"")
+	@echo "(Error: this requires a docker.env file, copy docker.template.env to docker.env first and edit it)"
+	false
+else
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./-v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
+endif
 
 docker-run:
-	@echo "(Note: this requires a docker.env file, copy and edit docker.template.env)"
+ifeq ($(wildcard $DOCKER_ENV_FILE),"")
+	@echo "(Error: this requires a docker.env file, copy docker.template.env to docker.env first and edit it)"
+	false
+else
+	@echo "stage 1: make frompagexml"
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","-j","$(THREADS)","frompagexml"]' knaw-huc/globalise-tools 
+	@echo "stage 2: make all"
 	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","-j","$(THREADS)","all"]' knaw-huc/globalise-tools 
+endif
 
-clean:
+clean-partial:
 	-rm *.lang.tsv *.lst stats *.tmp
+
+clean: clean-partial
+	-rm *-lines.tsv
 
 %-lines.lang.tsv: %-lines.tsv
 	cut -f 1,2,3,4,5 "$<" | tail -n +2  > "$@.left.tmp"
@@ -120,7 +134,7 @@ nl_voc.tsv:
 	rm $@.tmp $@.tok.tmp
 
 frompagexml:
-	#creates the lineinput_tsv files from pagexml, has to be invoked manually, ensure the gt-extract-lines.py script is linked and the virtualenv activated if needed
+	#creates the lineinput_tsv files from pagexml, has to be invoked manually
 	gt-extract-lines -i $(PAGEXML_PATH) 
 
 links-proycon-pollux:
