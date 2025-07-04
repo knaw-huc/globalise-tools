@@ -45,7 +45,7 @@ ifeq ($(wildcard $DOCKER_ENV_FILE),"")
 	@echo "(Error: this requires a docker.env file, copy docker.template.env to docker.env first and edit it)"
 	false
 else
-	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./-v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) knaw-huc/globalise-tools
 endif
 
 docker-run:
@@ -57,6 +57,8 @@ else
 	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","-j","$(THREADS)","frompagexml"]' knaw-huc/globalise-tools 
 	@echo "stage 2: make all"
 	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","-j","$(THREADS)","all"]' knaw-huc/globalise-tools 
+	@echo "stage 3: make publish"
+	source $(DOCKER_ENV_FILE) && docker run -t -i -v ./Makefile:/data/Makefile -v $$LANGDETECT_PATH:/data -v $$PAGEXML_PATH:/data/pagexml -v $$VOC_GROUNDTRUTH_PATH:/data/voc-groundtruth -v $$LANGIDENT_DATA_PATH:/data/language-identification-data --env-file $(DOCKER_ENV_FILE) --entrypoint '["make","publish"]' knaw-huc/globalise-tools 
 endif
 
 clean-partial:
