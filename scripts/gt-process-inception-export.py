@@ -49,7 +49,7 @@ def main(cfg: DictConfig) -> None:
                     body = {
                         "@context": {"@vocab": "https://knaw-huc.github.io/ns/team-text#"},
                         "type": "Entity",
-                        "id": f"urn:globalise:entity:{e_uuid}",
+                        "id": f"urn:example:globalise:entity:{e_uuid}",
                         "metadata": {
                             "type": "EntityMetadata",
                             "className": class_name,

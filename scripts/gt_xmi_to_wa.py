@@ -50,7 +50,7 @@ class XMIProcessor:
         else:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             raise Exception(f"No document data found for {xmi_path}")
-            # self.plain_text_source = "urn:placeholder"
+            # self.plain_text_source = "urn:example:placeholder"
             # self.itree = IntervalTree()
 
     def text(self) -> str:
@@ -509,16 +509,16 @@ class XMIProcessor:
         return web_anno
 
     def _annotation_id(self, extra_id: any) -> str:
-        return f"urn:globalise:annotation:{self.document_id}:{extra_id}"
+        return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
     def _event_id(self, extra_id: any) -> str:
-        return f"urn:globalise:event:{self.document_id}:{extra_id}"
+        return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _event_argument_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
 
 
 class XMIProcessorFactory:

@@ -94,7 +94,14 @@ run-inception:
 
 .PHONY: process-ner-xmi
 process-ner-xmi:
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
 	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY)
+
+.PHONY: process-ner-xmi-3598
+process-ner-xmi-3598:
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
+	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY) --inv-nr=3598
+	jql . out/3598/ner-annotations.json
 
 .PHONY: stop-inception
 stop-inception:

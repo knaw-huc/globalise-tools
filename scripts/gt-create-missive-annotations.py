@@ -93,7 +93,7 @@ def main(cfg: DictConfig) -> None:
                     missive_annotation = WebAnnotation(
                         body={
                             "@context": {"@vocab": "https://knaw-huc.github.io/ns/globalise#"},
-                            "id": f"urn:globalise:{na_file_id}:missive:{tanap_id}",
+                            "id": f"urn:example:globalise:{na_file_id}:missive:{tanap_id}",
                             "type": "GeneralMissive",
                             "metadata": metadata
                         },

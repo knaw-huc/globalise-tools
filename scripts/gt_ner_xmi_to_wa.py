@@ -9,6 +9,7 @@ import time
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
+from functools import cache
 from itertools import groupby
 from multiprocessing import Value
 from typing import Tuple
@@ -25,7 +26,6 @@ from textrepo.client import TextRepoClient, FileType, VersionInfo
 from tqdm import tqdm
 
 import globalise_tools.git_tools as git
-import globalise_tools.textrepo_tools as tt
 import globalise_tools.tools as gt
 from globalise_tools.events import wiki_base, time_roles, place_roles, NER_DATA_DICT
 from globalise_tools.model import ImageData
@@ -34,6 +34,7 @@ from globalise_tools.tools import inv_nr_sort_key
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 counter = Value('i', 0)
+id_counter = Value('i', 1)
 total = Value('i', 0)
 start_time = Value('f', 0)
 
@@ -60,7 +61,9 @@ def show_progress(future):
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2):
+    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2,
+                 time_span=dict[str, str]):
+        self.time_span = time_span
         self.typesystem = typesystem
         self.document_data = document_data
         self.xmi_path = xmi_path
@@ -91,7 +94,7 @@ class XMIProcessor:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             # raise Exception(f"No document data found for {xmi_path}")
             # # todo: create plain_text_source and itree
-            self.plain_text_source = "urn:placeholder"
+            self.plain_text_source = "urn:example:placeholder"
             self.itree = IntervalTree()
 
     def text(self) -> str:
@@ -102,10 +105,13 @@ class XMIProcessor:
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         web_annotations = []
         for a in entity_annotations:
-            web_annotation = self._as_web_annotation(a, self._named_entity_body(a))
-            web_annotations.append(web_annotation)
-            entity_type = NER_DATA_DICT[a['value']]['entity_type']
-            web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
+            named_entity_annotation = self._as_web_annotation(a, self._named_entity_body(a))
+            web_annotations.append(named_entity_annotation)
+            ner_data = NER_DATA_DICT[a['value']]
+            entity_type = ner_data['entity_type']
+            # body_type = ner_data['body_type']
+            inference_annotation = self._entity_inference_annotation(named_entity_annotation, entity_type, a.xmiID)
+            web_annotations.append(inference_annotation)
         return web_annotations
 
     def get_iiif_annotations(self) -> list:
@@ -226,7 +232,10 @@ class XMIProcessor:
         targets = [
             {
                 "type": "SpecificResource",
-                "source": self.plain_text_source,
+                "source": {
+                    "id": self.plain_text_source,
+                    "type": ["DigitalObject", "Annotation"]
+                },
                 "selector": [
                     text_quote_selector,
                     {
@@ -272,17 +281,34 @@ class XMIProcessor:
             targets.append(self._canvas_target(canvas_id, xywh, manifest_uri))
 
         return {
-            "@context": "http://www.w3.org/ns/anno.jsonld",
+            "@context": [
+                "https://linked.art/ns/v1/linked-art.json",
+                "https://ns.huc.knaw.nl/globalise.jsonld",
+                "http://www.w3.org/ns/anno.jsonld",
+                {
+                    "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
+                    "iiif": "http://iiif.io/api/presentation/3#",
+                    "ClassificatoryStatus": "urn:example:globalise:ClassificatoryStatus",
+                    "has_classificatory_subject": "urn:example:globalise:has_classificatory_subject",
+                    "ascribes_classification_relation": "urn:example:globalise:ascribes_classification_relation",
+                    "AppellativeStatus": "urn:example:globalise:AppellativeStatus",
+                    "LinguisticAppellation": "urn:example:globalise:LinguisticAppellation",
+                    "ascribes_appellation": "urn:example:globalise:ascribes_appellation",
+                    "ascribes_appellative_relation": "urn:example:globalise:ascribes_appellative_relation",
+                    "has_appellative_subject": "urn:example:globalise:has_appellative_subject",
+                }
+            ],
             "id": anno_id,
             "type": "Annotation",
-            "generated": datetime.today().isoformat(),
+            "created": datetime.today().isoformat(),
             "generator": self._generator(),
+            "motivation": "classifying",
             "body": body,
             "target": targets
         }
 
     def _as_iiif_annotation(self, feature_structure: FeatureStructure, entity_type: str,
-                            presentation_version: int = 2) -> dict[str, any]:
+                            presentation_version: int = 2) -> dict[str, object]:
         original_fs = feature_structure
         if feature_structure['begin'] is None:
             feature_structure = feature_structure['target']
@@ -345,7 +371,7 @@ class XMIProcessor:
         else:
             manifest = "TODO"
 
-        printable_entity_type = entity_type.replace('urn:globalise:entityType:', "")
+        printable_entity_type = entity_type.replace('urn:example:globalise:entityType:', "")
         if presentation_version == 2:
             return self._version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
         elif presentation_version == 3:
@@ -356,7 +382,7 @@ class XMIProcessor:
     @staticmethod
     def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh):
         return {
-            "@id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "@id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             "@type": "oa:Annotation",
             "motivation": [
                 "oa:commenting",
@@ -414,7 +440,7 @@ class XMIProcessor:
             })
         return {
             "@context": "http://iiif.io/api/presentation/3/context.json",
-            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             "type": "Annotation",
             "motivation": "commenting",
             "body": body,
@@ -436,8 +462,90 @@ class XMIProcessor:
             "name": THIS_SCRIPT_PATH
         }
 
+    def _named_entity_body(self, feature_structure: FeatureStructure):
+        entity_id = feature_structure.value
+        ner_data = NER_DATA_DICT[entity_id]
+        body_type = ner_data['body_type']
+        covered_text = feature_structure.get_covered_text()
+        if body_type == "AppellativeStatus":
+            return self._as_appellative_status_body(ner_data, covered_text)
+        elif body_type == "ClassificatoryStatus":
+            return self._as_classificatory_status_body(ner_data, covered_text)
+        elif body_type == "Dimension":
+            return self._as_dimension_body(ner_data)
+        else:
+            raise Exception(f"unknown body_type: {body_type}")
+
+    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str):
+        entity_uri = ner_data['uri']
+        entity_label = ner_data['label']
+        return [
+            {
+                "id": self._new_id("appellative_status"),
+                "type": ner_data['body_type'],
+                "classified_as": {
+                    "id": entity_uri,
+                    "type": "Type",
+                    "_label": entity_label,
+                },
+                "timespan": self.time_span,
+                "has_appellative_subject": {
+                    "id": self._new_id(ner_data['appellative_subject']),
+                    "type": ner_data['appellative_subject'],
+                    "_label": covered_text
+                },
+                "ascribes_appellative_relation": {
+                    "id": "http://www.cidoc-crm.org/cidoc-crm/P1_is_identified_by",
+                    "type": "Type"
+                },
+                "ascribes_appellation": {
+                    "type": "LinguisticAppellation",
+                    "content": covered_text
+                },
+            }
+        ]
+
+    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str):
+        entity_uri = ner_data['uri']
+        entity_label = ner_data['label']
+        return [
+            {
+                "id": self._new_id("classificatory_status"),
+                "type": ner_data['body_type'],
+                "classified_as": {
+                    "id": entity_uri,
+                    "type": "Type",
+                    "_label": entity_label,
+                },
+                "has_classificatory_subject": {
+                    "id": self._new_id(ner_data['classificatory_subject']),
+                    "type": ner_data['classificatory_subject'],
+                    "_label": covered_text
+                },
+                "ascribes_classification_relation": {
+                    "id": "http://www.cidoc-crm.org/cidoc-crm/P41i_was_classified_by",
+                    "type": "Type"
+                },
+                "timespan": self.time_span,
+            }
+        ]
+
+    def _as_dimension_body(self, ner_data):
+        entity_uri = ner_data['uri']
+        entity_label = ner_data['label']
+        return [
+            {
+                "type": ner_data['body_type'],
+                "timespan": self.time_span,
+                "source": {
+                    "id": entity_uri,
+                    "_label": entity_label
+                }
+            }
+        ]
+
     @staticmethod
-    def _named_entity_body(feature_structure: FeatureStructure):
+    def _named_entity_body0(feature_structure: FeatureStructure):
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         entity_uri = ner_data['uri']
@@ -445,10 +553,9 @@ class XMIProcessor:
         return [
             {
                 "type": "SpecificResource",
-                "purpose": "classifying",
                 "source": {
                     "id": entity_uri,
-                    "label": entity_label
+                    "_label": entity_label
                 }
             }
         ]
@@ -601,7 +708,7 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -633,8 +740,12 @@ class XMIProcessor:
 
     def _event_inference_annotation(self, event_annotation: FeatureStructure,
                                     event_predicate_annotation,
-                                    event_argument_annotation_ids: list[str] = [],
-                                    event_linking_annotation_ids: list[str] = []):
+                                    event_argument_annotation_ids=None,
+                                    event_linking_annotation_ids=None):
+        if event_linking_annotation_ids is None:
+            event_linking_annotation_ids = []
+        if event_argument_annotation_ids is None:
+            event_argument_annotation_ids = []
         annotation_id = self._annotation_id(uuid.uuid4())
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
@@ -712,34 +823,59 @@ class XMIProcessor:
             web_anno['body']['hasTime'] = time_args
         return web_anno
 
-    def _annotation_id(self, extra_id: any) -> str:
-        return f"urn:globalise:annotation:{self.document_id}:{extra_id}"
+    def _annotation_id(self, extra_id: object) -> str:
+        return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
-    def _event_id(self, extra_id: any) -> str:
-        return f"urn:globalise:event:{self.document_id}:{extra_id}"
+    def _event_id(self, extra_id: object) -> str:
+        return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _event_argument_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
+
+    def _new_id(self, id_type: str) -> str:
+        return f"urn:example:globalise:{id_type.lower()}:{self._next_id_number():06d}"
+
+    @staticmethod
+    def _next_id_number() -> int:
+        num = id_counter.value
+        id_counter.value += 1
+        return num
 
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str):
+    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]]):
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
         self.commit_id = self._read_current_commit_id()
+        self.timespan4inventory = timespan4inventory
 
     def get_xmi_processor(self, xmi_path: str, presentation_version: int = 2) -> XMIProcessor:
-        return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path,
+        inv_nr = xmi_path.split('/')[-2]
+        timespan = self._time_span(inv_nr)
+        return XMIProcessor(self.typesystem,
+                            self.document_data,
+                            self.commit_id,
+                            xmi_path,
+                            time_span=timespan,
                             presentation_version=presentation_version)
 
+    @cache
+    def _time_span(self, inv_nr: str) -> dict[str, str]:
+        ts = self.timespan4inventory.get(inv_nr, {})
+        return {
+            "type": "TimeSpan",
+            "end_of_the_begin": ts["end_of_the_begin"],
+            "begin_of_the_end": ts["begin_of_the_end"],
+        }
+
     @staticmethod
-    def _read_document_data() -> dict[str, any]:
+    def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
         logger.info(f"<= {path}")
         with open(path) as f:
@@ -788,6 +924,11 @@ def get_arguments():
     parser.add_argument("-o",
                         "--output-dir",
                         help="The directory to write the output files in",
+                        type=str
+                        )
+    parser.add_argument("-i",
+                        "--inv-nr",
+                        help="Process only files from this inventory number",
                         type=str
                         )
     return parser.parse_args()
@@ -888,17 +1029,30 @@ def store_processed_inventories(processed_inventories: list[str]):
 
 
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str,
-                                textrepo_url: str, api_key: str):
-    trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
-    plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
+                                textrepo_url: str, api_key: str, inv_nr: str = None):
+    timespan4inventory = load_timespan_dict()
+    # trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
+    # plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
+    plain_text_file_type = None
+    trc = None
     xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=inv_nr_sort_key)
-    xpf = XMIProcessorFactory(type_system_path)
+    if inv_nr is not None:
+        xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
+
+    xpf = XMIProcessorFactory(type_system_path, timespan4inventory)
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
     run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
+
+
+def load_timespan_dict() -> dict[str, dict[str, str]]:
+    path = "data/inventory2timespan.json"
+    logger.info(f"<= {path}")
+    with open(path) as f:
+        return json.load(f)
 
 
 def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
@@ -950,7 +1104,7 @@ def process_inventory(context: InventoryProcessingContext):
 
     inv_nr = xmi_dir.split('/')[-1]
     new_manifest_path = f"{output_dir}/{inv_nr}/{inv_nr}.json"
-    if os.path.isfile(new_manifest_path):
+    if False and os.path.isfile(new_manifest_path):
         logger.info(f"annotated manifest {new_manifest_path} found, skipping {xmi_dir}")
     else:
         logger.info(f"processing {xmi_dir}...")
@@ -1008,7 +1162,7 @@ def handle_xmi(
         page_texts: list,
         xpf: XMIProcessorFactory,
         plain_text_source: str,
-        manifest: dict[str, any],
+        manifest: dict[str, object],
         manifest_item_idx: dict[str, int],
         presentation_version: int = 2
 ):
@@ -1084,8 +1238,9 @@ def handle_page_xml(
                                                                                                             canvas_id=canvas_id)
 
     plain_text = text
-    txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
-    txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    # txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
+    # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
+    txt_version_uri = "urn:example:placeholder"
     plain_text_source = f"{txt_version_uri}/contents"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
@@ -1112,7 +1267,7 @@ def main():
     args = get_arguments()
     if args.xmi_dir:
         extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.type_system, args.output_dir, args.text_repo,
-                                    args.api_key)
+                                    args.api_key, args.inv_nr)
 
 
 if __name__ == '__main__':

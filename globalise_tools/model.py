@@ -86,7 +86,7 @@ class WebAnnotation:
         anno_uuid = uuid.uuid4()
         anno_dict = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
-            "id": f"urn:globalise:annotation:{anno_uuid}",
+            "id": f"urn:example:globalise:annotation:{anno_uuid}",
             "type": "Annotation",
             "motivation": "classifying",
             "generated": datetime.today().isoformat(),  # use last-modified from pagexml for px: types

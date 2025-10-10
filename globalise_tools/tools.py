@@ -488,7 +488,7 @@ def read_missive_metadata(meta_path):
 
 
 def make_id_prefix(scan_doc: PageXMLScan) -> str:
-    return "urn:globalise:" + scan_doc.id.replace(".jpg", "")
+    return "urn:example:globalise:" + scan_doc.id.replace(".jpg", "")
 
 
 def page_annotation(
@@ -599,7 +599,7 @@ def word_annotation(id_prefix, stripped, text, w) -> Annotation:
 def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str):
     return Annotation(
         type="tt:Paragraph",
-        id=f"urn:globalise:{base_name}:paragraph:{par_num}",
+        id=f"urn:example:globalise:{base_name}:paragraph:{par_num}",
         page_id=page_id,
         # offset=par_offset,
         # length=par_length,
@@ -613,7 +613,7 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
 def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int):
     return Annotation(
         type="tt:Token",
-        id=f"urn:globalise:{base_name}:token:{token_num}",
+        id=f"urn:example:globalise:{base_name}:token:{token_num}",
         page_id=page_id,
         # offset=offset,
         # length=token_length,

@@ -246,7 +246,7 @@ def document_web_annotation(all_annotations: list[Annotation], document_id: str,
         body={
             "@context": {"na": "https://knaw-huc.github.io/ns/nationaal-archief#",
                          "@vocab": "https://knaw-huc.github.io/ns/globalise#"},
-            "id": f"urn:globalise:{document_id}:file",
+            "id": f"urn:example:globalise:{document_id}:file",
             "type": "na:File",
             "metadata": {
                 "type": "na:FileMetadata",

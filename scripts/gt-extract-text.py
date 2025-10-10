@@ -314,7 +314,7 @@ def add_document_web_annotation(all_annotations, base_name, document_id, web_ann
     end_anchor = max([a.physical_end_anchor for a in all_annotations])
     web_annotations.append(WebAnnotation(
         body={
-            "id": f"urn:globalise:document:{document_id}",
+            "id": f"urn:example:globalise:document:{document_id}",
             "type": "Document",
             "metadata": {
                 "document": document_id,

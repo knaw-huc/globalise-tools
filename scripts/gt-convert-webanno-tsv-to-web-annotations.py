@@ -105,7 +105,7 @@ def convert_event_annotations(annotations, token_context: TokenContext,
                               webannotation_factory: gt.WebAnnotationFactory, doc: Document):
     w3c_annotations = []
     for anno in annotations:
-        body_id = f"urn:globalise:event:{uuid.uuid4()}"
+        body_id = f"urn:example:globalise:event:{uuid.uuid4()}"
         argument_source = {}
         for annotation_link in anno.linked_annotations:
             event_argument_anno = make_event_argument_annotation(
@@ -121,7 +121,7 @@ def convert_event_annotations(annotations, token_context: TokenContext,
 
         w3c_anno = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
-            "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+            "id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             "type": "Annotation",
             "motivation": "linking",
             "generated": datetime.today().isoformat(),
@@ -141,7 +141,7 @@ def make_event_argument_annotation(al: AnnotationLink,
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
         "type": "tt:EventArgument",
-        "id": f"urn:globalise:event_argument:{uuid.uuid4()}",
+        "id": f"urn:example:globalise:event_argument:{uuid.uuid4()}",
         "text": anno.text,
         "role": al.label,
         "event": event_body_id
@@ -149,7 +149,7 @@ def make_event_argument_annotation(al: AnnotationLink,
     targets = make_targets(anno, token_context, webannotation_factory)
     w3c_anno = {
         "@context": "http://www.w3.org/ns/anno.jsonld",
-        "id": f"urn:globalise:annotation:{uuid.uuid4()}",
+        "id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
         "type": "Annotation",
         "motivation": "tagging",
         "generated": datetime.today().isoformat(),
@@ -195,7 +195,7 @@ def convert_entity_annotations(annotations, token_context: TokenContext,
             anno_uuid = uuid.uuid4()
             w3c_anno = {
                 "@context": "http://www.w3.org/ns/anno.jsonld",
-                "id": f"urn:globalise:annotation:{anno_uuid}",
+                "id": f"urn:example:globalise:annotation:{anno_uuid}",
                 "type": "Annotation",
                 "motivation": "tagging",
                 "generated": datetime.today().isoformat(),  # TODO: use last-modified from pagexml for px: types
@@ -216,7 +216,7 @@ def make_entity_body(anno: Annotation):
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
         "type": "tt:Entity",
-        "id": f"urn:globalise:entity:{e_uuid}",
+        "id": f"urn:example:globalise:entity:{e_uuid}",
         "class_name": class_name,
         "class_description": ENTITIES[class_name],
         "text": anno.text

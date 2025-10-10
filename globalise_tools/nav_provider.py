@@ -38,7 +38,7 @@ class NavProvider:
                     self.load_index(inv_nr)
         x_nav = {}
         for k, v in nav.items():
-            x_nav[f'{k}PageId'] = f'urn:globalise:{v}'
+            x_nav[f'{k}PageId'] = f'urn:example:globalise:{v}'
         return x_nav
 
     @staticmethod
