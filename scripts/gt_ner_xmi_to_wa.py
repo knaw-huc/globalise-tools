@@ -472,79 +472,60 @@ class XMIProcessor:
         elif body_type == "ClassificatoryStatus":
             return self._as_classificatory_status_body(ner_data, covered_text)
         elif body_type == "Dimension":
-            return self._as_dimension_body(ner_data)
+            return self._as_dimension_body(ner_data, covered_text)
         else:
             raise Exception(f"unknown body_type: {body_type}")
 
     def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str):
-        entity_uri = ner_data['uri']
-        entity_label = ner_data['label']
-        return [
-            {
-                "id": self._new_id("appellative_status"),
-                "type": ner_data['body_type'],
-                "classified_as": {
-                    "id": entity_uri,
-                    "type": "Type",
-                    "_label": entity_label,
-                },
-                "timespan": self.time_span,
-                "has_appellative_subject": {
-                    "id": self._new_id(ner_data['appellative_subject']),
-                    "type": ner_data['appellative_subject'],
-                    "_label": covered_text
-                },
-                "ascribes_appellative_relation": {
-                    "id": "http://www.cidoc-crm.org/cidoc-crm/P1_is_identified_by",
-                    "type": "Type",
-                    "_label": "P1 is identified by"
-                },
-                "ascribes_appellation": {
-                    "type": "LinguisticAppellation",
-                    "content": covered_text
-                },
-            }
-        ]
+        return self._as_base_ner_body(ner_data,"appellative_status") | {
+            "has_appellative_subject": {
+                "id": self._new_id(ner_data['appellative_subject']),
+                "type": ner_data['appellative_subject'],
+                "_label": covered_text
+            },
+            "ascribes_appellative_relation": {
+                "id": "http://www.cidoc-crm.org/cidoc-crm/P1_is_identified_by",
+                "type": "Type",
+                "_label": "P1 is identified by"
+            },
+            "ascribes_appellation": {
+                "type": "LinguisticAppellation",
+                "content": covered_text
+            },
+        }
 
     def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str):
-        entity_uri = ner_data['uri']
-        entity_label = ner_data['label']
-        return [
-            {
-                "id": self._new_id("classificatory_status"),
-                "type": ner_data['body_type'],
-                "classified_as": {
-                    "id": entity_uri,
-                    "type": "Type",
-                    "_label": entity_label,
-                },
-                "has_classificatory_subject": {
-                    "id": self._new_id(ner_data['classificatory_subject']),
-                    "type": ner_data['classificatory_subject'],
-                    "_label": covered_text
-                },
-                "ascribes_classification_relation": {
-                    "id": "http://www.cidoc-crm.org/cidoc-crm/P41i_was_classified_by",
-                    "type": "Type",
-                    "_label": "P41i was classified by"
-                },
-                "timespan": self.time_span,
-            }
-        ]
+        return self._as_base_ner_body(ner_data, "classificatory_status") | {
+            "has_classificatory_subject": {
+                "id": self._new_id(ner_data['classificatory_subject']),
+                "type": ner_data['classificatory_subject'],
+                "_label": covered_text
+            },
+            "ascribes_classification_relation": {
+                "id": "http://www.cidoc-crm.org/cidoc-crm/P41i_was_classified_by",
+                "type": "Type",
+                "_label": "P41i was classified by"
+            },
+        }
 
-    def _as_dimension_body(self, ner_data):
+    def _as_dimension_body(self, ner_data, covered_text: str):
+        return self._as_base_ner_body(ner_data,"dimension") | {
+            "value": covered_text
+        }
+
+    def _as_base_ner_body(self, ner_data,base_name:str) -> dict[str, object]:
         entity_uri = ner_data['uri']
         entity_label = ner_data['label']
-        return [
-            {
-                "type": ner_data['body_type'],
-                "timespan": self.time_span,
-                "source": {
-                    "id": entity_uri,
-                    "_label": entity_label
-                }
-            }
-        ]
+        return {
+            "id": self._new_id(base_name),
+            "type": ner_data['body_type'],
+            "timespan": self.time_span,
+            "classified_as": {
+                "id": entity_uri,
+                "type": "Type",
+                "_label": entity_label,
+            },
+        }
 
     @staticmethod
     def _named_entity_body0(feature_structure: FeatureStructure):
