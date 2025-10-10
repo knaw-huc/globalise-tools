@@ -107,11 +107,11 @@ class XMIProcessor:
         for a in entity_annotations:
             named_entity_annotation = self._as_web_annotation(a, self._named_entity_body(a))
             web_annotations.append(named_entity_annotation)
-            ner_data = NER_DATA_DICT[a['value']]
-            entity_type = ner_data['entity_type']
+            # ner_data = NER_DATA_DICT[a['value']]
+            # entity_type = ner_data['entity_type']
             # body_type = ner_data['body_type']
-            inference_annotation = self._entity_inference_annotation(named_entity_annotation, entity_type, a.xmiID)
-            web_annotations.append(inference_annotation)
+            # inference_annotation = self._entity_inference_annotation(named_entity_annotation, entity_type, a.xmiID)
+            # web_annotations.append(inference_annotation)
         return web_annotations
 
     def get_iiif_annotations(self) -> list:
