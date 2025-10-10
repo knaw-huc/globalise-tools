@@ -525,7 +525,8 @@ class XMIProcessor:
                 },
                 "ascribes_classification_relation": {
                     "id": "http://www.cidoc-crm.org/cidoc-crm/P41i_was_classified_by",
-                    "type": "Type"
+                    "type": "Type",
+                    "_label": "P41i was classified by"
                 },
                 "timespan": self.time_span,
             }
