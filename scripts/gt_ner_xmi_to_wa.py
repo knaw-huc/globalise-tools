@@ -477,7 +477,7 @@ class XMIProcessor:
             raise Exception(f"unknown body_type: {body_type}")
 
     def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str):
-        return self._as_base_ner_body(ner_data,"appellative_status") | {
+        return self._as_base_ner_body(ner_data, "appellative_status") | {
             "has_appellative_subject": {
                 "id": self._new_id(ner_data['appellative_subject']),
                 "type": ner_data['appellative_subject'],
@@ -509,11 +509,11 @@ class XMIProcessor:
         }
 
     def _as_dimension_body(self, ner_data, covered_text: str):
-        return self._as_base_ner_body(ner_data,"dimension") | {
+        return self._as_base_ner_body(ner_data, "dimension") | {
             "value": covered_text
         }
 
-    def _as_base_ner_body(self, ner_data,base_name:str) -> dict[str, object]:
+    def _as_base_ner_body(self, ner_data, base_name: str) -> dict[str, object]:
         entity_uri = ner_data['uri']
         entity_label = ner_data['label']
         return {
@@ -853,6 +853,7 @@ class XMIProcessorFactory:
         ts = self.timespan4inventory.get(inv_nr, {})
         return {
             "type": "TimeSpan",
+            "id": f"urn:example:globalise:timespan:{inv_nr}",
             "end_of_the_begin": ts["end_of_the_begin"],
             "begin_of_the_end": ts["begin_of_the_end"],
         }
