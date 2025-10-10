@@ -496,7 +496,8 @@ class XMIProcessor:
                 },
                 "ascribes_appellative_relation": {
                     "id": "http://www.cidoc-crm.org/cidoc-crm/P1_is_identified_by",
-                    "type": "Type"
+                    "type": "Type",
+                    "_label": "P1 is identified by"
                 },
                 "ascribes_appellation": {
                     "type": "LinguisticAppellation",
