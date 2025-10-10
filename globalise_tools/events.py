@@ -84,7 +84,7 @@ NER_DATA_DICT = {
         'label': 'Ethno-religious appellation or attribute, not derived from location name',
         'entity_type': f'{prefix}:EthnoReligiousAppellation',
         'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Place'
+        'classificatory_subject': 'Person'
     },
     'LOC_ADJ': {
         'uri': f'{ner_base}:LOC_ADJ',
@@ -140,7 +140,7 @@ NER_DATA_DICT = {
         'label': 'Ship type',
         'entity_type': f'{prefix}:Ship',
         'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'PhysicalThing'
+        'classificatory_subject': 'HumanMadeObject'
     },
     'STATUS': {
         'uri': f'{ner_base}:STATUS',
