@@ -284,18 +284,11 @@ class XMIProcessor:
             "@context": [
                 "https://linked.art/ns/v1/linked-art.json",
                 "https://ns.huc.knaw.nl/globalise.jsonld",
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
                 "http://www.w3.org/ns/anno.jsonld",
                 {
                     "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
-                    "iiif": "http://iiif.io/api/presentation/3#",
-                    "ClassificatoryStatus": "urn:example:globalise:ClassificatoryStatus",
-                    "has_classificatory_subject": "urn:example:globalise:has_classificatory_subject",
-                    "ascribes_classification_relation": "urn:example:globalise:ascribes_classification_relation",
-                    "AppellativeStatus": "urn:example:globalise:AppellativeStatus",
-                    "LinguisticAppellation": "urn:example:globalise:LinguisticAppellation",
-                    "ascribes_appellation": "urn:example:globalise:ascribes_appellation",
-                    "ascribes_appellative_relation": "urn:example:globalise:ascribes_appellative_relation",
-                    "has_appellative_subject": "urn:example:globalise:has_appellative_subject",
+                    "iiif": "http://iiif.io/api/presentation/3#"
                 }
             ],
             "id": anno_id,
@@ -489,7 +482,7 @@ class XMIProcessor:
                 "_label": "P1 is identified by"
             },
             "ascribes_appellation": {
-                "type": "LinguisticAppellation",
+                "type": "Name",
                 "content": covered_text
             },
         }
