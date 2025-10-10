@@ -299,7 +299,7 @@ class XMIProcessor:
                 }
             ],
             "id": anno_id,
-            "type": "Annotation",
+            "type": ["Annotation", "DigitalObject"],
             "created": datetime.today().isoformat(),
             "generator": self._generator(),
             "motivation": "classifying",
