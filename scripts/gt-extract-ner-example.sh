@@ -6,6 +6,7 @@ extract_example_annotation() {
 #    echo jq -s ".[] | select(.id==\"urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:$num\")" .local/3598_0797.json
     jq -s ".[] | select(.id==\"urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:$num\")" .local/3598_0797.json > .local/3598_0797/$type.json
     jsonld2ttl .local/3598_0797/$type.json > .local/3598_0797/$type.ttl
+    sleep 30s
 }
 
 jq -c '.[] | select(.id | startswith("urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:") )' out/3598/ner-annotations.json > .local/3598_0797.json
