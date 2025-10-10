@@ -4,11 +4,15 @@ extract_example_annotation() {
     type=$1
     num=$2
 #    echo jq -s ".[] | select(.id==\"urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:$num\")" .local/3598_0797.json
+    echo "=> .local/3598_0797/$type.json"
     jq -s ".[] | select(.id==\"urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:$num\")" .local/3598_0797.json > .local/3598_0797/$type.json
+    echo "=> .local/3598_0797/$type.ttl"
+    sleep 15s
+    echo "jsonld2ttl .local/3598_0797/$type.json > .local/3598_0797/$type.ttl"
     jsonld2ttl .local/3598_0797/$type.json > .local/3598_0797/$type.ttl
-    sleep 30s
 }
 
+echo "extracting annotations for 3598_0797:"
 jq -c '.[] | select(.id | startswith("urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_0797:") )' out/3598/ner-annotations.json > .local/3598_0797.json
 extract_example_annotation cmty_name 287
 extract_example_annotation cmty_qual 285
