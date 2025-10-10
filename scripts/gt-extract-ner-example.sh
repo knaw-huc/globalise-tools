@@ -26,5 +26,5 @@ extract_example_annotation per_attr 0797:283
 extract_example_annotation per_name 0797:280
 extract_example_annotation prf 0015:179
 extract_example_annotation ship 0797:282
-extract_example_annotation ship_type 0797:282
+extract_example_annotation ship_type 0797:281
 extract_example_annotation status 0797:296
