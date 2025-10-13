@@ -593,7 +593,7 @@ class XMIProcessor:
     def _image_targets(iiif_base_uri: str, xywh_list: list[str]):
         return [
             {
-                "type": "Image",
+                "type": "DigitalObject",
                 "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
             }
             for xywh in xywh_list
@@ -602,7 +602,7 @@ class XMIProcessor:
     def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]):
         selectors = self._fragment_selectors(xywh_list)
         return {
-            "type": "Image",
+            "type": ["Image", "DigitalObject"],
             "source": f"{iiif_base_uri}/full/max/0/default.jpg",
             "selector": selectors
         }
@@ -614,7 +614,7 @@ class XMIProcessor:
         return {
             "type": "SpecificResource",
             "source": {
-                '@context': "http://iiif.io/api/presentation/3/context.json",
+                # '@context': "http://iiif.io/api/presentation/3/context.json",
                 "id": canvas_source,
                 "type": "Canvas",
                 "partOf": {
