@@ -6,12 +6,13 @@ import json
 import os
 import re
 import time
+import copy
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache
 from itertools import groupby
 from multiprocessing import Value
-from typing import Tuple
+from typing import Tuple, Any
 
 import cassis as cas
 import multiprocess as mp
@@ -460,7 +461,14 @@ class XMIProcessor:
         ner_data = NER_DATA_DICT[entity_id]
         body_type = ner_data['body_type']
         covered_text = feature_structure.get_covered_text()
-        if body_type == "AppellativeStatus":
+        if entity_id == "LOC_ADJ":
+            aBody = self._as_appellative_status_body(ner_data, covered_text)
+            c_data = copy.deepcopy(ner_data)
+            c_data['body_type'] = "ClassificatoryStatus"
+            c_data['classificatory_subject'] = 'PersistentItem'
+            cBody = self._as_classificatory_status_body(c_data, covered_text)
+            return [aBody, cBody]
+        elif body_type == "AppellativeStatus":
             return self._as_appellative_status_body(ner_data, covered_text)
         elif body_type == "ClassificatoryStatus":
             return self._as_classificatory_status_body(ner_data, covered_text)
@@ -614,7 +622,7 @@ class XMIProcessor:
         return {
             "type": "SpecificResource",
             "source": {
-                # '@context': "http://iiif.io/api/presentation/3/context.json",
+                '@context': "http://iiif.io/api/presentation/3/context.json",
                 "id": canvas_source,
                 "type": "Canvas",
                 "partOf": {
@@ -1112,7 +1120,7 @@ def process_inventory(context: InventoryProcessingContext):
     return xmi_dir
 
 
-def index_manifest_items(manifest: dict[str, object]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
+def index_manifest_items(manifest: dict[str, Any]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
     manifest_item_idx = {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
     iiif_base_uri_idx = {item["label"]["en"][0]: item['items'][0]['items'][0]['body']['service'][0]['@id'] for item in
                          manifest["items"]}
