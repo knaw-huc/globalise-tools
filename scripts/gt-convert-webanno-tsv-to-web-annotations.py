@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import glob
 import json
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
+import uuid
 from loguru import logger
 from pagexml.model.physical_document_model import Coords
 
@@ -17,9 +17,9 @@ DATA_DIR = "data/inception_output"
 
 @dataclass
 class TokenContext:
-    token_annotations: list[dict[str, any]]
-    word_annotations: list[dict[str, any]]
-    token_idx: dict[str, any]
+    token_annotations: list[dict[str, object]]
+    word_annotations: list[dict[str, object]]
+    token_idx: dict[str, object]
 
 
 @logger.catch
@@ -41,7 +41,7 @@ def web_anno_file_paths(directory: str) -> list[str]:
     return glob.glob(f"{directory}/*.tsv")
 
 
-def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactory) -> list[dict[str, any]]:
+def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactory) -> list[dict[str, object]]:
     doc_id = path.split('/')[-1].replace('.tsv', '')
 
     word_annotations, token_annotations = load_word_and_token_annotations(doc_id)
@@ -159,7 +159,7 @@ def make_event_argument_annotation(al: AnnotationLink,
     return w3c_anno
 
 
-def make_event_body(anno: Annotation, argument_source: dict[str, str], body_id: str) -> dict[str, any]:
+def make_event_body(anno: Annotation, argument_source: dict[str, str], body_id: str) -> dict[str, object]:
     fields = anno.features
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
@@ -273,7 +273,7 @@ def annotation_from_dict(wa: dict) -> gt.Annotation:
 #     return _simplified
 
 
-def word_annotation_covers_token_range(annotation: dict[str, any],
+def word_annotation_covers_token_range(annotation: dict[str, object],
                                        token_range_begin: int,
                                        token_range_end: int) -> bool:
     annotation_range_begin = annotation["offset"]

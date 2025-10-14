@@ -92,7 +92,7 @@ class Annotation:
     # txt_version_id: str = ""
     # char_start: int = 0
     # char_end: int = 0
-    metadata: dict[str, any] = field(default_factory=dict, hash=False)
+    metadata: dict[str, object] = field(default_factory=dict, hash=False)
 
 
 class IdDispenser:
@@ -167,7 +167,7 @@ class WebAnnotationFactory:
                 self.iiif_base_url_idx[row["pagexml_id"]] = row["iiif_base_url"]
         logger.info("... done")
 
-    def _make_image_targets(self, page_id: str, coords: list[Coords]) -> list[dict[str, any]]:
+    def _make_image_targets(self, page_id: str, coords: list[Coords]) -> list[dict[str, object]]:
         targets = []
         iiif_base_url = self.get_iiif_base_url(page_id)
         iiif_url = f"{iiif_base_url}/full/max/0/default.jpg"
@@ -224,13 +224,13 @@ class WebAnnotationFactory:
         return [_physical_text_anchor_selector_target, _physical_cutout_target,
                 _logical_text_anchor_selector_target, _logical_cutout_target]
 
-    def physical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, any]:
+    def physical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, object]:
         return self._text_anchor_selector_target("Text", text_span)
 
-    def logical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, any]:
+    def logical_text_anchor_selector_target(self, text_span: TextSpan) -> dict[str, object]:
         return self._text_anchor_selector_target("LogicalText", text_span)
 
-    def _text_anchor_selector_target(self, target_type: str, text_span: TextSpan) -> dict[str, any]:
+    def _text_anchor_selector_target(self, target_type: str, text_span: TextSpan) -> dict[str, object]:
         target = {
             'source': f"{self.textrepo_base_uri}/rest/versions/{text_span.textrepo_version_id}/contents",
             'type': target_type,
@@ -494,7 +494,7 @@ def make_id_prefix(scan_doc: PageXMLScan) -> str:
 def page_annotation(
         id_prefix: str,
         page_id: str,
-        scan_doc_metadata: dict[str, any],
+        scan_doc_metadata: dict[str, object],
         path: str,
         physical_span: TextSpan,
         logical_span: TextSpan,
@@ -747,7 +747,7 @@ def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
     return metadata
 
 
-def to_document_metadata(rec: dict[str, any]) -> DocumentMetadata:
+def to_document_metadata(rec: dict[str, object]) -> DocumentMetadata:
     na_base_id = rec['na_base_id']
     start_scan = int(rec['start_scan'])
     end_scan = int(rec['end_scan'])

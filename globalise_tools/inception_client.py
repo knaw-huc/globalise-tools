@@ -46,7 +46,7 @@ class Message:
 @dataclass
 class InceptionAPIResponse:
     response: Response
-    body: any
+    body: object
     messages: list[Message]
 
 

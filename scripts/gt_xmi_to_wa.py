@@ -4,12 +4,12 @@ import hashlib
 import json
 import os
 import re
-import uuid
 from datetime import datetime
 from itertools import groupby
 from typing import Tuple
 
 import cassis as cas
+import uuid
 from cassis.typesystem import FeatureStructure
 from icecream import ic
 from intervaltree import IntervalTree, Interval
@@ -397,7 +397,7 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object):
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -508,10 +508,10 @@ class XMIProcessor:
             web_anno['body']['hasTime'] = time_args
         return web_anno
 
-    def _annotation_id(self, extra_id: any) -> str:
+    def _annotation_id(self, extra_id: object) -> str:
         return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
-    def _event_id(self, extra_id: any) -> str:
+    def _event_id(self, extra_id: object) -> str:
         return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
@@ -534,7 +534,7 @@ class XMIProcessorFactory:
         return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
 
     @staticmethod
-    def _read_document_data() -> dict[str, any]:
+    def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
         logger.info(f"<= {path}")
         with open(path) as f:

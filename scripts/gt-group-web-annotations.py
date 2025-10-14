@@ -60,11 +60,12 @@ def group_annotations(json_path):
     return groupby(filtered_annotations, key=lambda a: a['body']['type'])
 
 
-def post_process(annotations: list[dict[str, any]], body_type: str, nav_provider: NavProvider) -> list[dict[str, any]]:
+def post_process(annotations: list[dict[str, object]], body_type: str, nav_provider: NavProvider) -> list[
+    dict[str, object]]:
     return [post_processed(a, body_type, nav_provider) for a in annotations]
 
 
-def post_processed(annotation: dict[str, any], body_type: str, nav_provider: NavProvider) -> dict[str, any]:
+def post_processed(annotation: dict[str, object], body_type: str, nav_provider: NavProvider) -> dict[str, object]:
     if body_type == "na:File":
         meta_value = annotation['body']['metadata'].pop('file')
         annotation['body']['metadata']['na:File'] = meta_value

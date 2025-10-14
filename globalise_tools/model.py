@@ -1,10 +1,10 @@
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from json import JSONEncoder
 from typing import Optional
 
+import uuid
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
 
@@ -78,9 +78,9 @@ def as_int(string: str) -> int:
 
 @dataclass
 class WebAnnotation:
-    body: dict[str, any]
-    target: any
-    custom: dict[str, any] = field(default_factory=dict, hash=False)
+    body: dict[str, object]
+    target: object
+    custom: dict[str, object] = field(default_factory=dict, hash=False)
 
     def wrapped(self):
         anno_uuid = uuid.uuid4()
@@ -154,7 +154,7 @@ class SimpleAnnotation:
     last_anchor: int
     text: str
     coords: Optional[Coords]
-    metadata: dict[str, any] = field(default_factory=dict, hash=False)
+    metadata: dict[str, object] = field(default_factory=dict, hash=False)
 
 
 @dataclass_json

@@ -29,7 +29,7 @@ def get_paths(xml_dict: dict, prefix: str, elements_with_lists: list[str], eleme
     return paths
 
 
-def xml_fingerprint(xml_dicts: list[dict[str, any]]) -> tuple:
+def xml_fingerprint(xml_dicts: list[dict[str, object]]) -> tuple:
     elements_with_lists = []
     element_attributes = {}
     unsorted_paths = []

@@ -52,7 +52,7 @@ class TextRepoDocumentWrapper:
     textrepo_client: TextRepoClient
     document_id: str
 
-    def set_metadata(self, key: str, value: any):
+    def set_metadata(self, key: str, value: object):
         if value or value == False:
             self.textrepo_client.set_document_metadata(document_id=self.document_id, key=key, value=value)
 
@@ -210,7 +210,7 @@ class DocumentsProcessor:
                                  value=metadata.esta_subvoyage_id)
         return document_identifier
 
-    def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: list[str], links: dict[str, any]) -> \
+    def _generate_xmi(self, document_id: str, inventory_id: str, pagexml_ids: list[str], links: dict[str, object]) -> \
             tuple[str, ProvenanceData, str]:
         provenance = dataclasses.replace(self.base_provenance, sources=[], targets=[])
 
@@ -395,7 +395,7 @@ def init_typesystem():
     return typesystem
 
 
-def read_document_data() -> dict[str, dict[str, any]]:
+def read_document_data() -> dict[str, dict[str, object]]:
     if os.path.exists(document_data_path):
         logger.info(f"<= {document_data_path}")
         with open(document_data_path) as f:

@@ -1,12 +1,13 @@
-import globalise_tools.git_tools as git
-import lxml
-import pagexml.parser as px
-
 from datetime import datetime
-from loguru import logger
-from lxml import etree
 from typing import Optional
 from xml.dom.minidom import parseString, Document
+
+import lxml
+import pagexml.parser as px
+from loguru import logger
+from lxml import etree
+
+import globalise_tools.git_tools as git
 
 
 class PageXmlFixer:

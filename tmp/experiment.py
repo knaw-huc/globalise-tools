@@ -33,7 +33,7 @@ def main():
     store_manifest(manifest, manifest_path)
 
 
-def annotation_page(canvas_annotations: list[dict[str, any]]) -> dict[str, any]:
+def annotation_page(canvas_annotations: list[dict[str, object]]) -> dict[str, object]:
     return {
         "type": "AnnotationPage",
         "items": canvas_annotations
@@ -52,7 +52,7 @@ def store_manifest(manifest, manifest_path):
         json.dump(manifest, fp=f)
 
 
-def load_annotations(path: str) -> list[dict[str, any]]:
+def load_annotations(path: str) -> list[dict[str, object]]:
     logger.info(f"<= {path}")
     with open(path) as f:
         annotations = json.load(f)

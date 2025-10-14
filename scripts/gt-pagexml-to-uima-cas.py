@@ -52,7 +52,8 @@ def convert(page_xml_paths: list[str], output_directory: str = "out"):
         logger.info(f"<= {page_xml_path}")
         scan_doc = parse_pagexml_file(page_xml_path)
 
-        text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(scan_doc)
+        text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(
+            scan_doc)
 
         if not text:
             logger.warning(f"no paragraph text found in {page_xml_path}")

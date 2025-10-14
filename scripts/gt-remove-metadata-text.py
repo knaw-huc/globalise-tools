@@ -5,7 +5,7 @@ import sys
 from loguru import logger
 
 
-def remove_text(d: dict[str, any]):
+def remove_text(d: dict[str, object]):
     if 'body' in d and 'metadata' in d['body'] and 'text' in d['body']['metadata']:
         d['body']['metadata'].pop('text')
         if not d['body']['metadata']:

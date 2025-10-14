@@ -14,7 +14,7 @@ from globalise_tools.tools import WebAnnotationFactory
 # metadata_path = "data/document_metadata.csv"
 
 
-def as_metadata(record: dict[str, any]) -> dict[str, any]:
+def as_metadata(record: dict[str, object]) -> dict[str, object]:
     metadata = {"@context": {"gl": "https://knaw-huc.github.io/ns/globalise#"}, "type": "DocumentMetadata"}
 
     for key in record.keys():
@@ -105,7 +105,7 @@ def main(cfg: DictConfig) -> None:
                 store_annotations(inception_annotations)
 
 
-def segment_range(web_annotation: dict[str, any]):
+def segment_range(web_annotation: dict[str, object]):
     targets = web_annotation['target']
     text_anchor_target = [t for t in targets if t['type'] == 'Text' and 'selector' in t]
     # ic(text_anchor_target, len(text_anchor_target))

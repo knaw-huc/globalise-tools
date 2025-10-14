@@ -132,7 +132,7 @@ def store_segmented_text(segments: list[str], store_path: str):
     store_json(data, store_path)
 
 
-def store_json(data: any, store_path: str):
+def store_json(data: object, store_path: str):
     logger.info(f"=> {store_path}")
     with open(store_path, 'w', encoding='UTF8') as filehandle:
         json.dump(data, filehandle, indent=4, ensure_ascii=False)

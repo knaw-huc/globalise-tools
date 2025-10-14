@@ -65,7 +65,6 @@ def convert_inventory2dates():
         json.dump(inventory2timespan, fp=f, indent=2)
 
 
-
 def main():
     convert_inventory2dates()
 

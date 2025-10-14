@@ -1,12 +1,9 @@
 #!/usr/bin/env python3
 import argparse
 import os.path
-import sys
 
 from loguru import logger
 
-import globalise_tools.document_metadata as DM
-from globalise_tools.document_metadata import DocumentMetadata
 from globalise_tools.page_xml_fixer import PageXmlFixer
 
 

@@ -95,7 +95,7 @@ def as_conll2002(tokens: list[str]) -> list[str]:
 
 def export(base_name: AnyStr,
            all_text: list[AnyStr],
-           metadata: dict[AnyStr, any],
+           metadata: dict[AnyStr, object],
            tokens: list[GTToken],
            web_annotations: list[WebAnnotation]
            ):

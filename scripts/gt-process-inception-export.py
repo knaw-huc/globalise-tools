@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import json
 import pathlib
-import uuid
 
 import cassis
 import hydra
+import uuid
 from loguru import logger
 from omegaconf import DictConfig
 

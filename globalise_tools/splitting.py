@@ -4,7 +4,7 @@ import sys
 from itertools import islice
 
 if sys.version_info >= (3, 12):
-    from itertools import batched
+    pass
 else:
     try:
         from more_itertools import batched

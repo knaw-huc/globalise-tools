@@ -110,7 +110,7 @@ def parse_pagexmls(
         pagexml_paths: list[str],
         doc_id: str,
         waf: gt.WebAnnotationFactory
-) -> (dict[str, any], list[WebAnnotation]):
+) -> (dict[str, object], list[WebAnnotation]):
     document_lines = []
     document_annotations = []
     for path in pagexml_paths:
@@ -122,7 +122,7 @@ def parse_pagexmls(
     return segmented_text, web_annotations
 
 
-def store_segmented_text(base_dir: str, segmented_text: dict[str, any]) -> str:
+def store_segmented_text(base_dir: str, segmented_text: dict[str, object]) -> str:
     path = f"{base_dir}/textstore.json"
     logger.debug(f"=> {path}")
     with open(path, 'w') as f:

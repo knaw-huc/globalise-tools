@@ -135,7 +135,7 @@ def process_na_file(
         tr_client: TextRepoClient,
         waf: WebAnnotationFactory,
         scan_url_mapping: dict[str, str],
-        results: dict[str, any],
+        results: dict[str, object],
         nav_provider: NavProvider,
         page_lang: dict[str, LangDeduction]
 ) -> bool:
@@ -342,7 +342,7 @@ def untangle_scan_doc(
         paragraphs: list[str],
         nav_provider: NavProvider,
         page_lang: dict[str, LangDeduction]
-) -> tuple[list[Union[str, any]], list[Annotation]]:
+) -> tuple[list[Union[str, object]], list[Annotation]]:
     logical_start_anchor = len(paragraphs)
     scan_lines = []
     scan_annotations = []
@@ -476,11 +476,11 @@ def untangle_na_file(
         textrepo_client: TextRepoClient,
         pagexml_ids: list[str],
         base_provenance: ProvenanceData,
-        links: dict[str, any],
+        links: dict[str, object],
         scan_url_mapping: dict[str, str],
         nav_provider: NavProvider(),
         page_lang: dict[str, LangDeduction]
-) -> Tuple[dict[str, any], dict[str, any], ProvenanceData, list[Annotation]]:
+) -> Tuple[dict[str, object], dict[str, object], ProvenanceData, list[Annotation]]:
     # provenance = dataclasses.replace(base_provenance, sources=[], targets=[])
     provenance = None
 
@@ -593,7 +593,7 @@ def download_page_xml(textrepo_client: TextRepoClient, external_id, output_direc
     return page_xml_path, page_xml, error
 
 
-def store_results(results: dict[str, any]):
+def store_results(results: dict[str, object]):
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:

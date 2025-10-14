@@ -6,7 +6,6 @@ import json
 import os
 import re
 import time
-import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache
@@ -17,6 +16,7 @@ from typing import Tuple
 import cassis as cas
 import multiprocess as mp
 import pagexml.parser as px
+import uuid
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
 from icecream import ic
@@ -940,7 +940,7 @@ def export_ner_annotations(ner_annotations: list, out_path: str):
         json.dump(ner_annotations, fp=f, indent=4)
 
 
-def export_annotation_list(annotations: list[dict[str, any]], out_path: str, presentation_version: int = 2):
+def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2):
     list_id = out_path.replace("out/", f"{MANIFEST_BASE_URL}/")
     anno_list = {
         "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json"
@@ -1089,6 +1089,7 @@ def process_inventory(context: InventoryProcessingContext):
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
         os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
         anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
+        ttl_out_path = f"{output_dir}/{inv_nr}/ner-annotations.ttl"
         text_out_path = f"{output_dir}/{inv_nr}/text.txt"
         ner_annotations = []
         page_texts = []
@@ -1103,6 +1104,7 @@ def process_inventory(context: InventoryProcessingContext):
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
+        # export_in_ttl(ner_annotations, anno_out_path)
         # export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
@@ -1110,7 +1112,7 @@ def process_inventory(context: InventoryProcessingContext):
     return xmi_dir
 
 
-def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
+def index_manifest_items(manifest: dict[str, object]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
     manifest_item_idx = {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
     iiif_base_uri_idx = {item["label"]["en"][0]: item['items'][0]['items'][0]['body']['service'][0]['@id'] for item in
                          manifest["items"]}
@@ -1118,7 +1120,7 @@ def index_manifest_items(manifest: dict[str, any]) -> tuple[dict[str, int], dict
     return manifest_item_idx, iiif_base_uri_idx, canvas_id_idx
 
 
-def load_manifest(inv_nr: str) -> dict[str, any]:
+def load_manifest(inv_nr: str) -> dict[str, object]:
     manifest_path = f"/Users/bram/workspaces/globalise/manifests/inventories/{inv_nr}.json"
     logger.info(f"<= {manifest_path}")
     with open(manifest_path) as f:
@@ -1126,7 +1128,7 @@ def load_manifest(inv_nr: str) -> dict[str, any]:
     return manifest
 
 
-def store_manifest(inv_nr: str, manifest: dict[str, any]):
+def store_manifest(inv_nr: str, manifest: dict[str, object]):
     manifest_path = f"out/{inv_nr}/{inv_nr}.json"
     logger.info(f"=> {manifest_path}")
     with open(manifest_path, 'w') as f:

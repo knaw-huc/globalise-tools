@@ -5,7 +5,7 @@ extract_example_annotation() {
     num=$2
     echo "=> .local/3598/$type.json"
     jq -s ".[] | select(.id==\"urn:example:globalise:annotation:NL-HaNA_1.04.02_3598_$num\")" .local/3598.json > .local/3598/$type.json
-    sleep 15s
+    sleep 25s
     echo "jsonld2ttl .local/3598/$type.json > .local/3598/$type.ttl"
     echo "=> .local/3598/$type.ttl"
     jsonld2ttl .local/3598/$type.json > .local/3598/$type.ttl
