@@ -1,12 +1,13 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import glob
 import hashlib
 import json
 import os
 import re
 import time
-import copy
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 from functools import cache
@@ -17,7 +18,6 @@ from typing import Tuple, Any
 import cassis as cas
 import multiprocess as mp
 import pagexml.parser as px
-import uuid
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
 from icecream import ic
@@ -1163,8 +1163,8 @@ def handle_xmi(
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
     entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
-    eva = xp.get_event_annotations(entity_ids)
-    ner_annotations.extend(eva)
+    # eva = xp.get_event_annotations(entity_ids)
+    # ner_annotations.extend(eva)
     inv_nr = basename_parts[-2]
     # annotation_list_path = f"out/{inv_nr}/iiif-annotations-{basename}.json"
     # export_annotation_list(annotations=xp.get_iiif_annotations(), out_path=annotation_list_path,
@@ -1202,6 +1202,10 @@ def get_base_name(path: str):
     return path.split("/")[-1].replace(".xmi", "")
 
 
+def make_transcription_annotation_page(page_xml_path):
+    pass
+
+
 def handle_page_xml(
         xmi_path: str,
         pagexml_dir: str,
@@ -1212,6 +1216,7 @@ def handle_page_xml(
         canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
+    make_transcription_annotation_page(page_xml_path)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
     if base_name in iiif_base_uri_for_base_name:
         iiif_base_uri = iiif_base_uri_for_base_name[base_name]
@@ -1227,8 +1232,8 @@ def handle_page_xml(
     plain_text = text
     # txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
     # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-    txt_version_uri = "urn:example:placeholder"
-    plain_text_source = f"{txt_version_uri}/contents"
+    # txt_version_uri = "urn:example:placeholder"
+    plain_text_source = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{base_name}#page"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
     xpf.document_data[base_name] = {
