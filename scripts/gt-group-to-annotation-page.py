@@ -22,10 +22,11 @@ def as_item(a: dict[str, object]) -> dict[str, object]:
     return a
 
 
-def write_annotation_page(inv_nr: str, out_dir: str, pageid: str, page_annotations: list[dict[str, object]]):
+def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict[str, object]]):
+    inv_nr = pageid.split("_")[-2]
     page_no = pageid.split("_")[-1]
     context = ["http://iiif.io/api/presentation/3/context.json"]
-    annotation_context = page_annotations[0]["@context"] # assumption: all annotations have the same @context
+    annotation_context = page_annotations[0]["@context"]  # assumption: all annotations have the same @context
     context += annotation_context
     items = [as_item(a) for a in page_annotations]
     page = {
@@ -57,14 +58,13 @@ def page_id(annotation: dict[str, object]) -> str:
 def group_to_page(annotations_path: str):
     logger.info(f"<= {annotations_path}")
     out_dir = "/".join(annotations_path.split("/")[:-1])
-    inv_nr = annotations_path.split("/")[1]
 
     with open(annotations_path) as f:
         annotations = json.load(f)
 
     groups = groupby(annotations, lambda x: page_id(x))
     for pgid, page_annotations in groups:
-        write_annotation_page(inv_nr, out_dir, pgid, [pa for pa in page_annotations])
+        write_annotation_page(out_dir, pgid, [pa for pa in page_annotations])
 
 
 @logger.catch
