@@ -33,7 +33,7 @@ def iiif_base_url(file_id: str, root) -> str:
         .replace('/info.json', '')
 
 
-def na_url(file_path):
+def na_url(file_path) -> str:
     file_name = file_path.split('/')[-1]
     file = file_name.replace('.xml', '')
     inv_nr = file_name.split('_')[2]
@@ -68,7 +68,7 @@ def get_mappings(file_path: str) -> list:
     return mappings
 
 
-def print_missing_files(missing_files):
+def print_missing_files(missing_files) -> None:
     if len(missing_files) > 0:
         print("missing mets files:")
         for f in missing_files:
@@ -76,7 +76,7 @@ def print_missing_files(missing_files):
 
 
 @logger.catch
-def map_pagexml_to_iiif_url(data_dir: str):
+def map_pagexml_to_iiif_url(data_dir: str) -> None:
     mets_csv = f"{data_dir}/NL-HaNA_1.04.02_mets.csv"
     mapping_csv = f"{data_dir}/iiif-url-mapping.csv"
     print(f"reading {mets_csv}...")
@@ -103,8 +103,11 @@ def map_pagexml_to_iiif_url(data_dir: str):
     print_missing_files(missing_files)
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Create a csv file mapping a pagexml base name to a IIIF base url",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)

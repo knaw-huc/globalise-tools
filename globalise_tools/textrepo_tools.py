@@ -1,4 +1,4 @@
-from textrepo.client import TextRepoClient, FileType
+from textrepo.client import FileType, TextRepoClient
 
 
 def get_file_type(client: TextRepoClient, file_type_name, mimetype) -> FileType:

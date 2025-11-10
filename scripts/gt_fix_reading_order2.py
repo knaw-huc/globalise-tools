@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import os.path
+from argparse import Namespace
 
 from loguru import logger
 
@@ -8,7 +9,7 @@ from globalise_tools.page_xml_fixer import PageXmlFixer
 
 
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Read the PageXML files from the given folders and fix the reading order when required."
                     " When the reading order is fixed, write the PageXML with the modified reading order"
@@ -32,7 +33,7 @@ def get_arguments():
 
 
 @logger.catch
-def fix_reading_order(input_directory: str, output_directory: str, inventory_numbers: list[str]):
+def fix_reading_order(input_directory: str, output_directory: str, inventory_numbers: list[str]) -> None:
     os.makedirs(output_directory, exist_ok=True)
     pagexml_paths = []
     quality_check = {}
@@ -58,7 +59,7 @@ def list_pagexml_files(directory: str):
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith(".xml")])
 
 
-def main():
+def main() -> None:
     args = get_arguments()
     if args.input_directory:
         fix_reading_order(args.input_directory, args.output_directory, args.inventory_numbers)

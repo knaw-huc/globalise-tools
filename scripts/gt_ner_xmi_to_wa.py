@@ -13,7 +13,7 @@ from datetime import datetime
 from functools import cache
 from itertools import groupby
 from multiprocessing import Value
-from typing import Tuple, Any
+from typing import Any, Tuple
 
 import cassis as cas
 import multiprocess as mp
@@ -21,14 +21,15 @@ import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
 from circuitbreaker import circuit
 from icecream import ic
-from intervaltree import IntervalTree, Interval
+from intervaltree import Interval, IntervalTree
 from loguru import logger
-from textrepo.client import TextRepoClient, FileType, VersionInfo
+from textrepo.client import FileType, TextRepoClient, VersionInfo
 from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
-from globalise_tools.events import wiki_base, time_roles, place_roles, NER_DATA_DICT
+from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
+                                    wiki_base)
 from globalise_tools.model import ImageData
 from globalise_tools.tools import inv_nr_sort_key
 
@@ -45,7 +46,7 @@ MANIFEST_BASE_URL = "https://globalise-mirador.tt.di.huc.knaw.nl/globalise"
 PRESENTATION_VERSION = 3
 
 
-def show_progress(future):
+def show_progress(future) -> None:
     with counter.get_lock():  # Ensure thread-safe increment
         counter.value += 1
         percentage_done = 100 * (counter.value / total.value)
@@ -59,11 +60,14 @@ def show_progress(future):
         # logger.info(f"all circuits closed: {CircuitBreakerMonitor.all_closed()}")
 
 
+from typing import Any
+
+
 class XMIProcessor:
     max_fix_len = 20
 
     def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2,
-                 time_span=dict[str, str]):
+                 time_span=dict[str, str]) -> None:
         self.time_span = time_span
         self.typesystem = typesystem
         self.document_data = document_data
@@ -132,7 +136,7 @@ class XMIProcessor:
 
         return iiif_annotations
 
-    def get_event_annotations(self, entity_ids: list[str]):
+    def get_event_annotations(self, entity_ids: list[str]) -> list:
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
@@ -178,7 +182,7 @@ class XMIProcessor:
 
         return web_annotations
 
-    def get_event_argument_annotations(self):
+    def get_event_argument_annotations(self) -> list:
         return [self._as_web_annotation(a, self._event_argument_body())
                 for a in self.cas.views[0].get_all_annotations()
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
@@ -207,7 +211,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body):
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, list[str | dict[str, str]] | str | list[str]]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -374,7 +378,7 @@ class XMIProcessor:
             raise Exception(f"unknown presentation_version: {presentation_version}")
 
     @staticmethod
-    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh):
+    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh) -> dict[str, str | list[str] | list[dict[str, str]]]:
         return {
             "@id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             "@type": "oa:Annotation",
@@ -418,7 +422,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _version_3_annotation(canvas_id, printable_entity_type, svg, text):
+    def _version_3_annotation(canvas_id, printable_entity_type, svg, text) -> dict[str, str | list | dict[str, Any]]:
         body = [
             {
                 "type": "TextualBody",
@@ -447,7 +451,7 @@ class XMIProcessor:
             }
         }
 
-    def _generator(self):
+    def _generator(self) -> dict[str, str]:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
@@ -456,7 +460,7 @@ class XMIProcessor:
             "name": THIS_SCRIPT_PATH
         }
 
-    def _named_entity_body(self, feature_structure: FeatureStructure):
+    def _named_entity_body(self, feature_structure: FeatureStructure) -> list:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         body_type = ner_data['body_type']
@@ -477,7 +481,7 @@ class XMIProcessor:
         else:
             raise Exception(f"unknown body_type: {body_type}")
 
-    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str):
+    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, dict[str, Any] | dict[str, str]]:
         return self._as_base_ner_body(ner_data, "appellative_status") | {
             "has_appellative_subject": {
                 "id": self._new_id(ner_data['appellative_subject']),
@@ -495,7 +499,7 @@ class XMIProcessor:
             },
         }
 
-    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str):
+    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, dict[str, Any] | dict[str, str]]:
         return self._as_base_ner_body(ner_data, "classificatory_status") | {
             "has_classificatory_subject": {
                 "id": self._new_id(ner_data['classificatory_subject']),
@@ -509,7 +513,7 @@ class XMIProcessor:
             },
         }
 
-    def _as_dimension_body(self, ner_data, covered_text: str):
+    def _as_dimension_body(self, ner_data, covered_text: str) -> dict[str, str]:
         return self._as_base_ner_body(ner_data, "dimension") | {
             "value": covered_text
         }
@@ -529,7 +533,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _named_entity_body0(feature_structure: FeatureStructure):
+    def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, Any]]]:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         entity_uri = ner_data['uri']
@@ -545,7 +549,7 @@ class XMIProcessor:
         ]
 
     @staticmethod
-    def _event_predicate_body(feature_structure: FeatureStructure):
+    def _event_predicate_body(feature_structure: FeatureStructure) -> list:
         # ic(feature_structure)
         bodies = []
         raw_category = feature_structure['category']
@@ -568,7 +572,7 @@ class XMIProcessor:
         return bodies
 
     @staticmethod
-    def _event_argument_body():
+    def _event_argument_body() -> dict[str, str]:
         return {
             "purpose": "classifying",
             "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArgument"
@@ -579,7 +583,7 @@ class XMIProcessor:
             argument_identifier: str,
             event_annotation_uri: str,
             argument_annotation_uri: str
-    ):
+    ) -> dict[str, str]:
         body_source = argument_identifier
         target1_num = event_annotation_uri.split(':')[-1]
         target2_num = argument_annotation_uri.split(':')[-1]
@@ -598,7 +602,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _image_targets(iiif_base_uri: str, xywh_list: list[str]):
+    def _image_targets(iiif_base_uri: str, xywh_list: list[str]) -> list:
         return [
             {
                 "type": "DigitalObject",
@@ -607,7 +611,7 @@ class XMIProcessor:
             for xywh in xywh_list
         ]
 
-    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]):
+    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]) -> dict[str, list[str] | str | list]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": ["Image", "DigitalObject"],
@@ -617,7 +621,7 @@ class XMIProcessor:
 
     def _canvas_target(self, canvas_source: str,
                        xywh_list: list[str],
-                       manifest_uri: str):
+                       manifest_uri: str) -> dict[str, str | dict[str, str | dict[str, str]] | list]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "SpecificResource",
@@ -634,7 +638,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _fragment_selectors(xywh_list):
+    def _fragment_selectors(xywh_list) -> list:
         selectors = []
         for xywh in xywh_list:
             selectors.append(
@@ -650,7 +654,7 @@ class XMIProcessor:
             return selectors
 
     @staticmethod
-    def _to_xywh(coords: list[Tuple[int, int]]):
+    def _to_xywh(coords: list[Tuple[int, int]]) -> str:
         min_x = min([p[0] for p in coords])
         min_y = min([p[1] for p in coords])
         max_x = max([p[0] for p in coords])
@@ -692,7 +696,7 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object):
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -725,7 +729,7 @@ class XMIProcessor:
     def _event_inference_annotation(self, event_annotation: FeatureStructure,
                                     event_predicate_annotation,
                                     event_argument_annotation_ids=None,
-                                    event_linking_annotation_ids=None):
+                                    event_linking_annotation_ids=None) -> dict:
         if event_linking_annotation_ids is None:
             event_linking_annotation_ids = []
         if event_argument_annotation_ids is None:
@@ -831,7 +835,7 @@ class XMIProcessor:
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]]):
+    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]]) -> None:
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
@@ -867,14 +871,17 @@ class XMIProcessorFactory:
             return json.load(f)
 
     @staticmethod
-    def _read_current_commit_id():
+    def _read_current_commit_id() -> str:
         if git.there_are_uncommitted_changes():
             logger.warning("Uncommitted changes! Do a `git commit` first!")
         return git.read_current_commit_id()
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract NER Web Annotations from XMI files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -942,13 +949,13 @@ def get_arguments():
 #             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
-def export_ner_annotations(ner_annotations: list, out_path: str):
+def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
     logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
         json.dump(ner_annotations, fp=f, indent=4)
 
 
-def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2):
+def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
     list_id = out_path.replace("out/", f"{MANIFEST_BASE_URL}/")
     anno_list = {
         "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json"
@@ -969,7 +976,7 @@ def export_annotation_list(annotations: list[dict[str, object]], out_path: str, 
         json.dump(anno_list, fp=f, indent=4)
 
 
-def export_text(page_texts: list[str], out_path: str):
+def export_text(page_texts: list[str], out_path: str) -> None:
     logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
         f.write("\n".join(page_texts))
@@ -1006,7 +1013,7 @@ def load_processed_inventories() -> list[str]:
     return []
 
 
-def store_processed_inventories(processed_inventories: list[str]):
+def store_processed_inventories(processed_inventories: list[str]) -> None:
     path = "out/processed_ner_inv.json"
     logger.info(f"=> {path}")
     with open(path, "w") as f:
@@ -1014,7 +1021,7 @@ def store_processed_inventories(processed_inventories: list[str]):
 
 
 def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str,
-                                textrepo_url: str, api_key: str, inv_nr: str = None):
+                                textrepo_url: str, api_key: str, inv_nr: str = None) -> None:
     timespan4inventory = load_timespan_dict()
     # trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
     # plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
@@ -1040,7 +1047,7 @@ def load_timespan_dict() -> dict[str, dict[str, str]]:
         return json.load(f)
 
 
-def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
+def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf) -> None:
     contexts = [
         InventoryProcessingContext(
             xmi_dir,
@@ -1063,7 +1070,7 @@ def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs
     #         logger.info(f"finished {result}")
 
 
-def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf):
+def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf) -> None:
     start_time.value = time.perf_counter()
     for xmi_dir in xmi_dirs:
         context = InventoryProcessingContext(
@@ -1082,23 +1089,25 @@ def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dir
 def process_inventory(context: InventoryProcessingContext):
     tic = time.perf_counter()
     xmi_dir = context.xmi_dir
-    output_dir = context.output_dir
+    export_dir = context.output_dir
     pagexml_dir = context.pagexml_dir
     xpf = context.xpf
     trc = context.trc
 
     inv_nr = xmi_dir.split('/')[-1]
-    new_manifest_path = f"{output_dir}/{inv_nr}/{inv_nr}.json"
+    out_dir = f"{export_dir}/{inv_nr}"
+    new_manifest_path = f"{out_dir}/{inv_nr}.json"
     if False and os.path.isfile(new_manifest_path):
         logger.info(f"annotated manifest {new_manifest_path} found, skipping {xmi_dir}")
     else:
         logger.info(f"processing {xmi_dir}...")
 
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
-        os.makedirs(f"{output_dir}/{inv_nr}", exist_ok=True)
-        anno_out_path = f"{output_dir}/{inv_nr}/ner-annotations.json"
-        ttl_out_path = f"{output_dir}/{inv_nr}/ner-annotations.ttl"
-        text_out_path = f"{output_dir}/{inv_nr}/text.txt"
+
+        os.makedirs(f"{out_dir}", exist_ok=True)
+        anno_out_path = f"{out_dir}/ner-annotations.json"
+        ttl_out_path = f"{out_dir}/ner-annotations.ttl"
+        text_out_path = f"{out_dir}/text.txt"
         ner_annotations = []
         page_texts = []
         manifest = load_manifest(inv_nr)
@@ -1107,13 +1116,13 @@ def process_inventory(context: InventoryProcessingContext):
             plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type,
                                                 iiif_base_uri_idx, canvas_id_idx)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, plain_text_source, manifest, manifest_item_idx,
-                       context.presentation_version)
+                       context.presentation_version, out_dir)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         # export_in_ttl(ner_annotations, anno_out_path)
-        # export_text(page_texts, text_out_path)
+        export_text(page_texts, text_out_path)
         toc = time.perf_counter()
         logger.info(f"processed all xmi files from {xmi_dir} in {toc - tic:0.2f} seconds")
     show_progress(None)
@@ -1136,7 +1145,7 @@ def load_manifest(inv_nr: str) -> dict[str, object]:
     return manifest
 
 
-def store_manifest(inv_nr: str, manifest: dict[str, object]):
+def store_manifest(inv_nr: str, manifest: dict[str, object]) -> None:
     manifest_path = f"out/{inv_nr}/{inv_nr}.json"
     logger.info(f"=> {manifest_path}")
     with open(manifest_path, 'w') as f:
@@ -1151,18 +1160,25 @@ def handle_xmi(
         plain_text_source: str,
         manifest: dict[str, object],
         manifest_item_idx: dict[str, int],
-        presentation_version: int = 2
-):
+        presentation_version: int = 2,
+        out_dir: str = None,
+) -> None:
     xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
+
+    text_path = f"{out_dir}/{basename}.txt"
+    # logger.info(f"=> {text_path}")
+    with open(text_path, 'w') as f:
+        f.write(page_text)
+
     basename_parts = basename.split("_")
     xp.plain_text_source = plain_text_source
     xp.document_id = basename
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
-    entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
+    # entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
     # eva = xp.get_event_annotations(entity_ids)
     # ner_annotations.extend(eva)
     inv_nr = basename_parts[-2]
@@ -1202,7 +1218,7 @@ def get_base_name(path: str):
     return path.split("/")[-1].replace(".xmi", "")
 
 
-def make_transcription_annotation_page(page_xml_path):
+def make_transcription_annotation_page(page_xml_path) -> None:
     pass
 
 
@@ -1252,7 +1268,7 @@ def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
 
 
 @logger.catch
-def main():
+def main() -> None:
     # make loguru logger work with tqdm
     logger.remove()
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)

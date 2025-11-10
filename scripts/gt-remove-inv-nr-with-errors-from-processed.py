@@ -2,7 +2,7 @@
 import json
 
 
-def main():
+def main() -> None:
     with open("out/processed.json") as f:
         processed = set(json.load(f))
 

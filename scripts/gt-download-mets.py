@@ -13,7 +13,7 @@ def to_mets_id(url: str) -> str:
     return url.split('/')[-1]
 
 
-def print_failed_urls(failed_urls):
+def print_failed_urls(failed_urls) -> None:
     size = len(failed_urls)
     if size > 0:
         print(f"\n{size} failed mets urls:")
@@ -22,7 +22,7 @@ def print_failed_urls(failed_urls):
 
 
 @logger.catch
-def download_mets(data_dir: str):
+def download_mets(data_dir: str) -> None:
     mets_csv = f'{data_dir}/NL-HaNA_1.04.02_mets.csv'
     print(f"reading {mets_csv}...")
     with open(mets_csv) as f:
@@ -52,8 +52,11 @@ def download_mets(data_dir: str):
     print_failed_urls(failed_urls)
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Download METS files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)

@@ -4,11 +4,11 @@
 
 import csv
 import sys
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from collections import OrderedDict
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(
         description="Extract line text from pagexml files",
         formatter_class=ArgumentDefaultsHelpFormatter)

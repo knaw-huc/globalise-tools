@@ -20,17 +20,21 @@ from loguru import logger
 from omegaconf import DictConfig
 from pagexml.model.physical_document_model import PageXMLScan
 from pagexml.parser import parse_pagexml_file
-from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy, ProvenanceResource
+from provenance.client import (ProvenanceClient, ProvenanceData, ProvenanceHow,
+                               ProvenanceResource, ProvenanceWhy)
 from pycaprio.core.mappings import InceptionFormat
 from spacy import Language
 from textrepo.client import TextRepoClient
 from uri import URI
 
 import globalise_tools.textrepo_tools as tt
-from globalise_tools.document_metadata import DocumentMetadata, read_document_selection
+from globalise_tools.document_metadata import (DocumentMetadata,
+                                               read_document_selection)
 from globalise_tools.inception_client import InceptionClient
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder, ScanCoords
-from globalise_tools.tools import is_paragraph, is_marginalia, paragraph_text, is_header, is_signature
+from globalise_tools.model import (CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder,
+                                   ScanCoords)
+from globalise_tools.tools import (is_header, is_marginalia, is_paragraph,
+                                   is_signature, paragraph_text)
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -52,7 +56,7 @@ class TextRepoDocumentWrapper:
     textrepo_client: TextRepoClient
     document_id: str
 
-    def set_metadata(self, key: str, value: object):
+    def set_metadata(self, key: str, value: object) -> None:
         if value or value == False:
             self.textrepo_client.set_document_metadata(document_id=self.document_id, key=key, value=value)
 
@@ -60,7 +64,7 @@ class TextRepoDocumentWrapper:
 class DocumentsProcessor:
     def __init__(self, textrepo_client: TextRepoClient, inception_client: InceptionClient,
                  provenance_client: ProvenanceClient, base_provenance: ProvenanceData, project_id: int,
-                 project_name: str, typesystem):
+                 project_name: str, typesystem) -> None:
         self.textrepo_client = textrepo_client
         self.inception_client = inception_client
         self.provenance_client = provenance_client
@@ -80,10 +84,10 @@ class DocumentsProcessor:
         self.project_name = project_name
         self.typesystem = typesystem
 
-    def __enter__(self):
+    def __enter__(self) -> DocumentsProcessor:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> bool | None:
         self.textrepo_client.close()
         self.inception_client.close()
         self.provenance_client.close()
@@ -91,7 +95,7 @@ class DocumentsProcessor:
         self._store_results()
         self._write_document_data()
 
-    def process(self, dm: DocumentMetadata):
+    def process(self, dm: DocumentMetadata) -> None:
         self.itree.clear()
         inventory_id = dm.inventory_number
         trc = self.textrepo_client
@@ -158,7 +162,7 @@ class DocumentsProcessor:
         }
 
     @staticmethod
-    def _inception_document_name(dm):
+    def _inception_document_name(dm) -> str:
         if dm.year_creation_or_dispatch:
             year = dm.year_creation_or_dispatch
         else:
@@ -308,19 +312,19 @@ class DocumentsProcessor:
 
         return xmi_path, provenance, cas.sofa_string
 
-    def _store_results(self):
+    def _store_results(self) -> None:
         path = "out/results.json"
         logger.info(f"=> {path}")
         with open(path, 'w') as f:
             json.dump(self.results, fp=f, ensure_ascii=False)
 
-    def _write_document_data(self):
+    def _write_document_data(self) -> None:
         logger.info(f"=> {document_data_path}")
         with open(document_data_path, "w") as f:
             json.dump(self.document_data, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
 
     @staticmethod
-    def _get_canvas_id(page_id):
+    def _get_canvas_id(page_id) -> str:
         parts = page_id.split('_')
         inventory_number = parts[-2]
         page_num = parts[-1].lstrip("0")
@@ -351,7 +355,7 @@ def main(cfg: DictConfig) -> None:
 acceptable_quality_codes = {'3.1.1', '3.1.2', '3.2', 'TRUE'}
 
 
-def record_passes_quality_check(m):
+def record_passes_quality_check(m) -> bool:
     ic(m)
     checks = m.quality_check.split(' + ')
     disqualifying_checks = set(checks) - acceptable_quality_codes
@@ -444,7 +448,7 @@ def joined_lines(tr) -> str:
     return _RE_COMBINE_WHITESPACE.sub(" ", ptext)
 
 
-def store_document_text(inventory_id, document_id, marginalia, headers, paragraphs):
+def store_document_text(inventory_id, document_id, marginalia, headers, paragraphs) -> None:
     document_text = "# marginalia\n"
     document_text += "\n".join([m.text for m in marginalia])
     document_text += "\n\n# header\n"
@@ -499,13 +503,13 @@ def extract_text_region_summaries(
     return marginalia, headers, paragraphs
 
 
-def get_iiif_url(external_id, textrepo_client):
+def get_iiif_url(external_id, textrepo_client) -> str:
     meta = textrepo_client.find_document_metadata(external_id)[1]
     scan_url = meta['scan_url'].replace('/info.json', '')
     return f"{scan_url}/full/max/0/default.jpg"
 
 
-def download_page_xml(inventory_id, external_id, textrepo_client):
+def download_page_xml(inventory_id, external_id, textrepo_client) -> str:
     pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
     page_xml_path = f"out/{inventory_id}/{external_id}.xml"
     logger.info(f"=> {page_xml_path}")

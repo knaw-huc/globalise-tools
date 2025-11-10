@@ -7,5 +7,5 @@ def there_are_uncommitted_changes() -> bool:
     return len(git_committable_changes) > 0
 
 
-def read_current_commit_id():
+def read_current_commit_id() -> str:
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()

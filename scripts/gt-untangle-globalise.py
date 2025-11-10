@@ -14,19 +14,22 @@ import hydra
 import pagexml.helper.pagexml_helper as pxh
 from loguru import logger
 from omegaconf import DictConfig
-from pagexml.model.physical_document_model import PageXMLTextRegion, PageXMLScan
+from pagexml.model.physical_document_model import (PageXMLScan,
+                                                   PageXMLTextRegion)
 from pagexml.parser import parse_pagexml_file
-from provenance.client import ProvenanceClient, ProvenanceData, ProvenanceHow, ProvenanceWhy
-from textrepo.client import TextRepoClient, DocumentIdentifier
+from provenance.client import (ProvenanceClient, ProvenanceData, ProvenanceHow,
+                               ProvenanceWhy)
+from textrepo.client import DocumentIdentifier, TextRepoClient
 from uri import URI
 
 import globalise_tools.lang_deduction as ld
 import globalise_tools.tools as gt
 from globalise_tools.lang_deduction import LangDeduction
-from globalise_tools.model import AnnotationEncoder, WebAnnotation, DocumentMetadata2, DocumentMetadata, \
-    LogicalAnchorRange, SegmentedTextType
+from globalise_tools.model import (AnnotationEncoder, DocumentMetadata,
+                                   DocumentMetadata2, LogicalAnchorRange,
+                                   SegmentedTextType, WebAnnotation)
 from globalise_tools.nav_provider import NavProvider
-from globalise_tools.tools import WebAnnotationFactory, Annotation
+from globalise_tools.tools import Annotation, WebAnnotationFactory
 
 word_break_chars = '„¬-'
 
@@ -88,12 +91,12 @@ def main(cfg: DictConfig) -> None:
                     json.dump(list(processed), fp=f)
 
 
-def get_available_inv_nrs():
+def get_available_inv_nrs() -> set:
     inv_nr_paths = glob.glob("/Users/bram/workspaces/globalise/pagexml/*/")
     return set([p.split('/')[-2] for p in inv_nr_paths])
 
 
-def read_all_metadata():
+def read_all_metadata() -> list:
     path = f"data/pagexml_map.json"
     logger.info(f"<= {path}")
     with open(path, encoding='utf8') as f:
@@ -117,7 +120,7 @@ def read_scan_url_mapping() -> dict[str, str]:
     return scan_url_mapping
 
 
-def load_processed_files():
+def load_processed_files() -> set:
     processed_file = "out/processed.json"
     if os.path.exists(processed_file):
         logger.info(f"<= {processed_file}")
@@ -285,7 +288,7 @@ def document_web_annotation(all_annotations: list[Annotation], document_id: str,
     )
 
 
-def export_web_annotations(document_metadata, web_annotations: list[WebAnnotation]):
+def export_web_annotations(document_metadata, web_annotations: list[WebAnnotation]) -> None:
     root_path = f"out/{document_metadata.nl_hana_nr}"
     sorted_annotations = sorted(web_annotations, key=lambda a: a.body['type'])
     grouped_annotations = groupby(sorted_annotations, key=lambda a: a.body['type'])
@@ -418,7 +421,10 @@ def untangle_scan_doc(
     return scan_lines, scan_annotations
 
 
-def make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor):
+from globalise_tools.tools import Annotation
+
+
+def make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, tr_start_anchor) -> Annotation:
     px_textregion = gt.PXTextRegion(
         id=tr.id,
         page_id=page_id(scan_doc),
@@ -437,7 +443,7 @@ def make_text_region_annotation(id_prefix, paragraphs, scan_doc, tr, tr_lines, t
 
 
 def make_line_annotations(id_prefix, logical_anchor_range_for_line_id, scan_doc, tr, tr_lines,
-                          tr_start_anchor):
+                          tr_start_anchor) -> list:
     line_annotations = []
     for n, line in enumerate(tr_lines):
         line_start_anchor = tr_start_anchor + n
@@ -551,7 +557,7 @@ def untangle_na_file(
     return physical_segmented_text, logical_segmented_text, provenance, document_annotations
 
 
-def read_page_xml(external_id):
+def read_page_xml(external_id) -> tuple[str, str, list]:
     inv_nr = external_id.split('_')[-2]
     page_xml_dir = "/Users/bram/workspaces/globalise/pagexml"
     page_xml_path = f"{page_xml_dir}/{inv_nr}/{external_id}.xml"
@@ -565,7 +571,7 @@ def read_page_xml(external_id):
     return page_xml_path, page_xml, error
 
 
-def get_iiif_url(textrepo_client: TextRepoClient, external_id):
+def get_iiif_url(textrepo_client: TextRepoClient, external_id) -> str:
     document_metadata = textrepo_client.find_document_metadata(external_id)
     meta = document_metadata[1]
     if 'scan_url' in meta:
@@ -577,7 +583,7 @@ def get_iiif_url(textrepo_client: TextRepoClient, external_id):
         return ""
 
 
-def download_page_xml(textrepo_client: TextRepoClient, external_id, output_directory: str):
+def download_page_xml(textrepo_client: TextRepoClient, external_id, output_directory: str) -> tuple[str, str, str | None]:
     error = None
     page_xml_path = f"{output_directory}/{external_id}.xml"
     # if not Path(page_xml_path).is_file():
@@ -593,7 +599,7 @@ def download_page_xml(textrepo_client: TextRepoClient, external_id, output_direc
     return page_xml_path, page_xml, error
 
 
-def store_results(results: dict[str, object]):
+def store_results(results: dict[str, object]) -> None:
     path = "out/results.json"
     logger.info(f"=> {path}")
     with open(path, 'w') as f:
@@ -623,7 +629,7 @@ def create_or_update_tr_document(client: TextRepoClient, metadata: DocumentMetad
     return document_identifier
 
 
-def check_file_types(trc):
+def check_file_types(trc) -> None:
     name = "logical_segmented_text"
     available_type_names = [t.name for t in trc.read_file_types()]
     if name not in available_type_names:

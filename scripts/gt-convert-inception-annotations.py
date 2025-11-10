@@ -7,7 +7,7 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 
-from globalise_tools.model import WebAnnotation, AnnotationEncoder
+from globalise_tools.model import AnnotationEncoder, WebAnnotation
 from globalise_tools.tools import WebAnnotationFactory
 
 metadata_path = "data/document_metadata.csv"
@@ -23,7 +23,7 @@ def as_metadata(record: dict[str, object]) -> dict[str, object]:
     return metadata
 
 
-def store_annotations(annotations):
+def store_annotations(annotations) -> None:
     path = "out/inception_annotations.json"
     logger.debug(f"=> {path}")
     with open(path, "w") as f:
@@ -104,7 +104,7 @@ def main(cfg: DictConfig) -> None:
                 store_annotations(inception_annotations)
 
 
-def segment_range(web_annotation: dict[str, object]):
+def segment_range(web_annotation: dict[str, object]) -> tuple:
     targets = web_annotation['target']
     text_anchor_target = [t for t in targets if t['type'] == 'Text' and 'selector' in t]
     # ic(text_anchor_target, len(text_anchor_target))

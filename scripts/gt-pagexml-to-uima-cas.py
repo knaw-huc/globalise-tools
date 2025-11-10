@@ -8,7 +8,8 @@ from loguru import logger
 from pagexml.parser import parse_pagexml_file
 
 import globalise_tools.tools as gt
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH, CAS_MARGINALIUM, CAS_HEADER
+from globalise_tools.model import (CAS_HEADER, CAS_MARGINALIUM, CAS_PARAGRAPH,
+                                   CAS_SENTENCE, CAS_TOKEN)
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
@@ -20,8 +21,11 @@ logger.info(f"loading {spacy_core}")
 nlp = spacy.load(spacy_core)
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert a PageXML file to UAMI CAS XMI",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -43,7 +47,7 @@ def output_path(page_xml_path: str, output_directory: str) -> str:
 
 
 @logger.catch
-def convert(page_xml_paths: list[str], output_directory: str = "out"):
+def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)

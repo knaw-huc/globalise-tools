@@ -12,7 +12,7 @@ from globalise_tools.document_metadata import read_document_selection
 
 @hydra.main(version_base=None)
 @logger.catch
-def main(cfg: DictConfig):
+def main(cfg: DictConfig) -> None:
     metadata = read_document_selection(cfg.selection_files)
     quality_checked_metadata = [m for m in metadata if record_passes_quality_check(m)]
     textrepo_client = TextRepoClient(cfg.textrepo.base_uri, api_key=cfg.textrepo.api_key, verbose=False)
@@ -36,7 +36,7 @@ def main(cfg: DictConfig):
 acceptable_quality_codes = {'3.1.1', '3.1.2', '3.2', 'TRUE'}
 
 
-def record_passes_quality_check(m):
+def record_passes_quality_check(m) -> bool:
     checks = m.quality_check.split(' + ')
     disqualifying_checks = set(checks) - acceptable_quality_codes
     return not disqualifying_checks and not m.document_id

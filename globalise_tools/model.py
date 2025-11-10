@@ -1,10 +1,10 @@
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from json import JSONEncoder
 from typing import Optional
 
-import uuid
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
 
@@ -82,7 +82,7 @@ class WebAnnotation:
     target: object
     custom: dict[str, object] = field(default_factory=dict, hash=False)
 
-    def wrapped(self):
+    def wrapped(self) -> dict:
         anno_uuid = uuid.uuid4()
         anno_dict = {
             "@context": "http://www.w3.org/ns/anno.jsonld",
@@ -126,8 +126,11 @@ class ScanCoords:
     coords: Coords
 
 
+from typing import Any
+
+
 class AnnotationEncoder(JSONEncoder):
-    def default(self, obj):
+    def default(self, obj) -> Any:
         if isinstance(obj, gt.Annotation) \
                 or isinstance(obj, gt.PXTextRegion) \
                 or isinstance(obj, gt.PXTextLine) \
@@ -171,7 +174,7 @@ class DocumentMetadata:
     external_id: str = field(init=False)
     pagexml_ids: list[str] = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # self.no_of_pages = int(self.no_of_pages)
         self.no_of_scans = int(self.no_of_scans)
         (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
@@ -206,7 +209,7 @@ class DocumentMetadata2:
     scan_end: str = field(init=False)
     external_id: str = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         self.no_of_scans = len(self.pagexml_ids)
         self.nl_hana_nr = f"NL-HaNA_1.04.02_{self.inventory_number}"
         self.scan_start = self.pagexml_ids[0].split('_')[-1]

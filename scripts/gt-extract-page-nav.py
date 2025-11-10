@@ -44,7 +44,7 @@ def generate_prev_next_map(pagexml_ids: list[str]) -> dict[str, dict[str, str]]:
     return prev_next_idx
 
 
-def process_manifest(path):
+def process_manifest(path) -> None:
     # logger.info(f"<= {path}")
     with open(path) as f:
         manifest = json.load(f)

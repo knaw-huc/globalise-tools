@@ -2,19 +2,19 @@
 import csv
 import glob
 import os
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import pagexml.parser as px
 from loguru import logger
 
 
-def main():
+def main() -> None:
     args = get_arguments()
     run(args.input_directory, args.output_directory, args.force)
 
 
 @logger.catch
-def run(base_pagexml_path: str, output_directory: str, force: bool):
+def run(base_pagexml_path: str, output_directory: str, force: bool) -> None:
     inv_nrs = sorted(
         [p.split("/")[-1] for p in glob.glob(f"{base_pagexml_path}/*") if os.path.isdir(p)])
     for i in inv_nrs:
@@ -25,7 +25,7 @@ def pagexml_paths(inv_nr: str, base_pagexml_path: str) -> list[str]:
     return sorted(glob.glob(f"{base_pagexml_path}/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_*.xml"))
 
 
-def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str, force: bool):
+def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str, force: bool) -> None:
     file_name = f"{output_directory}/{inv_nr}-lines.tsv"
     if not os.path.exists(file_name) or force:
         print(f"=> {file_name}")
@@ -45,8 +45,11 @@ def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str, forc
         print(f"=> skipping existing file {file_name}")
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = ArgumentParser(
         description="Extract line text from pagexml files",
         formatter_class=ArgumentDefaultsHelpFormatter)

@@ -13,7 +13,7 @@ def list_web_annotation_files(directory: str):
 
 
 @logger.catch
-def main():
+def main() -> None:
     files = list_web_annotation_files("out")
     annotations = []
     for p in files:
@@ -27,19 +27,19 @@ def main():
     show_random_annotation_of_each_type(annotations)
 
 
-def show_joined_word_annotations(annotations):
+def show_joined_word_annotations(annotations) -> None:
     joined_word_annotations = [a for a in annotations if is_joined_word_annotation(a)]
     for l in sorted(joined_word_annotations, key=word_length):
         print(json.dumps(l, indent=2))
 
 
-def show_long_word_annotations(annotations):
+def show_long_word_annotations(annotations) -> None:
     long_word_annotations = [a for a in annotations if is_long_word_annotation(a)]
     for l in sorted(long_word_annotations, key=word_length):
         print(json.dumps(l, indent=2))
 
 
-def show_random_annotation_of_each_type(annotations):
+def show_random_annotation_of_each_type(annotations) -> None:
     random_annotations = []
     annotations.sort(key=body_type)
     grouped_by_type = itertools.groupby(annotations, key=body_type)
@@ -55,11 +55,11 @@ def body_type(annotation):
     return annotation["body"]["type"]
 
 
-def word_length(a):
+def word_length(a) -> int:
     return len(a["body"]["text"])
 
 
-def is_long_word_annotation(a):
+def is_long_word_annotation(a) -> bool:
     return a["body"]["type"] == "tt:Word" and len(a["body"]["text"]) > 5
 
 
@@ -74,7 +74,7 @@ def has_fragment_selector(selectors: list[dict[str, str]]) -> bool:
     return len(fragment_selectors) > 0
 
 
-def is_joined_word_annotation(a):
+def is_joined_word_annotation(a) -> bool:
     fragment_selector_targets = [t for t in a["target"] if is_fragment_selector_target(t)]
     return a["body"]["type"] == "tt:Word" \
         and len(fragment_selector_targets) > 0 \

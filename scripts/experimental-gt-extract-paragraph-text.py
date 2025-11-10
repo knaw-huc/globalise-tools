@@ -42,13 +42,13 @@ def main(inv_nr: str) -> None:
     print_stats(lines, paragraphs)
 
 
-def print_stats(lines, paragraphs):
+def print_stats(lines, paragraphs) -> None:
     print("stats:")
     print(f"  {len(lines)} lines")
     print(f"  {len(paragraphs)} paragraphs")
 
 
-def untangle_file(path, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs):
+def untangle_file(path, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs) -> None:
     logger.info(f"<= {path}")
     scan_doc: PageXMLScan = px.parse_pagexml_file(pagexml_file=path)
     for tr in scan_doc.get_text_regions_in_reading_order():
@@ -56,7 +56,7 @@ def untangle_file(path, line_ids_to_anchors, lines, logical_anchor_range_for_lin
             untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs)
 
 
-def untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs):
+def untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs) -> None:
     # print(defining_text_region_type(tr.types))
     lines_with_text = [l for l in tr.lines if l.text]
     if lines_with_text:
@@ -88,7 +88,7 @@ def untangle_text_region(tr, line_ids_to_anchors, lines, logical_anchor_range_fo
         paragraphs.append(tr_text)
 
 
-def check_logical_to_physical(lines, paragraphs, logical_anchor_range_for_line_anchor):
+def check_logical_to_physical(lines, paragraphs, logical_anchor_range_for_line_anchor) -> None:
     for k, v in logical_anchor_range_for_line_anchor.items():
         line_text = lines[k]
         para_substring = paragraphs[v.begin_logical_anchor][v.begin_char_offset:v.end_char_offset_exclusive]
@@ -108,7 +108,7 @@ def defining_text_region_type(types) -> str:
     return "/".join([t for t in types if t not in general_text_region_types])
 
 
-def tokenize():
+def tokenize() -> None:
     text = "Rêrūm sit dignissimos quidem et sit dicta aperiam. Officiis autem dignissimos nihil. Illum ullam in cumque ex ducimus non. Fugit quam quis rem inventore nulla molestiae aut."
     itree = IntervalTree()
 
@@ -127,12 +127,12 @@ def tokenize():
     t2.merge_equals()
 
 
-def store_segmented_text(segments: list[str], store_path: str):
+def store_segmented_text(segments: list[str], store_path: str) -> None:
     data = {"_ordered_segments": segments}
     store_json(data, store_path)
 
 
-def store_json(data: object, store_path: str):
+def store_json(data: object, store_path: str) -> None:
     logger.info(f"=> {store_path}")
     with open(store_path, 'w', encoding='UTF8') as filehandle:
         json.dump(data, filehandle, indent=4, ensure_ascii=False)

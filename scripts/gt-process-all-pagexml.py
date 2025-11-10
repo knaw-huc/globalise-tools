@@ -95,7 +95,7 @@ files = [
 ]
 
 
-def print_paragraphs(file_path: str):
+def print_paragraphs(file_path: str) -> None:
     scan_doc = parse_pagexml_file(f"{data_dir}/{file_path}")
 
     px_words, tr_idx, tl_idx = gt.extract_px_elements(scan_doc)
@@ -120,7 +120,7 @@ def print_paragraphs(file_path: str):
     print("\n".join(joined_words))
 
 
-def main():
+def main() -> None:
     for file_path in files:
         print(file_path)
         print(gt.na_url(file_path))

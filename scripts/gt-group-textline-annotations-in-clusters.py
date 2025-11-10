@@ -51,13 +51,13 @@ def get_inv_nr(file_path: str):
 RELEVANT_BODY_TYPES = {"px:TextLine"}
 
 
-def filter_annotations(json_path):
+def filter_annotations(json_path) -> list:
     with open(json_path) as f:
         annotations = json.load(f)
     return [a for a in annotations if a['body']['type'] in RELEVANT_BODY_TYPES]
 
 
-def store_chunk(annotations, root_path, chunk_count):
+def store_chunk(annotations, root_path, chunk_count) -> None:
     fpath = f'{root_path}/px_textline_annotations_{chunk_count:04d}.json'
     print(f'=> {fpath}')
     with open(fpath, 'w') as f:

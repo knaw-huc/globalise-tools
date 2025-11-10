@@ -5,7 +5,7 @@ import csv
 import os
 import os.path
 import sys
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from collections import defaultdict
 
 import stam
@@ -35,7 +35,7 @@ LETTER_TYPE_DATA = {
 }
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(
         description="Extract texts from RGP data and HTR data",
         formatter_class=ArgumentDefaultsHelpFormatter)

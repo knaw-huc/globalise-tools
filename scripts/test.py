@@ -3,7 +3,7 @@ import json as JSON
 import xml.etree.ElementTree as ET
 
 
-def main():
+def main() -> None:
     file = '../data/NL-HaNA_1.04.02_1092_0017.xml'
     tree = ET.parse(file)
     root = tree.getroot()

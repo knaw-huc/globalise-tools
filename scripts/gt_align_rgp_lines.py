@@ -3,7 +3,7 @@
 import os
 import os.path
 import sys
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import stam
 
@@ -32,7 +32,7 @@ def pad(s):
         return s
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(
         description="Align ",
         formatter_class=ArgumentDefaultsHelpFormatter)

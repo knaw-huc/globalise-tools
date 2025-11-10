@@ -1,14 +1,15 @@
 #!/usr/bin/env python3
 import json
 import pathlib
+import uuid
 
 import cassis
 import hydra
-import uuid
 from loguru import logger
 from omegaconf import DictConfig
 
-from globalise_tools.events import NAMED_ENTITY_LAYER_NAME, EVENT_LAYER_NAME, ENTITIES
+from globalise_tools.events import (ENTITIES, EVENT_LAYER_NAME,
+                                    NAMED_ENTITY_LAYER_NAME)
 
 
 @hydra.main(version_base=None)

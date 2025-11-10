@@ -9,14 +9,17 @@ from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
 from textrepo.client import TextRepoClient
 
-from globalise_tools.model import CAS_SENTENCE, CAS_TOKEN, CAS_PARAGRAPH
+from globalise_tools.model import CAS_PARAGRAPH, CAS_SENTENCE, CAS_TOKEN
 
 typesystem_xml = 'data/typesystem.xml'
 spacy_core = "nl_core_news_lg"
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert the PageXML belonging to the given document and page range to UIMA CAS,"
                     " and import this into INCEpTION",
@@ -59,7 +62,7 @@ def output_path(page_xml_path: str) -> str:
 
 
 @logger.catch
-def convert(page_xml_path: str):
+def convert(page_xml_path: str) -> None:
     logger.info(f"<= {page_xml_path}")
     scan_doc = parse_pagexml_file(page_xml_path)
 
@@ -129,14 +132,14 @@ def extract_paragraph_text(scan_doc) -> Tuple[str, list[Tuple[int, int]]]:
     return text, paragraph_ranges
 
 
-def print_annotations(cas):
+def print_annotations(cas) -> None:
     for a in cas.views[0].get_all_annotations():
         print(a)
         print(f"'{a.get_covered_text()}'")
         print()
 
 
-def join_words(px_words):
+def join_words(px_words) -> str:
     text = ""
     last_text_region = None
     last_line = None
@@ -154,7 +157,7 @@ def join_words(px_words):
 
 
 @logger.catch
-def import_document(document_id: str, first_page: int, last_page: int, base_uri: str, api_key: str):
+def import_document(document_id: str, first_page: int, last_page: int, base_uri: str, api_key: str) -> None:
     ic(document_id, first_page, last_page)
     trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
     for p in range(first_page, last_page):

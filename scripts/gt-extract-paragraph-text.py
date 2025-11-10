@@ -3,7 +3,7 @@ import csv
 import glob
 import json
 import os
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 
 import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as px
@@ -16,13 +16,13 @@ import globalise_tools.tools as gt
 class ParagraphTextExtractor:
     word_break_chars = '„'
 
-    def __init__(self, input_dir: str, output_dir: str):
+    def __init__(self, input_dir: str, output_dir: str) -> None:
         self.input_dir = input_dir
         self.output_dir = output_dir
         self.processed_file = f"{self.output_dir}/extract-paragraph-text-processed-inv-nrs.json"
         self.processed_inv_nrs = self.load_processed_files()
 
-    def extract_paragraph_text(self):
+    def extract_paragraph_text(self) -> None:
         inv_nrs = sorted(
             [p.split("/")[-1] for p in glob.glob(f"{self.input_dir}/*") if os.path.isdir(p)])
         progress_bar = tqdm(inv_nrs)
@@ -37,7 +37,7 @@ class ParagraphTextExtractor:
     def _pagexml_paths(self, inv_nr: str) -> list[str]:
         return sorted(glob.glob(f"{self.input_dir}/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_*.xml"))
 
-    def _process_inv(self, inv_nr: str, bar):
+    def _process_inv(self, inv_nr: str, bar) -> None:
         file_name = f"{self.output_dir}/{inv_nr}-paragraphs.tsv"
         bar.set_description(f"=> {file_name}")
         with open(file_name, mode='w', newline='') as file:
@@ -54,7 +54,7 @@ class ParagraphTextExtractor:
                     if tr_text:
                         writer.writerow([inv_nr, page_no, tr.id, tr_text])
 
-    def load_processed_files(self):
+    def load_processed_files(self) -> set:
         if os.path.exists(self.processed_file):
             logger.info(f"<= {self.processed_file}")
             with open(self.processed_file) as f:
@@ -63,13 +63,16 @@ class ParagraphTextExtractor:
             processed = set()
         return processed
 
-    def store_processed_files(self):
+    def store_processed_files(self) -> None:
         with open(self.processed_file, 'w') as f:
             json.dump(list(self.processed_inv_nrs), fp=f)
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = ArgumentParser(
         description="Extract paragraph text from pagexml files",
         formatter_class=ArgumentDefaultsHelpFormatter)

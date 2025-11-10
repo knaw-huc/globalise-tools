@@ -1,16 +1,19 @@
 #!/usr/bin/env python3
 import glob
 import json
+import uuid
 from dataclasses import dataclass
 from datetime import datetime
 
-import uuid
 from loguru import logger
 from pagexml.model.physical_document_model import Coords
 
 import globalise_tools.tools as gt
-from globalise_tools.events import EVENT_LAYER_NAME, NAMED_ENTITY_LAYER_NAME, ENTITIES
-from globalise_tools.webanno_tsv_reader import read_webanno_tsv, Annotation, Token, AnnotationLink, Document
+from globalise_tools.events import (ENTITIES, EVENT_LAYER_NAME,
+                                    NAMED_ENTITY_LAYER_NAME)
+from globalise_tools.webanno_tsv_reader import (Annotation, AnnotationLink,
+                                                Document, Token,
+                                                read_webanno_tsv)
 
 DATA_DIR = "data/inception_output"
 
@@ -23,13 +26,13 @@ class TokenContext:
 
 
 @logger.catch
-def main(iiif_mapping_file: str, textrepo_base_uri: str, data_dir: str):
+def main(iiif_mapping_file: str, textrepo_base_uri: str, data_dir: str) -> None:
     webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file, textrepo_base_uri=textrepo_base_uri)
     annotations = create_web_annotations(webannotation_factory, data_dir)
     print(json.dumps(annotations, indent=2))
 
 
-def create_web_annotations(webannotation_factory: gt.WebAnnotationFactory, data_dir: str):
+def create_web_annotations(webannotation_factory: gt.WebAnnotationFactory, data_dir: str) -> list:
     annotations = []
     for p in web_anno_file_paths(data_dir):
         logger.info(f"parsing {p}...")
@@ -80,7 +83,7 @@ def extract_annotations(path: str, webannotation_factory: gt.WebAnnotationFactor
     return web_annotations
 
 
-def load_word_and_token_annotations(doc_id):
+def load_word_and_token_annotations(doc_id) -> tuple:
     with open(f"out/{doc_id}-metadata.json") as jf:
         metadata = json.load(jf)
     # ic(metadata)
@@ -102,7 +105,7 @@ def token_id(token: Token) -> str:
 
 
 def convert_event_annotations(annotations, token_context: TokenContext,
-                              webannotation_factory: gt.WebAnnotationFactory, doc: Document):
+                              webannotation_factory: gt.WebAnnotationFactory, doc: Document) -> list:
     w3c_annotations = []
     for anno in annotations:
         body_id = f"urn:example:globalise:event:{uuid.uuid4()}"
@@ -136,7 +139,7 @@ def make_event_argument_annotation(al: AnnotationLink,
                                    linked_annotation: Annotation,
                                    token_context: TokenContext,
                                    webannotation_factory,
-                                   event_body_id: str):
+                                   event_body_id: str) -> dict:
     anno = linked_annotation
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#"},
@@ -185,7 +188,7 @@ def make_event_body(anno: Annotation, argument_source: dict[str, str], body_id: 
 
 
 def convert_entity_annotations(annotations, token_context: TokenContext,
-                               webannotation_factory: gt.WebAnnotationFactory):
+                               webannotation_factory: gt.WebAnnotationFactory) -> list:
     w3c_annotations = []
     for anno in annotations:
         body = make_entity_body(anno)
@@ -206,7 +209,7 @@ def convert_entity_annotations(annotations, token_context: TokenContext,
     return w3c_annotations
 
 
-def make_entity_body(anno: Annotation):
+def make_entity_body(anno: Annotation) -> dict:
     fields = anno.features
     if "value" not in fields:
         logger.warning(f"no 'value' feature in {anno}")
@@ -227,7 +230,7 @@ def make_entity_body(anno: Annotation):
 
 
 def make_targets(annotation: Annotation, token_context: TokenContext,
-                 webannotation_factory: gt.WebAnnotationFactory):
+                 webannotation_factory: gt.WebAnnotationFactory) -> list:
     targets = []
     relevant_word_annotation_dicts = []
     for t in annotation.tokens:

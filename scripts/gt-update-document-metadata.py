@@ -26,7 +26,7 @@ def update_record(record: dict[str, str], document_id_idx: dict[str, str]) -> di
 
 
 @logger.catch
-def main():
+def main() -> None:
     document_id_idx = read_document_id_idx(result_path)
     for p in metadata_paths:
         logger.info(f"<= {p}")

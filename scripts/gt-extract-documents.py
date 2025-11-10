@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 import json
 import os
-from dataclasses import field, dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 
 import hydra
@@ -14,7 +14,7 @@ from pagexml.model.physical_document_model import PageXMLScan
 from textrepo.client import TextRepoClient
 
 import globalise_tools.tools as gt
-from globalise_tools.model import WebAnnotation, AnnotationEncoder
+from globalise_tools.model import AnnotationEncoder, WebAnnotation
 
 
 @dataclass_json
@@ -31,7 +31,7 @@ class DocumentMetadata:
     external_id: str = field(init=False)
     pagexml_ids: list[str] = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         # self.no_of_pages = int(self.no_of_pages)
         self.no_of_scans = int(self.no_of_scans)
         (self.first_scan_nr, self.last_scan_nr) = self._scan_nr_range()
@@ -138,15 +138,15 @@ def store_annotations(base_dir: str, web_annotations: list[WebAnnotation]) -> st
     return path
 
 
-def upload_segmented_text(trc: TextRepoClient, text_store_path: str):
+def upload_segmented_text(trc: TextRepoClient, text_store_path: str) -> None:
     logger.warning(f"TODO: upload {text_store_path} to {trc.base_uri}")
 
 
-def upload_annotations(arc: AnnoRepoClient, annotations_path: str):
+def upload_annotations(arc: AnnoRepoClient, annotations_path: str) -> None:
     logger.warning(f"TODO: upload {annotations_path} to {arc.base_url}")
 
 
-def process_document(doc: DocumentMetadata, trc: TextRepoClient, arc: AnnoRepoClient, waf: gt.WebAnnotationFactory):
+def process_document(doc: DocumentMetadata, trc: TextRepoClient, arc: AnnoRepoClient, waf: gt.WebAnnotationFactory) -> None:
     base_dir = create_document_directory(doc)
     pagexml_paths = download_pagexml(trc, base_dir, doc.pagexml_ids)
     segmented_text, web_annotations = parse_pagexmls(pagexml_paths, doc.external_id, waf)

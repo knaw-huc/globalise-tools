@@ -7,7 +7,7 @@ from dataclasses import dataclass
 from dataclasses_json import dataclass_json
 from icecream import ic
 from loguru import logger
-from textrepo.client import TextRepoClient, DocumentIdentifier
+from textrepo.client import DocumentIdentifier, TextRepoClient
 
 ids = ["NL-HaNA_1.04.02_1092_0017",
        "NL-HaNA_1.04.02_1092_0018",
@@ -117,7 +117,7 @@ class TRDocument:
 
 
 @logger.catch
-def access_textrepo(base_uri: str, api_key: str):
+def access_textrepo(base_uri: str, api_key: str) -> None:
     trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
     set_file_types(trc)
     # check_external_ids(trc)
@@ -145,7 +145,7 @@ def create_document(trc: TextRepoClient, document_name: str) -> TRDocument:
     return tr_doc
 
 
-def purge_existing_document(trc, document_name):
+def purge_existing_document(trc, document_name) -> None:
     try:
         trc.purge_document(document_name)
     except:
@@ -163,21 +163,21 @@ def add_file(trc, document_name, file_path, type_name):
     return version_info
 
 
-def create_documents(trc: TextRepoClient):
+def create_documents(trc: TextRepoClient) -> list:
     tr_docs = []
     for document_name in base_names:
         tr_docs.append(create_document(trc, document_name))
     return tr_docs
 
 
-def store_versions(tr_docs):
+def store_versions(tr_docs) -> None:
     with open("out/tr-versions.csv", "w") as f:
         writer = csv.DictWriter(f, ["external_id", "txt_version", "segmented_version", "conll_version"])
         writer.writeheader()
         writer.writerows([r.to_dict() for r in tr_docs])
 
 
-def show_document_urls(trc: TextRepoClient):
+def show_document_urls(trc: TextRepoClient) -> None:
     file_types = trc.read_file_types()
     type_ids = {ft.name: ft.id for ft in file_types}
     for document_name in base_names:
@@ -197,7 +197,7 @@ def show_document_urls(trc: TextRepoClient):
         print()
 
 
-def check_external_ids(trc):
+def check_external_ids(trc) -> None:
     for external_id in ids:
         try:
             m = trc.find_file_metadata(external_id=external_id, type_name="pagexml")
@@ -206,7 +206,7 @@ def check_external_ids(trc):
             print(f"external id {external_id} not found")
 
 
-def set_file_types(trc):
+def set_file_types(trc) -> None:
     type_name = "conll"
     if not has_file_type(trc, type_name):
         trc.create_file_type(name=type_name, mimetype="application/conll2002+txt")
@@ -215,13 +215,16 @@ def set_file_types(trc):
         trc.create_file_type(name=type_name, mimetype="application/json")
 
 
-def has_file_type(trc, type_name):
+def has_file_type(trc, type_name) -> bool:
     file_types = trc.read_file_types()
     return type_name in {ft.name for ft in file_types}
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Access a textrepo instance",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)

@@ -101,14 +101,14 @@ files = [
 ]
 
 
-def as_file_lines(filename):
+def as_file_lines(filename) -> list:
     path = f"{data_dir}/{filename}"
     scan_doc = parse_pagexml_file(path)
     lines = scan_doc.get_lines()
     return [(filename, line) for line in lines]
 
 
-def as_rows(filename):
+def as_rows(filename) -> list:
     url = na_url(filename)
     path = f"{data_dir}/{filename}"
     scan_doc = parse_pagexml_file(path)
@@ -129,7 +129,7 @@ def as_rows(filename):
     return rows
 
 
-def to_rows(file_lines):
+def to_rows(file_lines) -> list:
     rows = []
     for i, file_line in enumerate(file_lines[:-1]):
         url = na_url(file_line[0])
@@ -148,14 +148,14 @@ def to_rows(file_lines):
     return rows
 
 
-def write_to_csv(csv_path, data):
+def write_to_csv(csv_path, data) -> None:
     with open(csv_path, "w", encoding="utf-8") as f:
         writer = csv.writer(f, dialect='excel', delimiter=",")
         writer.writerow(headers)
         writer.writerows(data)
 
 
-def write_to_xlsx(xlsx, data):
+def write_to_xlsx(xlsx, data) -> None:
     workbook = xlsxwriter.Workbook(xlsx)
     header_format = workbook.add_format(
         {'bold': True, 'bg_color': 'cyan', 'align': 'center', 'locked': True, 'border': 6})
@@ -189,7 +189,7 @@ def write_to_xlsx(xlsx, data):
     workbook.close()
 
 
-def print_as_table(data):
+def print_as_table(data) -> None:
     table = tabulate.tabulate(
         data,
         tablefmt='github',
@@ -200,7 +200,7 @@ def print_as_table(data):
 
 
 @logger.catch
-def main():
+def main() -> None:
     lines_per_file = [as_file_lines(file) for file in files]
     file_lines = list(chain(*lines_per_file))
     data = to_rows(file_lines)

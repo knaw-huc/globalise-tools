@@ -82,7 +82,7 @@ def load_project_results() -> ProjectResults:
         return ProjectResults()
 
 
-def store_project_results(project_results):
+def store_project_results(project_results) -> None:
     if project_results:
         logger.info(f"=> {result_path}")
         with open(result_path, "w") as f:
@@ -122,7 +122,7 @@ def main0(cfg: DictConfig) -> None:
         # print_missing_lang_detection(cfg, pages_missing_in_lang_detection)
 
 
-def print_missing_lang_detection(cfg, pages_missing_in_lang_detection):
+def print_missing_lang_detection(cfg, pages_missing_in_lang_detection) -> None:
     print(f"Pages missing in {cfg.automated_page_langs_file} :")
     for page_id in pages_missing_in_lang_detection:
         parts = page_id.split('_')

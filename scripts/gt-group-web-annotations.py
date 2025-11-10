@@ -51,7 +51,10 @@ def get_inv_nr(file_path: str):
 RELEVANT_BODY_TYPES = {"na:File", "px:Page"}
 
 
-def group_annotations(json_path):
+from itertools import groupby
+
+
+def group_annotations(json_path) -> groupby:
     # inv_nr = path.split('/')[-1].replace('.json', '')
     # logger.info(f"<= {path}")
     with open(json_path) as f:

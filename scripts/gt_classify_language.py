@@ -1,7 +1,7 @@
 #!/usr/bin/env python3
 
 import csv
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
 from collections import Counter
 
 # order matters in case of ties in lines, first match wins
@@ -78,7 +78,7 @@ def count_alphabetic(s: str):
     return sum((c.isalpha() for c in s))
 
 
-def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_langs: list, text: str):
+def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_langs: list, text: str) -> None:
     if page_langs:
         langs = ",".join(sorted((to_iso639_3(l) for l in page_langs)))
     else:
@@ -86,7 +86,7 @@ def print_langs(inv_nr, page_no, textregion_id, textregion_type, line_id, page_l
     print(f"{inv_nr}\t{page_no}\t{textregion_id}\t{textregion_type}\t{line_id}\t{langs}\t{text}")
 
 
-def main():
+def main() -> None:
     parser = ArgumentParser(
         description="Extract line text from pagexml files",
         formatter_class=ArgumentDefaultsHelpFormatter)

@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from argparse import Namespace
 
 from loguru import logger
 
@@ -8,7 +9,7 @@ from globalise_tools.document_metadata import DocumentMetadata
 
 
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="List the PageXML file names of documents marked as needing a reading order correction in the given"
                     " document_metadata.csv\n"
@@ -22,7 +23,7 @@ def get_arguments():
 
 
 @logger.catch
-def list_relevant_pagexml_names(document_metadata_path: str):
+def list_relevant_pagexml_names(document_metadata_path: str) -> None:
     relevant_documents = [r for r in DM.read_document_metadata(document_metadata_path) if is_relevant(r)]
     for dm in relevant_documents:
         for pid in dm.pagexml_ids:

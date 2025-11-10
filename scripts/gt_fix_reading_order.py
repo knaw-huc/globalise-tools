@@ -11,8 +11,11 @@ from globalise_tools.page_xml_fixer import PageXmlFixer
 fixable_error_codes = ['3.1.1', '3.1.2', '3.2']
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Read the given PageXML files and fix the reading order when required."
                     " When the reading order is fixed, write the PageXML with the modified reading order"
@@ -42,7 +45,7 @@ def get_arguments():
 
 
 @logger.catch
-def fix_reading_order(input_directory: str, output_directory: str, document_metadata_paths: list[str]):
+def fix_reading_order(input_directory: str, output_directory: str, document_metadata_paths: list[str]) -> None:
     relevant_documents = [r for r in DM.read_document_selection(document_metadata_paths) if is_relevant(r)]
     pagexml_paths = []
     quality_check = {}
@@ -97,7 +100,7 @@ def is_relevant(document_metadata: DocumentMetadata) -> bool:
 #     else:
 #         return False
 
-def main():
+def main() -> None:
     args = get_arguments()
     if args.document_metadata_path:
         fix_reading_order(args.input_directory, args.output_directory, args.document_metadata_path)

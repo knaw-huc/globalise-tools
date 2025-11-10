@@ -5,7 +5,7 @@ import sys
 from loguru import logger
 
 
-def remove_text(d: dict[str, object]):
+def remove_text(d: dict[str, object]) -> dict[str, object]:
     if 'body' in d and 'metadata' in d['body'] and 'text' in d['body']['metadata']:
         d['body']['metadata'].pop('text')
         if not d['body']['metadata']:
@@ -13,7 +13,7 @@ def remove_text(d: dict[str, object]):
     return d
 
 
-def main(path: str):
+def main(path: str) -> None:
     logger.info(f"<= {path}")
     with open(path) as f:
         annotations = json.load(f)

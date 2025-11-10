@@ -13,7 +13,8 @@ from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
 
 import globalise_tools.tools as gt
-from globalise_tools.model import TRVersions, GTToken, WebAnnotation, AnnotationEncoder
+from globalise_tools.model import (AnnotationEncoder, GTToken, TRVersions,
+                                   WebAnnotation)
 
 spacy_core = "nl_core_news_lg"
 
@@ -41,7 +42,7 @@ def index_word_ranges(words: list[gt.DisplayWord], word_range_index) -> dict[str
     return index
 
 
-def process_pagexml(path: str, document_id: str):
+def process_pagexml(path: str, document_id: str) -> tuple:
     annotations = []
     scan_doc: PageXMLScan = pxp.parse_pagexml_file(path)
     id_prefix = gt.make_id_prefix(scan_doc)
@@ -98,7 +99,7 @@ def export(base_name: AnyStr,
            metadata: dict[AnyStr, object],
            tokens: list[GTToken],
            web_annotations: list[WebAnnotation]
-           ):
+           ) -> None:
     print(f"{base_name}:")
 
     file_name = f"{base_name}.txt"
@@ -204,7 +205,7 @@ def get_page_id(offset: int, length: int, scan_ranges) -> str:
         return ":placeholder:"
 
 
-def make_token_annotations(base_name, tokens, scan_ranges):
+def make_token_annotations(base_name, tokens, scan_ranges) -> list:
     annotations = []
     par_offset = 0
     par_length = 0
@@ -246,7 +247,7 @@ def ranges_per_scan(annotations: list[gt.Annotation]) -> dict[str, Tuple[int, in
     }
 
 
-def segment_range(tokens: list[GTToken], char_range_begin: int, char_range_end: int):
+def segment_range(tokens: list[GTToken], char_range_begin: int, char_range_end: int) -> tuple[int, int]:
     begin_idx = 0
     end_idx = 0
     for i, token in enumerate(tokens):
@@ -259,19 +260,19 @@ def segment_range(tokens: list[GTToken], char_range_begin: int, char_range_end: 
     return begin_idx, end_idx
 
 
-def add_anchor_range(all_annotations: list[gt.Annotation], tokens: list[GTToken]):
+def add_anchor_range(all_annotations: list[gt.Annotation], tokens: list[GTToken]) -> None:
     for a in all_annotations:
         char_range_begin = a.offset
         char_range_end = a.offset + a.length
         a.physical_begin_anchor, a.physical_end_anchor = segment_range(tokens, char_range_begin, char_range_end)
 
 
-def doc_annotation(base_name: str):
+def doc_annotation(base_name: str) -> None:
     pass
 
 
 def process_directory_group(document_id: str, directory_group: list[str],
-                            webannotation_factory: gt.WebAnnotationFactory):
+                            webannotation_factory: gt.WebAnnotationFactory) -> None:
     pagexml_files = list_pagexml_files_in_group(directory_group)
 
     base_name = create_base_name(pagexml_files)
@@ -306,7 +307,7 @@ def process_directory_group(document_id: str, directory_group: list[str],
     export(base_name, all_pars, metadata, tokens, web_annotations)
 
 
-def add_document_web_annotation(all_annotations, base_name, document_id, web_annotations, webannotation_factory):
+def add_document_web_annotation(all_annotations, base_name, document_id, web_annotations, webannotation_factory) -> None:
     manifest_id = document_id.split('_')[0]
     manifest_url = f"https://broccoli.tt.di.huc.knaw.nl/mock/globalise/manifest-{manifest_id}.json"
     textrepo_base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"
@@ -334,7 +335,7 @@ def add_document_web_annotation(all_annotations, base_name, document_id, web_ann
     ))
 
 
-def list_pagexml_files_in_group(directory_group):
+def list_pagexml_files_in_group(directory_group) -> list:
     pagexml_files = []
     for directory in directory_group:
         pagexml_files.extend(list_pagexml_files(directory))
@@ -342,7 +343,7 @@ def list_pagexml_files_in_group(directory_group):
     return pagexml_files
 
 
-def process_pagexml_files(pagexml_files: list[str], document_id: str):
+def process_pagexml_files(pagexml_files: list[str], document_id: str) -> tuple[list, list]:
     all_pars = []
     all_annotations = []
     start_offset = 0
@@ -356,18 +357,18 @@ def process_pagexml_files(pagexml_files: list[str], document_id: str):
     return all_annotations, all_pars
 
 
-def add_tr_versions(all_annotations, external_id):
+def add_tr_versions(all_annotations, external_id) -> None:
     for a in all_annotations:
         a.physical_segmented_version_id = tr_versions[external_id].segmented
         a.txt_version_id = tr_versions[external_id].txt
 
 
-def init_spacy():
+def init_spacy() -> None:
     global nlp
     nlp = spacy.load(spacy_core)
 
 
-def load_metadata():
+def load_metadata() -> None:
     print(f"loading {metadata_csv}...", end=' ')
     with open(metadata_csv) as f:
         reader = csv.DictReader(f)
@@ -376,7 +377,7 @@ def load_metadata():
     print()
 
 
-def load_ground_truth():
+def load_ground_truth() -> None:
     print(f"loading {ground_truth_csv}...", end=' ')
     records = []
     with open(ground_truth_csv) as f:
@@ -388,7 +389,7 @@ def load_ground_truth():
     print()
 
 
-def load_tr_versions():
+def load_tr_versions() -> None:
     print(f"loading {textrepo_version_csv}...", end=' ')
     with open(textrepo_version_csv) as f:
         reader = csv.DictReader(f)
@@ -398,7 +399,10 @@ def load_tr_versions():
     print()
 
 
-def get_arguments():
+from argparse import Namespace
+
+
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract text and annotations from all the PageXML in the given directory",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -419,7 +423,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def process(directories, iiif_mapping_file, merge_sections):
+def process(directories, iiif_mapping_file, merge_sections) -> None:
     webannotation_factory = gt.WebAnnotationFactory(iiif_mapping_file)
     init_spacy()
     load_metadata()
@@ -439,7 +443,7 @@ def process(directories, iiif_mapping_file, merge_sections):
 
 
 @logger.catch
-def main():
+def main() -> None:
     args = get_arguments()
     if args.directory:
         process(args.directory, args.iiif_mapping_file, args.merge_sections)

@@ -147,7 +147,10 @@ def safe_filename_from_url(url: str) -> str:
     return f"{digest}.json"
 
 
-def disk_caching_loader(url: str, doc_loader):
+from typing import Any
+
+
+def disk_caching_loader(url: str, doc_loader) -> Any:
     if url == "https://www.w3.org/ns/anno.jsonld":
         with open(f"{CACHE_DIR}/anno.jsonld", "r", encoding="utf-8") as f:
             return json.load(f)
@@ -174,7 +177,7 @@ def disk_caching_loader(url: str, doc_loader):
 from rdflib import Graph
 
 
-def export_in_ttl(ner_annotations: list, ttl_out_path: str):
+def export_in_ttl(ner_annotations: list, ttl_out_path: str) -> None:
     logger.info(f"reading annotations into rdf graph")
     as_jsonld = [json.dumps(wa).replace('"http://www.w3.org/ns/anno.jsonld"', anno_context) for wa in ner_annotations]
     g = Graph()
@@ -184,8 +187,11 @@ def export_in_ttl(ner_annotations: list, ttl_out_path: str):
     g.serialize(ttl_out_path, format="ttl")
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert Web Annotations to Turtle",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -197,7 +203,7 @@ def get_arguments():
 
 
 @logger.catch
-def main():
+def main() -> None:
     args = get_arguments()
     logger.info(f"<= {args.json_path}")
     # Tell pyld (and thus rdflib-jsonld) to use our caching loader
@@ -208,7 +214,7 @@ def main():
     export_in_ttl(annotations, out_path)
 
 
-def main2():
+def main2() -> None:
     from pyld import jsonld
 
     def disk_caching_loader2(url, something_else):

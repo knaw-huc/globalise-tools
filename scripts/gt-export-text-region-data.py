@@ -17,7 +17,7 @@ def read_inventories_of_interest() -> list[str]:
     return inventories
 
 
-def export_page(pagexml_path: str):
+def export_page(pagexml_path: str) -> None:
     logger.info(f"<= {pagexml_path}")
     scan_doc = px.parse_pagexml_file(pagexml_path)
     regions = []
@@ -44,7 +44,7 @@ def pagexml_paths(inv_nr) -> list[str]:
     return sorted(glob.glob(f"/Users/bram/c/data/globalise/pagexml/{inv_nr}/NL-HaNA_1.04.02_{inv_nr}_*.xml"))
 
 
-def export(inventory_number: str):
+def export(inventory_number: str) -> None:
     output_path = f"out/ioi/{inventory_number}"
     os.makedirs(output_path, exist_ok=True)
     for pagexml_path in pagexml_paths(inventory_number):
@@ -52,7 +52,7 @@ def export(inventory_number: str):
 
 
 @logger.catch
-def main():
+def main() -> None:
     for inventory_number in read_inventories_of_interest():
         export(inventory_number)
 

@@ -2,7 +2,7 @@ import itertools
 import re
 from collections import defaultdict
 from dataclasses import dataclass, field
-from typing import Tuple, Sequence
+from typing import Sequence, Tuple
 
 # Strings that need to be escaped with a single backslash according to Webanno Appendix B
 RESERVED_STRS = ['\\', '[', ']', '|', '_', '->', ';', '\t', '\n', '*']
@@ -85,11 +85,11 @@ class Annotation:
         return self.tokens[-1].end_offset
 
     @property
-    def text(self):
+    def text(self) -> str:
         return ' '.join([t.text for t in self.tokens])
 
     @property
-    def token_texts(self):
+    def token_texts(self) -> list:
         return [token.text for token in self.tokens]
 
 
@@ -106,7 +106,7 @@ class Document:
         annotation_idx = self.__annotation_idx()
         return annotation_idx[annotation_id]
 
-    def __annotation_idx(self):
+    def __annotation_idx(self) -> dict:
         if not (self._annotation_idx and len(self._annotation_idx) == len(self.annotations)):
             self._annotation_idx = {a.id: a for a in self.annotations}
         return self._annotation_idx
@@ -153,16 +153,16 @@ def read_webanno_tsv(path: str) -> Document:
     return doc
 
 
-def _todo():
+def _todo() -> None:
     raise Exception("this function is not implemented yet!")
 
 
-def _read_span_layer_names(lines: list[str]):
+def _read_span_layer_names(lines: list[str]) -> list:
     matches = [SPAN_LAYER_DEF_RE.match(line) for line in lines]
     return [(m.group(1), m.group(2).split('|')) for m in matches if m]
 
 
-def _annotation_type(layer_name, field_name):
+def _annotation_type(layer_name, field_name) -> str:
     return '|'.join([layer_name, field_name])
 
 
@@ -172,7 +172,7 @@ def _unescape(text: str) -> str:
     return text
 
 
-def _handle_annotation_line(line: str, doc: Document, context: ParseContext):
+def _handle_annotation_line(line: str, doc: Document, context: ParseContext) -> None:
     if not context.layer_field_names:
         context.layer_field_names = _layer_field_names(doc)
     token, raw_feature_values = _parse_line(line)
@@ -215,7 +215,7 @@ def _handle_annotation_line(line: str, doc: Document, context: ParseContext):
     doc.tokens.append(token)
 
 
-def _parse_line(line):
+def _parse_line(line) -> tuple:
     parts = line.split("\t")
     (sentence_num, token_num) = parts[0].split("-")
     (start_offset, end_offset) = parts[1].split("-")
@@ -243,7 +243,7 @@ def _filter_sentences(lines: list[str]) -> list[str]:
     return [MULTILINE_SPLIT_CHAR.join(group) for group in text_groups]
 
 
-def _handle_span_layer(line: str, doc: Document):
+def _handle_span_layer(line: str, doc: Document) -> None:
     parts = line.replace(PREFIX_SPAN_LAYER, "").split('|')
     features = []
     i = 1
@@ -263,7 +263,7 @@ def _handle_span_layer(line: str, doc: Document):
     doc.layers.append(Layer(name=(parts[0]), features=features))
 
 
-def _layer_field_names(doc):
+def _layer_field_names(doc) -> list:
     layer_field_names = []
     for _layer in doc.layers:
         for _feature in _layer.features:
@@ -304,15 +304,15 @@ def _read_label_and_id(feature_value: str, is_slot_feature: bool) -> Tuple[str, 
         return handle_label(feature_value), NO_LABEL_ID
 
 
-def _is_slot_feature(f):
+def _is_slot_feature(f) -> bool:
     return isinstance(f, SlotFeature)
 
 
-def _has_slot_feature(layer: Layer):
+def _has_slot_feature(layer: Layer) -> bool:
     return any([_is_slot_feature(f) for f in layer.features])
 
 
-def _process_slot_features(doc: Document):
+def _process_slot_features(doc: Document) -> None:
     layers_with_slot_features = [_layer.name for _layer in doc.layers if _has_slot_feature(_layer)]
     layer_idx = {_layer.name: _layer for _layer in doc.layers}
     annotations_with_slot_features = [a for a in doc.annotations

@@ -5,7 +5,7 @@ from icecream import ic
 from loguru import logger
 from omegaconf import DictConfig
 
-from globalise_tools.inception_client import InceptionClient, Document
+from globalise_tools.inception_client import Document, InceptionClient
 
 
 @logger.catch
@@ -22,7 +22,7 @@ def main(cfg: DictConfig) -> None:
     list_all(client)
 
 
-def create_project(client: InceptionClient):
+def create_project(client: InceptionClient) -> None:
     response = client.create_project(name="my-project", title="a test project")
     response = client.create_project_document(project_id=4,
                                               name="test-doc",
@@ -31,7 +31,7 @@ def create_project(client: InceptionClient):
     ic(response)
 
 
-def list_all(client: InceptionClient):
+def list_all(client: InceptionClient) -> None:
     for project in client.get_projects():
         if project.name == 'globalise-2023':
             ic(project)

@@ -10,7 +10,7 @@ file = "/Users/bram/workspaces/globalise/globalise-tools/data/globalise-word-joi
 
 
 @logger.catch
-def main():
+def main() -> None:
     with open(file) as f:
         reader = csv.DictReader(f)
         records = [r for r in reader]
@@ -35,7 +35,7 @@ def tokenize(nlp, text: str) -> list[str]:
     return tokens
 
 
-def extract_tokenized_paragraph_markers(np_records):
+def extract_tokenized_paragraph_markers(np_records) -> None:
     spacy_core = "nl_core_news_lg"
     nlp = spacy.load(spacy_core)
     paragraph_markers = []

@@ -51,8 +51,11 @@ def xml_fingerprint(xml_dicts: list[dict[str, object]]) -> tuple:
     return new_paths, element_attributes
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Show the (combined) unique element paths and element attributes of the provided xml files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -62,7 +65,7 @@ def get_arguments():
 
 
 @logger.catch
-def show_xml_fingerprints(paths: list[str]):
+def show_xml_fingerprints(paths: list[str]) -> None:
     pages = []
     for path in paths:
         with open(path) as f:

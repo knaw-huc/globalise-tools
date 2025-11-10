@@ -4,7 +4,7 @@ from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
 from loguru import logger
-from progressbar import Bar, ETA, Timer, SimpleProgress, ProgressBar
+from progressbar import ETA, Bar, ProgressBar, SimpleProgress, Timer
 
 
 @dataclass_json
@@ -40,7 +40,7 @@ def as_time_span(dates: list[str]) -> TimeSpan:
     return TimeSpan(end_of_the_begin=highest, begin_of_the_end=lowest)
 
 
-def convert_inventory2dates():
+def convert_inventory2dates() -> None:
     in_path = "data/inventory2dates.json"
     out_path = "data/inventory2timespan.json"
 
@@ -65,7 +65,7 @@ def convert_inventory2dates():
         json.dump(inventory2timespan, fp=f, indent=2)
 
 
-def main():
+def main() -> None:
     convert_inventory2dates()
 
 

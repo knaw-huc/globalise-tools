@@ -1,12 +1,14 @@
 #!/usr/bin/env python3
 import argparse
 import json
+from argparse import Namespace
 from itertools import groupby
+from pathlib import Path
 
 from loguru import logger
 
 
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Group web-annotations to an AnnotationPage, per page",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -23,14 +25,14 @@ def as_item(a: dict[str, object]) -> dict[str, object]:
 
 
 def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict[str, object]],
-                          canvas_dimensions: list[list[str]]):
+                          canvas_dimensions: list[list[str]]) -> None:
     inv_nr = pageid.split("_")[-2]
-    page_no = pageid.split("_")[-1]
+    page_no = int(pageid.split("_")[-1])
     context = ["http://iiif.io/api/presentation/3/context.json"]
     annotation_context = page_annotations[0]["@context"]  # assumption: all annotations have the same @context
     context += annotation_context
     items = [as_item(a) for a in page_annotations]
-    width, height = canvas_dimensions[int(page_no) - 1]
+    width, height = canvas_dimensions[page_no - 1]
     page = {
         "@context": context,
         "type": "AnnotationPage",
@@ -39,15 +41,15 @@ def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict
         "partOf": {
             "id": f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}",
             "type": "Canvas",
-            "height": height,
-            "width": width
+            "width": width,
+            "height": height
         },
         "items": items
     }
-    out_path = f"{out_dir}/annotation-page_{pageid}.json"
+    out_path = f"{out_dir}/{pageid}.json"
     logger.info(f"=> {out_path}")
     with open(out_path, "w") as f:
-        json.dump(page, f)
+        json.dump(page, f, indent=2, ensure_ascii=False)
 
 
 def page_id(annotation: dict[str, object]) -> str:
@@ -65,9 +67,10 @@ def load_manifest(inv_nr: str) -> dict[str, object]:
     return manifest
 
 
-def group_to_page(annotations_path: str):
+def group_to_page(annotations_path: str) -> None:
     logger.info(f"<= {annotations_path}")
-    out_dir = "/".join(annotations_path.split("/")[:-1])
+    out_dir = "/".join(annotations_path.split("/")[:-1]) + "/entities"
+    Path(out_dir).mkdir(parents=True, exist_ok=True)
     inv_nr = annotations_path.split("/")[1]
     manifest = load_manifest(inv_nr)
     canvas_dimensions = [[c["width"], c["height"]] for c in manifest["items"]]
@@ -81,7 +84,7 @@ def group_to_page(annotations_path: str):
 
 
 @logger.catch
-def main():
+def main() -> None:
     args = get_arguments()
     group_to_page(args.annotations)
 

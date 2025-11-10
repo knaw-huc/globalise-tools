@@ -1,10 +1,10 @@
 #!/usr/bin/env python3
 import argparse
+from argparse import Namespace
 
 from blessedtable import Blessedtable
 from colorama import Fore
 from loguru import logger
-
 
 # data_dir = "data/inception_output"
 #
@@ -61,7 +61,7 @@ from loguru import logger
 #
 
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Show a webannno-tsv file in a more readable format",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -72,7 +72,7 @@ def get_arguments():
 
 
 @logger.catch
-def display_webanno_tsv(file: str):
+def display_webanno_tsv(file: str) -> None:
     with open(file) as f:
         lines = f.readlines()
     in_table = False
@@ -102,7 +102,7 @@ def display_webanno_tsv(file: str):
         print_table(rows, table, layer_feature_count)
 
 
-def print_table(rows, table, layer_feature_count):
+def print_table(rows, table, layer_feature_count) -> None:
     column_format = init_column_format(layer_feature_count)
     row_size = len(rows[0])
     header_row = ["id", "char-range", "token"] + ([""] * (row_size - 3))
@@ -113,7 +113,7 @@ def print_table(rows, table, layer_feature_count):
     print(table.draw())
 
 
-def init_column_format(layer_feature_count):
+def init_column_format(layer_feature_count) -> list:
     colors = ['bright_white', 'bright_green', 'bright_blue', 'bright_cyan', 'bright_yellow', 'bright_magenta']
     start = 0
     column_format = []
@@ -137,19 +137,19 @@ def is_layer_definition(line: str) -> bool:
     return line.startswith("#T_")
 
 
-def blue(text: str):
+def blue(text: str) -> str:
     return colorize(text, Fore.LIGHTBLUE_EX)
 
 
-def yellow(text: str):
+def yellow(text: str) -> str:
     return colorize(text, Fore.YELLOW)
 
 
-def green(text: str):
+def green(text: str) -> str:
     return colorize(text, Fore.LIGHTGREEN_EX)
 
 
-def colorize(text: str, text_color: str):
+def colorize(text: str, text_color: str) -> str:
     return f"{text_color}{text}{Fore.RESET}"
 
 

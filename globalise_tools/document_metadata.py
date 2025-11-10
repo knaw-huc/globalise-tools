@@ -37,7 +37,7 @@ class DocumentMetadata:
     external_id: str = field(init=False)
     pagexml_ids: list[str] = field(init=False)
 
-    def __post_init__(self):
+    def __post_init__(self) -> None:
         if self.no_of_pages:
             self.no_of_pages = int(self.no_of_pages)
         else:

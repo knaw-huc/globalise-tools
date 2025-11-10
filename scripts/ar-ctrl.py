@@ -107,7 +107,7 @@ wa = [
 
 
 @logger.catch
-def access_annorepo(base_uri: str, api_key: str, container_name: str):
+def access_annorepo(base_uri: str, api_key: str, container_name: str) -> None:
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
     # container_name = "tmp"
@@ -125,7 +125,7 @@ def make_chunks_of_size(chunk_size, big_list):
     return chunked_list
 
 
-def upload_annotations(arc, container_name):
+def upload_annotations(arc, container_name) -> None:
     print(f"uploading annotations to container {container_name}:")
     for a in wa:
         print(f"reading {a}")
@@ -140,13 +140,16 @@ def upload_annotations(arc, container_name):
             # ic(r)
 
 
-def make_container(arc, container_name):
+def make_container(arc, container_name) -> None:
     (eTag, location, json_content) = arc.create_container(container_name, "Container for globalise annotations")
     ic(eTag, location, json_content)
 
 
+from argparse import Namespace
+
+
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Access an annorepo instance",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)

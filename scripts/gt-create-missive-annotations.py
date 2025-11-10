@@ -7,7 +7,7 @@ import hydra
 from loguru import logger
 from omegaconf import DictConfig
 
-from globalise_tools.model import WebAnnotation, AnnotationEncoder
+from globalise_tools.model import AnnotationEncoder, WebAnnotation
 from globalise_tools.tools import WebAnnotationFactory
 
 missiven = 'data/generale_missiven.csv'
@@ -32,7 +32,7 @@ def as_metadata(missive_record: dict[str, object]) -> dict[str, object]:
     return metadata
 
 
-def store_annotations(annotations):
+def store_annotations(annotations) -> None:
     path = "out/missive_annotations.json"
     logger.debug(f"=> {path}")
     with open(path, "w") as f:
@@ -132,7 +132,7 @@ def main(cfg: DictConfig) -> None:
             print(f"{m['Inv.nr. Nationaal Archief (1.04.02)']}; {m['Problemen gevonden tijdens handmatige check:']}")
 
 
-def segment_range(web_annotation: dict[str, object]):
+def segment_range(web_annotation: dict[str, object]) -> tuple:
     targets = web_annotation['target']
     text_anchor_target = [t for t in targets if t['type'] == 'Text' and 'selector' in t]
     # ic(text_anchor_target, len(text_anchor_target))

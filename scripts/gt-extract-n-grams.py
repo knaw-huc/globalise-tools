@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from argparse import Namespace
 from collections import Counter
 
 import pagexml.helper.pagexml_helper as pxh
@@ -8,7 +9,7 @@ from loguru import logger
 
 
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract paragraph text from a PageXML file, and export the n-grams",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -22,7 +23,7 @@ def get_arguments():
 word_break_chars = '„¬'
 
 
-def extract_ngrams(page_xml_paths: list[str]):
+def extract_ngrams(page_xml_paths: list[str]) -> None:
     word_counter = Counter()
     for page_xml_path in page_xml_paths:
         logger.info(f"<= {page_xml_path}")

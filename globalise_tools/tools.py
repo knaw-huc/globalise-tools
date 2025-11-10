@@ -7,10 +7,12 @@ from dataclasses_json import dataclass_json
 from icecream import ic
 from intervaltree import IntervalTree
 from loguru import logger
-from pagexml.model.physical_document_model import Coords, PageXMLScan, PageXMLTextRegion, PageXMLWord
+from pagexml.model.physical_document_model import (Coords, PageXMLScan,
+                                                   PageXMLTextRegion,
+                                                   PageXMLWord)
 
 from globalise_tools.lang_deduction import LangDeduction
-from globalise_tools.model import Document, WebAnnotation, DocumentMetadata
+from globalise_tools.model import Document, DocumentMetadata, WebAnnotation
 from globalise_tools.nav_provider import NavProvider
 
 PAGE_TYPE = "px:Page"
@@ -96,11 +98,11 @@ class Annotation:
 
 
 class IdDispenser:
-    def __init__(self, prefix: str):
+    def __init__(self, prefix: str) -> None:
         self.prefix = prefix
         self.counter = 0
 
-    def next(self):
+    def next(self) -> str:
         self.counter += 1
         return f"{self.prefix}{self.counter}"
 
@@ -108,14 +110,14 @@ class IdDispenser:
 class WebAnnotationFactory:
     ANNO_CONTEXT = "https://knaw-huc.github.io/ns/huc-di-tt.jsonld"
 
-    def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str):
+    def __init__(self, iiif_mapping_file: str, textrepo_base_uri: str) -> None:
         self.iiif_base_url_idx = {}
         self.textrepo_base_uri = textrepo_base_uri
         self._init_iiif_base_url_idx(iiif_mapping_file)
         self._iiif_mapping_file = iiif_mapping_file
 
     @logger.catch
-    def annotation_targets(self, annotation: Annotation):
+    def annotation_targets(self, annotation: Annotation) -> list:
         targets = []
         page_id = annotation.page_id
         canvas_id = self._get_canvas_id(page_id)
@@ -148,18 +150,18 @@ class WebAnnotationFactory:
         return targets
 
     @staticmethod
-    def _to_xywh(coords: Coords):
+    def _to_xywh(coords: Coords) -> str:
         return f"{coords.left},{coords.top},{coords.width},{coords.height}"
 
     @staticmethod
-    def _get_canvas_id(page_id):
+    def _get_canvas_id(page_id) -> str:
         parts = page_id.split('_')
         inventory_number = parts[-2]
         page_num = parts[-1].lstrip("0")
         canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
         return canvas_id
 
-    def _init_iiif_base_url_idx(self, path: str):
+    def _init_iiif_base_url_idx(self, path: str) -> None:
         logger.info(f"<= {path}...")
         with open(path) as f:
             reader = csv.DictReader(f)
@@ -206,7 +208,7 @@ class WebAnnotationFactory:
             return ""
         return self.iiif_base_url_idx[page_id]
 
-    def _make_text_targets(self, annotation: Annotation):
+    def _make_text_targets(self, annotation: Annotation) -> list[dict]:
         _physical_text_anchor_selector_target = self.physical_text_anchor_selector_target(annotation.physical_span)
         _physical_cutout_target = self.physical_text_cutout_target(annotation.physical_span)
         _logical_text_anchor_selector_target = self.logical_text_anchor_selector_target(annotation.logical_span)
@@ -301,7 +303,7 @@ class WebAnnotationFactory:
         }
 
     @staticmethod
-    def _svg_selector(coords_list):
+    def _svg_selector(coords_list) -> dict[str, str]:
         path_defs = []
         height = 0
         width = 0
@@ -318,14 +320,14 @@ class WebAnnotationFactory:
         }
 
 
-def na_url(file_path):
+def na_url(file_path) -> str:
     file_name = file_path.split('/')[-1]
     file = file_name.replace('.xml', '')
     inv_nr = file_name.split('_')[2]
     return f"https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/invnr/{inv_nr}/file/{file}"
 
 
-def tr_url(file_path):
+def tr_url(file_path) -> str:
     file_name = file_path.split('/')[-1]
     basename = file_name.replace('.xml', '')
     return f"https://globalise.tt.di.huc.knaw.nl/textrepo/task/find/{basename}/file/contents?type=pagexml"
@@ -368,7 +370,7 @@ def to_display_words(px_words: list[PXWord], ids: IdDispenser) -> list[DisplayWo
     return new_words
 
 
-def determine_word_separator(i, next_word, px_words, px_words_len):
+def determine_word_separator(i, next_word, px_words, px_words_len) -> str:
     if (i + 2) >= px_words_len:
         word_separator = ""
     else:
@@ -410,7 +412,7 @@ def extract_px_elements(scan_doc: PageXMLScan) -> (list[PXTextRegion], list[PXTe
     return text_regions, text_lines, px_words
 
 
-def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_regions):
+def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_regions) -> None:
     first_line_index = len(text_lines)
     for line in [line for line in tr.lines if line.text]:
         collect_elements_from_line(line, tr, page_id, px_words, text_lines)
@@ -447,7 +449,7 @@ def collect_elements_from_text_region(tr, page_id, px_words, text_lines, text_re
         )
 
 
-def collect_elements_from_line(line, tr, page_id, px_words, text_lines):
+def collect_elements_from_line(line, tr, page_id, px_words, text_lines) -> None:
     if line.words:
         first_line_word_index = len(px_words)
         for i, w in enumerate(line.words):
@@ -596,7 +598,7 @@ def word_annotation(id_prefix, stripped, text, w) -> Annotation:
     )
 
 
-def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str):
+def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset: int, par_length: int, text: str) -> Annotation:
     return Annotation(
         type="tt:Paragraph",
         id=f"urn:example:globalise:{base_name}:paragraph:{par_num}",
@@ -610,7 +612,7 @@ def paragraph_annotation(base_name: str, page_id: str, par_num: int, par_offset:
     )
 
 
-def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int):
+def token_annotation(base_name, page_id, token_num, offset, token_length, token_text, sentence_num: int) -> Annotation:
     return Annotation(
         type="tt:Token",
         id=f"urn:example:globalise:{base_name}:token:{token_num}",
@@ -648,7 +650,7 @@ def to_web_annotation(annotation: Annotation, webannotation_factory: WebAnnotati
     return WebAnnotation(body=body, target=targets)
 
 
-def annotation_body(annotation: Annotation):
+def annotation_body(annotation: Annotation) -> dict:
     body = {
         "@context": {"tt": "https://knaw-huc.github.io/ns/team-text#", "px": "https://knaw-huc.github.io/ns/pagexml#"},
         "id": annotation.id,
@@ -668,7 +670,7 @@ def is_paragraph(text_region: PageXMLTextRegion) -> bool:
     return text_region_type_is(text_region, "paragraph")
 
 
-def text_region_type_is(text_region, text_region_type):
+def text_region_type_is(text_region, text_region_type) -> bool:
     return text_region.type[-1] == text_region_type
 
 
@@ -708,14 +710,14 @@ def paragraph_text(lines: list[str]) -> str:
         return ""
 
 
-def print_annotations(cas):
+def print_annotations(cas) -> None:
     for a in cas.views[0].get_all_annotations():
         print(a)
         print(f"'{a.get_covered_text()}'")
         print()
 
 
-def join_words(px_words):
+def join_words(px_words) -> str:
     text = ""
     last_text_region = None
     last_line = None
@@ -732,7 +734,7 @@ def join_words(px_words):
     return text.strip()
 
 
-def seconds_to_hhmmss(seconds):
+def seconds_to_hhmmss(seconds) -> str:
     hours = int(seconds // 3600)
     minutes = int((seconds % 3600) // 60)
     seconds = int(seconds % 60)
@@ -812,11 +814,11 @@ def make_word_interval_tree(
     return itree
 
 
-def needs_finding(substring):
+def needs_finding(substring) -> bool:
     return any(char.isdigit() or char.isalpha() for char in substring)
 
 
-def needs_finding0(substring):
+def needs_finding0(substring) -> bool:
     return substring not in WORD_BREAK_CHARACTERS and substring not in ['„.', '.„', '-„', '„-', '_„', '„_']
 
 
