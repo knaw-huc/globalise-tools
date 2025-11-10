@@ -13,7 +13,7 @@ from datetime import datetime
 from functools import cache
 from itertools import groupby
 from multiprocessing import Value
-from typing import Any, Tuple
+from typing import Tuple
 
 import cassis as cas
 import multiprocess as mp
@@ -211,7 +211,8 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, list[str | dict[str, str]] | str | list[str]]:
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[
+        str, list[str | dict[str, str]] | str | list[str]]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -378,7 +379,8 @@ class XMIProcessor:
             raise Exception(f"unknown presentation_version: {presentation_version}")
 
     @staticmethod
-    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh) -> dict[str, str | list[str] | list[dict[str, str]]]:
+    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh) -> dict[
+        str, str | list[str] | list[dict[str, str]]]:
         return {
             "@id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             "@type": "oa:Annotation",
@@ -460,7 +462,7 @@ class XMIProcessor:
             "name": THIS_SCRIPT_PATH
         }
 
-    def _named_entity_body(self, feature_structure: FeatureStructure) -> list:
+    def _named_entity_body(self, feature_structure: FeatureStructure) -> list | dict[str, object]:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         body_type = ner_data['body_type']
@@ -481,7 +483,7 @@ class XMIProcessor:
         else:
             raise Exception(f"unknown body_type: {body_type}")
 
-    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, dict[str, Any] | dict[str, str]]:
+    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "appellative_status") | {
             "has_appellative_subject": {
                 "id": self._new_id(ner_data['appellative_subject']),
@@ -499,7 +501,7 @@ class XMIProcessor:
             },
         }
 
-    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, dict[str, Any] | dict[str, str]]:
+    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "classificatory_status") | {
             "has_classificatory_subject": {
                 "id": self._new_id(ner_data['classificatory_subject']),
@@ -513,7 +515,7 @@ class XMIProcessor:
             },
         }
 
-    def _as_dimension_body(self, ner_data, covered_text: str) -> dict[str, str]:
+    def _as_dimension_body(self, ner_data, covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "dimension") | {
             "value": covered_text
         }
@@ -533,7 +535,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, Any]]]:
+    def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, object]]]:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         entity_uri = ner_data['uri']
@@ -696,7 +698,8 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[
+        str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -858,7 +861,6 @@ class XMIProcessorFactory:
         ts = self.timespan4inventory.get(inv_nr, {})
         return {
             "type": "TimeSpan",
-            "id": f"urn:example:globalise:timespan:{inv_nr}",
             "end_of_the_begin": ts["end_of_the_begin"],
             "begin_of_the_end": ts["begin_of_the_end"],
         }
