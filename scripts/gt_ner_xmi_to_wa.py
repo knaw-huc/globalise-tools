@@ -67,7 +67,7 @@ class XMIProcessor:
     max_fix_len = 20
 
     def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2,
-                 time_span=dict[str, str]) -> None:
+                 time_span: dict[str, str] = None) -> None:
         self.time_span = time_span
         self.typesystem = typesystem
         self.document_data = document_data
@@ -292,6 +292,7 @@ class XMIProcessor:
                 "https://ns.huc.knaw.nl/globalise.jsonld",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
                 "http://www.w3.org/ns/anno.jsonld",
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
                 {
                     "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
                     "iiif": "http://iiif.io/api/presentation/3#"
@@ -462,7 +463,7 @@ class XMIProcessor:
             "name": THIS_SCRIPT_PATH
         }
 
-    def _named_entity_body(self, feature_structure: FeatureStructure) -> list | dict[str, object]:
+    def _named_entity_body(self, feature_structure: FeatureStructure) -> list:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         body_type = ner_data['body_type']
@@ -475,11 +476,11 @@ class XMIProcessor:
             cBody = self._as_classificatory_status_body(c_data, covered_text)
             return [aBody, cBody]
         elif body_type == "AppellativeStatus":
-            return self._as_appellative_status_body(ner_data, covered_text)
+            return [self._as_appellative_status_body(ner_data, covered_text)]
         elif body_type == "ClassificatoryStatus":
-            return self._as_classificatory_status_body(ner_data, covered_text)
+            return [self._as_classificatory_status_body(ner_data, covered_text)]
         elif body_type == "Dimension":
-            return self._as_dimension_body(ner_data, covered_text)
+            return [self._as_dimension_body(ner_data, covered_text)]
         else:
             raise Exception(f"unknown body_type: {body_type}")
 
