@@ -49,7 +49,7 @@ NER_DATA_DICT = {
         'label': 'Name of Commodity',
         'entity_type': f'{prefix}:Commodity',
         'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'PhysicalThing'
+        'classificatory_subject': 'Dimension'
     },
     'CMTY_QUAL': {
         'uri': f'{ner_base}:CMTY_QUAL',
