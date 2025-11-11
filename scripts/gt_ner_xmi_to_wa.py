@@ -13,7 +13,7 @@ from datetime import datetime
 from functools import cache
 from itertools import groupby
 from multiprocessing import Value
-from typing import Tuple
+from typing import Tuple, Any
 
 import cassis as cas
 import multiprocess as mp
@@ -32,6 +32,8 @@ from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
 from globalise_tools.model import ImageData
 from globalise_tools.tools import inv_nr_sort_key
+
+GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -58,9 +60,6 @@ def show_progress(future) -> None:
         logger.info(
             f"finished inventory {counter.value}/{total.value} ({percentage_done:.2f}% done); estimated time remaining: {seconds_remaining}")
         # logger.info(f"all circuits closed: {CircuitBreakerMonitor.all_closed()}")
-
-
-from typing import Any
 
 
 class XMIProcessor:
@@ -301,7 +300,7 @@ class XMIProcessor:
             "id": anno_id,
             "type": ["Annotation", "DigitalObject"],
             "created": datetime.today().isoformat(),
-            "generator": self._generator(),
+            "created_by": self._creator(),
             "motivation": "classifying",
             "body": body,
             "target": targets
@@ -425,7 +424,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _version_3_annotation(canvas_id, printable_entity_type, svg, text) -> dict[str, str | list | dict[str, Any]]:
+    def _version_3_annotation(canvas_id, printable_entity_type, svg, text) -> dict[str, str | list | dict[str, object]]:
         body = [
             {
                 "type": "TextualBody",
@@ -451,6 +450,26 @@ class XMIProcessor:
                     "type": "SvgSelector",
                     "value": svg
                 }
+            }
+        }
+
+    def _creator(self) -> dict[str, str]:
+        ts = datetime.today().isoformat()
+        return {
+            "type": "DigitalMachineEvent",
+            "_label": "Creation of Web Annotations from Named Entity output in XMI format, using... etc.",
+            "carried_out_by": GLOBALISE_TEAM,
+            "timespan": {
+                "type": "TimeSpan",
+                "end_of_the_begin": ts,
+                "begin_of_the_end": ts,
+            },
+            "used_software_or_firmware": {
+                "id": "https://github.com/knaw-huc/globalise-tools/blob/"
+                      f"{self.commit_id}"
+                      f"/{THIS_SCRIPT_PATH}",
+                "type": "Software",
+                "name": THIS_SCRIPT_PATH,
             }
         }
 
