@@ -76,8 +76,8 @@ NER_DATA_DICT = {
         'uri': f'{ner_base}:DOC',
         'label': 'Document',
         'entity_type': f'{prefix}:Document',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'HumanMadeObject'
+        'body_type': 'ClassificatoryStatus',
+        'classificatory_subject': 'HumanMadeObject'
     },
     'ETH_REL': {
         'uri': f'{ner_base}:ETH_REL',
