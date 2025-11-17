@@ -112,21 +112,26 @@ Omwille van de consistentie zou het handig kunnen zijn om bijvoorbeeld de body v
 2025-11-14
 
 Leon:
-Vraag over de herordende PageXML's (met bijbehorende XMI's):
-Vergeleken met de eerdere PageXML (ook van data op Dataverse) ontbreken:
-1996
-2039
-2040
-2041
-Daarvan kan ik geen pagexml en geen xmi vinden in HucDrive.
-En van deze twee inventarisnummers heb ik wel een pagexml, maar geen xmi:
-2022
-2023
-Zou je die nog kunnen maken/genereren en in HuCDrive kunnen zetten?
+    Vraag over de herordende PageXML's (met bijbehorende XMI's):
+    Vergeleken met de eerdere PageXML (ook van data op Dataverse) ontbreken:
+    1996
+    2039
+    2040
+    2041
+    Daarvan kan ik geen pagexml en geen xmi vinden in HucDrive.
+    En van deze twee inventarisnummers heb ik wel een pagexml, maar geen xmi:
+    2022
+    2023
+    Zou je die nog kunnen maken/genereren en in HuCDrive kunnen zetten?
 
+
+- hucdrive: https://hucdrive.huc.knaw.nl/#/globalise/
 - in workspaces/globalise/globalise-tools
-- `.local/missing-invnrs.lst`
+- inv.nrs in  `.local/missing-invnrs.lst`
 ```
+make install-spacy-model
+# copy relevant xml from Crucial drive
 for i in $(cat .local/missing-invnrs.lst); do cp -r ~/c/data/globalise/pagexml/$i .local/xml/; done
+for i in $(cat .local/missing-invnrs.lst); do poetry run ./scripts/gt-fix-pagexml-and-generate-xmi.sh $i; done
 ```
-- 
+---
