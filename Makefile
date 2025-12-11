@@ -1,6 +1,9 @@
 all: help
 SHELL=/bin/bash
 
+pagexml_directory := ~/c/data/globalise/pagexml
+xmi_directory := ~/c/data/globalise/ner
+
 data/iiif-url-mapping.csv: scripts/gt-map-pagexml-to-iiif-url.py data/NL-HaNA_1.04.02_mets.csv
 	poetry run scripts/gt-map-pagexml-to-iiif-url.py --data-dir data
 
@@ -93,15 +96,29 @@ run-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
 
 .PHONY: process-ner-xmi
-process-ner-xmi:
+process-ner-xmi: ./scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
 	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY)
+	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+		--pagexml-dir ~/c/data/globalise/pagexml \
+		--xmi-dir ~/c/data/globalise/ner \
+		--type-system=data/typesystem.xml \
+		--output-dir=out \
+		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+		--api-key=$(TEXTREPO_API_KEY)
+
+out/3598/ner-annotations.json: ./scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
+	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+		--pagexml-dir ~/c/data/globalise/pagexml \
+		--xmi-dir .local/new \
+		--type-system=data/typesystem.xml \
+		--output-dir=out \
+		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+		--api-key=$(TEXTREPO_API_KEY) \
+		--inv-nr=3598
 
 .PHONY: process-ner-xmi-3598
-process-ner-xmi-3598:
-	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY) --inv-nr=3598
-	jql . out/3598/ner-annotations.json
+process-ner-xmi-3598: out/3598/ner-annotations.json
 
 .PHONY: stop-inception
 stop-inception:
