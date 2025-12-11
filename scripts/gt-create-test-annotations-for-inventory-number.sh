@@ -1,8 +1,11 @@
 #!/usr/bin/env bash
+
+# create transcriptions and entries annotation pages for all the pagexml files in the given inv_nr
+
 inv_nr=$1
 poetry run ./scripts/gt_ner_xmi_to_wa.py \
   --pagexml-dir ~/c/data/globalise/pagexml \
-  --xmi-dir ~/c/data/globalise/ner \
+  --xmi-dir .local/new \
   --type-system=data/typesystem.xml \
   --output-dir=out \
   --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
