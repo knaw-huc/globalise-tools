@@ -535,10 +535,28 @@ class XMIProcessor:
             },
         }
 
-    def _as_dimension_body(self, ner_data, covered_text: str) -> dict[str, object]:
-        return self._as_base_ner_body(ner_data, "dimension") | {
-            "value": covered_text
-        }
+    def _as_dimension_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
+        base = self._as_base_ner_body(ner_data, "dimension")
+        parts = covered_text.split()
+        if len(parts) > 1:
+            value = parts[0]
+            unit = " ".join(parts[1:])
+            # ic(value, unit)
+            unit_name = unit.replace(" ", "-")
+            return base | {
+                "value": value,
+                "unit": {
+                    "id": f"urn:example:globalise:exchangeunit:{unit_name}",
+                    "type": "ExchangeUnit",
+                    "_label": unit
+                }
+            }
+        else:
+            value = covered_text
+            return base | {"value": value}
+        # return self._as_base_ner_body(ner_data, "dimension") | {
+        #     "value": value
+        # }
 
     def _as_base_ner_body(self, ner_data, base_name: str) -> dict[str, object]:
         entity_uri = ner_data['uri']
