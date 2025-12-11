@@ -209,7 +209,7 @@ def generate_transcription_annotation_page1(out_dir: str, pagexml_path: str, pag
 
 
 @logger.catch
-def main() -> None:
+def main():
     args = get_arguments()
     Path(args.out_dir).mkdir(parents=True, exist_ok=True)
     # generate_transcription_annotation_page(args.out_dir, pagexml)

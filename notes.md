@@ -135,3 +135,11 @@ for i in $(cat .local/missing-invnrs.lst); do cp -r ~/c/data/globalise/pagexml/$
 for i in $(cat .local/missing-invnrs.lst); do poetry run ./scripts/gt-fix-pagexml-and-generate-xmi.sh $i; done
 ```
 ---
+In https://gitlab.huc.knaw.nl/globalise/web-annotation-testset/-/tree/develop/3598 staan de resultaten van de nieuwe conversie van 3589, met in samples weer json en ttl samples van de diverse entiteitstypen.
+
+In https://github.com/globalise-huygens/document-view-sandbox/tree/transcriptions-3598/static/iiif/annotations heb ik de nieuwe annotationlists gezet van 3589
+
+Hierbij zijn de volgende punten verwezenlijkt:
+- TimeSpans hoeven geen URI te krijgen ( https://gitlab.huc.knaw.nl/globalise/web-annotation-testset/-/blob/develop/3589/samples/cmty_name.ttl?ref_type=heads#L18 )
+- generator/created_by is aangepast: https://gitlab.huc.knaw.nl/globalise/web-annotation-testset/-/blob/develop/3589/samples/cmty_name.json?ref_type=heads#L19-33
+- 

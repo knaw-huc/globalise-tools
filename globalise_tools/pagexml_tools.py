@@ -127,7 +127,7 @@ def Annotation(
 
 # ---------------- Main converter ----------------
 
-def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_text: str) -> Dict[str, Any]:
+def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_text: str = "") -> Dict[str, Any]:
     annotations = []
 
     doc = ET.fromstring(xml_string)

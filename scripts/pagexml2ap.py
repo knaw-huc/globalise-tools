@@ -6,9 +6,12 @@ from globalise_tools.pagexml_tools import convert_pagexml_to_web_annotations
 
 # ---------------- CLI ----------------
 
-def main() -> None:
+def main():
     if len(sys.argv) != 4:
         print("Usage: python pagexml2wa.py <inputPath> <canvas_id> <outputPath>", file=sys.stderr)
+        print("  inputPath : path to pagexml file")
+        print("  canvas_id : id of the canvas to use")
+        print("  outputPath: path to the annotation page file to create")
         sys.exit(1)
 
     input_path, canvas_id, output_path = sys.argv[1:4]
