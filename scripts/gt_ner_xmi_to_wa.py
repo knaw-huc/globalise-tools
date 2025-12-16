@@ -13,7 +13,7 @@ from datetime import datetime
 from functools import cache
 from itertools import groupby
 from multiprocessing import Value
-from typing import Tuple, Any
+from typing import Tuple, Any, Optional
 
 import cassis as cas
 import multiprocess as mp
@@ -46,6 +46,13 @@ start_time = Value('f', 0)
 MANIFEST_BASE_URL = "https://globalise-mirador.tt.di.huc.knaw.nl/globalise"
 # MANIFEST_BASE_URL = "http://localhost:8000/globalise"
 PRESENTATION_VERSION = 3
+
+
+@dataclass
+class Quant:
+    value: str
+    unit: Optional[str] = None
+    unit_name: Optional[str] = None
 
 
 def show_progress(future) -> None:
@@ -539,16 +546,13 @@ class XMIProcessor:
         base = self._as_base_ner_body(ner_data, "dimension")
         parts = covered_text.split()
         if len(parts) > 1:
-            value = parts[0]
-            unit = " ".join(parts[1:])
-            # ic(value, unit)
-            unit_name = unit.replace(" ", "-")
+            quant = self._split_cmty_quant(covered_text)
             return base | {
-                "value": value,
+                "value": quant.value,
                 "unit": {
-                    "id": f"urn:example:globalise:exchangeunit:{unit_name}",
+                    "id": f"urn:example:globalise:exchangeunit:{quant.unit_name}",
                     "type": "ExchangeUnit",
-                    "_label": unit
+                    "_label": quant.unit
                 }
             }
         else:
@@ -557,6 +561,64 @@ class XMIProcessor:
         # return self._as_base_ner_body(ner_data, "dimension") | {
         #     "value": value
         # }
+
+    @staticmethod
+    def _split_cmty_quant(cmty_quant: str) -> Quant:
+        parts = cmty_quant.split()
+
+        last_digit_part_index = -1
+
+        # Iterate backwards to find the index of the last word with a digit (0-9) or without alphabet characters
+        for i, word in reversed(list(enumerate(parts))):
+            if any(char.isdigit() for char in word) or not any(char.isalpha() for char in word):
+                last_digit_part_index = i
+                break
+
+        # Determine the split point
+        if last_digit_part_index == -1:
+            # No digits found anywhere in the string
+            split_index = 0
+        else:
+            # The split occurs immediately AFTER the last digit-containing word
+            split_index = last_digit_part_index + 1
+
+        # Split the list based on the calculated index
+        # Number part: words from the beginning up to the split index (exclusive).
+        # This includes any descriptive words that precede the number.
+        number_words_final = parts[:split_index]
+        # Unit part: words from the split index to the end.
+        unit_words_final = parts[split_index:]
+
+        # Join the words back into strings
+        number_part_str = " ".join(number_words_final)
+        unit_part_str = " ".join(unit_words_final)
+
+        # if not number_part_str:
+        #     number_part_str = unit_part_str
+        #     unit_part_str = ""
+
+        if not unit_part_str:
+            if number_part_str.startswith("ƒ"):
+                unit_part_str = "ƒ"
+                number_part_str = number_part_str[1:].strip()
+
+            if number_part_str.startswith("rd„s"):
+                unit_part_str = "Rijksdaalder"
+                number_part_str = number_part_str[4:].strip()
+
+            if number_part_str.startswith("rp„"):
+                unit_part_str = "Rupees"
+                number_part_str = number_part_str[3:].strip()
+
+        if unit_part_str.lower() == "rd„s":
+            unit_part_str = "Rijksdaalder"
+
+        if unit_part_str.lower() == "rp„":
+            unit_part_str = "Rupees"
+
+        unit_name = unit_part_str.replace(" ", "-").lower()
+
+        return Quant(number_part_str, unit_part_str, unit_name)
 
     def _as_base_ner_body(self, ner_data, base_name: str) -> dict[str, object]:
         entity_uri = ner_data['uri']
