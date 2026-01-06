@@ -30,7 +30,7 @@ import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
-from globalise_tools.model import ImageData
+from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
 
 GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
@@ -72,8 +72,16 @@ def show_progress(future) -> None:
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str, presentation_version: int = 2,
-                 time_span: dict[str, str] = None) -> None:
+    def __init__(
+            self,
+            typesystem,
+            document_data,
+            commit_id: str,
+            xmi_path: str,
+            offsets_path: str,
+            presentation_version: int = 2,
+            time_span: dict[str, str] = None
+    ) -> None:
         self.time_span = time_span
         self.typesystem = typesystem
         self.document_data = document_data
@@ -85,6 +93,7 @@ class XMIProcessor:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
+        self.htr_word_offset = self._load_word_offsets(offsets_path)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         # ic(md5)
         data = None
@@ -100,13 +109,14 @@ class XMIProcessor:
         # source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
         if data:
             self.plain_text_source = data['plain_text_source']
+            self.htr_text_source = data['plain_text_source'].replace("page", "page-htr")
             self.itree = IntervalTree([Interval(*iv) for iv in data['text_intervals']])
         else:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
-            # raise Exception(f"No document data found for {xmi_path}")
+            raise Exception(f"No document data found for {xmi_path}")
             # # todo: create plain_text_source and itree
-            self.plain_text_source = "urn:example:placeholder"
-            self.itree = IntervalTree()
+            # self.plain_text_source = "urn:example:placeholder"
+            # self.itree = IntervalTree()
 
     def text(self) -> str:
         return self.text
@@ -265,6 +275,8 @@ class XMIProcessor:
         #     logger.warning(
         #         f"{overlap_size} overlapping intervals for [{feature_structure_begin}:{feature_structure_end}]!")
         image_data_list = []
+        htr_start = 99999999
+        htr_end = 0
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
@@ -281,6 +293,33 @@ class XMIProcessor:
                 coords
             )
             image_data_list.append(image_data)
+
+            word_id = iv_data["word_id"]
+            htr_start = min(htr_start, self.htr_word_offset[word_id].begin)
+            htr_end = max(htr_end, self.htr_word_offset[word_id].end)
+
+        if htr_end > 0:
+            targets.append({
+                "type": "SpecificResource",
+                "source": {
+                    "id": self.htr_text_source,
+                    "type": ["DigitalObject", "Annotation"]
+                },
+                "selector": [
+                    text_quote_selector,
+                    {
+                        "type": "TextPositionSelector",
+                        "start": htr_start,
+                        "end": htr_end
+                    }
+                ]
+            })
+        else:
+            ic(overlapping_intervals, exact, feature_structure_begin, feature_structure_end, self.itree.items())
+            # targets.append({
+            #     "type": "SpecificResource",
+            #     "source": {}
+            # })
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
         for canvas_id, image_data_groups in grouped_image_data:
             image_data_list = [i for i in image_data_groups]
@@ -935,26 +974,44 @@ class XMIProcessor:
         id_counter.value += 1
         return num
 
+    @staticmethod
+    def _load_word_offsets(offsets_path: str) -> dict[str, Offset]:
+        logger.info(f"<= {offsets_path}")
+        with open(offsets_path, 'rb') as f:
+            items = json.load(f).items()
+        return {k: Offset(v['begin'], v['end']) for k, v in items}
+
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]]) -> None:
+    def __init__(
+            self,
+            typesystem_path: str,
+            word_offsets_dir: str,
+            timespan4inventory: dict[str, dict[str, str]]
+    ) -> None:
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
         self.commit_id = self._read_current_commit_id()
         self.timespan4inventory = timespan4inventory
+        self.word_offsets_dir = word_offsets_dir
 
     def get_xmi_processor(self, xmi_path: str, presentation_version: int = 2) -> XMIProcessor:
         inv_nr = xmi_path.split('/')[-2]
+        page_id = xmi_path.split('/')[-1].replace(".xmi", "")
         timespan = self._time_span(inv_nr)
-        return XMIProcessor(self.typesystem,
-                            self.document_data,
-                            self.commit_id,
-                            xmi_path,
-                            time_span=timespan,
-                            presentation_version=presentation_version)
+        offsets_path = f"{self.word_offsets_dir}/{page_id}.json"
+        return XMIProcessor(
+            self.typesystem,
+            self.document_data,
+            self.commit_id,
+            xmi_path,
+            offsets_path,
+            time_span=timespan,
+            presentation_version=presentation_version
+        )
 
     @cache
     def _time_span(self, inv_nr: str) -> dict[str, str]:
@@ -990,12 +1047,20 @@ def get_arguments() -> Namespace:
     parser.add_argument("-x",
                         "--xmi-dir",
                         help="The directory containing the xmi files, grouped by inventory number",
-                        type=str
+                        type=str,
+                        required=True
                         )
     parser.add_argument("-p",
                         "--pagexml-dir",
                         help="The directory containing the pagexml files, grouped by inventory number",
-                        type=str
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument("-w",
+                        "--word-offsets-dir",
+                        help="The directory containing the word offset files, one per page",
+                        type=str,
+                        required=True
                         )
     parser.add_argument("-t",
                         "--type-system",
@@ -1053,8 +1118,9 @@ def get_arguments() -> Namespace:
 
 def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
     logger.info(f"=> {out_path}")
+    # ic(ner_annotations[456])
     with open(out_path, 'w') as f:
-        json.dump(ner_annotations, fp=f, indent=4)
+        json.dump(ner_annotations, fp=f, indent=4, ensure_ascii=False)
 
 
 def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
@@ -1075,7 +1141,7 @@ def export_annotation_list(annotations: list[dict[str, object]], out_path: str, 
 
     # logger.info(f"=> {out_path}")
     with open(out_path, 'w') as f:
-        json.dump(anno_list, fp=f, indent=4)
+        json.dump(anno_list, fp=f, indent=4, ensure_ascii=False)
 
 
 def export_text(page_texts: list[str], out_path: str) -> None:
@@ -1119,11 +1185,19 @@ def store_processed_inventories(processed_inventories: list[str]) -> None:
     path = "out/processed_ner_inv.json"
     logger.info(f"=> {path}")
     with open(path, "w") as f:
-        json.dump(processed_inventories, fp=f)
+        json.dump(processed_inventories, fp=f, ensure_ascii=False)
 
 
-def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path: str, output_dir: str,
-                                textrepo_url: str, api_key: str, inv_nr: str = None) -> None:
+def extract_ner_web_annotations(
+        pagexml_dir: str,
+        xmi_dir: str,
+        word_offsets_dir: str,
+        type_system_path: str,
+        output_dir: str,
+        textrepo_url: str,
+        api_key: str,
+        inv_nr: str = None
+) -> None:
     timespan4inventory = load_timespan_dict()
     # trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
     # plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
@@ -1133,7 +1207,7 @@ def extract_ner_web_annotations(pagexml_dir: str, xmi_dir: str, type_system_path
     if inv_nr is not None:
         xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
 
-    xpf = XMIProcessorFactory(type_system_path, timespan4inventory)
+    xpf = XMIProcessorFactory(type_system_path, word_offsets_dir, timespan4inventory)
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
@@ -1149,7 +1223,8 @@ def load_timespan_dict() -> dict[str, dict[str, str]]:
         return json.load(f)
 
 
-def run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf) -> None:
+def run_in_parallel(output_dir: str, pagexml_dir: str, plain_text_file_type, trc, xmi_dirs,
+                    xpf) -> None:
     contexts = [
         InventoryProcessingContext(
             xmi_dir,
@@ -1251,7 +1326,7 @@ def store_manifest(inv_nr: str, manifest: dict[str, object]) -> None:
     manifest_path = f"out/{inv_nr}/{inv_nr}.json"
     logger.info(f"=> {manifest_path}")
     with open(manifest_path, 'w') as f:
-        json.dump(obj=manifest, fp=f)
+        json.dump(obj=manifest, fp=f, ensure_ascii=False)
 
 
 def handle_xmi(
@@ -1376,7 +1451,8 @@ def main() -> None:
     logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
     args = get_arguments()
     if args.xmi_dir:
-        extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.type_system, args.output_dir, args.text_repo,
+        extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.word_offsets_dir, args.type_system,
+                                    args.output_dir, args.text_repo,
                                     args.api_key, args.inv_nr)
 
 

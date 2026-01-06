@@ -1,14 +1,20 @@
-import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from json import JSONEncoder
 from typing import Optional
 
+import uuid
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
 
 import globalise_tools.tools as gt
+
+@dataclass_json
+@dataclass
+class Offset:
+    begin: int
+    end: int
 
 
 @dataclass
@@ -132,6 +138,7 @@ from typing import Any
 class AnnotationEncoder(JSONEncoder):
     def default(self, obj) -> Any:
         if isinstance(obj, gt.Annotation) \
+                or isinstance(obj, Offset) \
                 or isinstance(obj, gt.PXTextRegion) \
                 or isinstance(obj, gt.PXTextLine) \
                 or isinstance(obj, ScanCoords) \

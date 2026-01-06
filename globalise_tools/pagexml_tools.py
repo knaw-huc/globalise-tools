@@ -3,7 +3,7 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional
 
-from icecream import ic
+from globalise_tools.model import Offset
 
 ns = {
     'ns': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
@@ -127,7 +127,9 @@ def Annotation(
 
 # ---------------- Main converter ----------------
 
-def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_text: str = "") -> Dict[str, Any]:
+
+def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
+                                       page_text: str = "") -> Dict[str, Any]:
     annotations = []
 
     doc = ET.fromstring(xml_string)
@@ -146,7 +148,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_tex
 
     block_idx = line_idx = word_idx = 0
     page_anno_id = f"{base_id}#page"
-    full_text: List[str] = []
+    text_lines: List[str] = []
 
     # Regions
     for region in find_all(page, "TextRegion"):
@@ -180,7 +182,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_tex
             line_anno_id = f"{base_id}#{urllib.parse.quote(line_id_raw)}"
 
             if line_text:
-                full_text.append(line_text)
+                text_lines.append(line_text)
 
             if line_svg or line_text:
                 annotations.append(
@@ -230,7 +232,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_tex
             id=page_anno_id + "-htr",
             granularity="page-htr",
             canvas_id=canvas_id,
-            body_text="\n".join(filter(None, full_text)),
+            body_text="\n".join(text_lines),
         )
     )
 
@@ -259,3 +261,24 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str, page_tex
         }
 
     return annotation_page
+
+
+def get_word_offsets(xml_string: str) -> Dict[str, Offset]:
+    doc = ET.fromstring(xml_string)
+
+    # Root elements
+    page = find_first(doc, "Page")
+    word_idx = 0
+    htr_word_offset = {}
+    offset = 0
+
+    for region in find_all(page, "TextRegion"):
+        for line in find_all(region, "TextLine"):
+            for w in find_all(line, "Word"):
+                word_idx += 1
+                w_text = extract_text(w)
+                word_id_raw = get_attr(w, "id") or f"word{word_idx}"
+                htr_word_offset[word_id_raw] = Offset(offset, offset + len(w_text))
+                offset += len(w_text) + 1
+
+    return htr_word_offset

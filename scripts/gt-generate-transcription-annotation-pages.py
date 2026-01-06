@@ -23,7 +23,7 @@ def get_arguments() -> Namespace:
                         help="The (post-processed) plain text of the pagexml",
                         type=str
                         )
-    parser.add_argument("-o", "--out-dir",
+    parser.add_argument("-o", "--output-dir",
                         help="The directory to write the annotation pages to",
                         type=str
                         )
@@ -200,6 +200,7 @@ def generate_transcription_annotation_page1(out_dir: str, pagexml_path: str, pag
     inv_nr = page_id.split("_")[-2]
     page_no = int(page_id.split("_")[-1])
     canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}"
+
     annotation_page = convert_pagexml_to_web_annotations(xml_string, canvas_id, page_text)
 
     out_path = f"{out_dir}/{page_id}.json"
@@ -211,9 +212,8 @@ def generate_transcription_annotation_page1(out_dir: str, pagexml_path: str, pag
 @logger.catch
 def main():
     args = get_arguments()
-    Path(args.out_dir).mkdir(parents=True, exist_ok=True)
-    # generate_transcription_annotation_page(args.out_dir, pagexml)
-    generate_transcription_annotation_page1(args.out_dir, args.pagexml, args.pagetext)
+    Path(args.output_dir).mkdir(parents=True, exist_ok=True)
+    generate_transcription_annotation_page1(args.output_dir, args.pagexml, args.pagetext)
 
 
 if __name__ == '__main__':
