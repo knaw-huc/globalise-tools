@@ -786,14 +786,14 @@ def make_word_interval_tree(
     itree = IntervalTree()
     find_start = 0
     for w in text_words:
-        if len(w.text) > 1:
-            substring = w.text.strip(WORD_BREAK_CHARACTERS)
-        else:
-            substring = w.text
-        if len(substring) == 0:
-            substring = w.text
+        # if len(w.text) > 1:
+        substring = w.text.strip(WORD_BREAK_CHARACTERS)
+        # else:
+        #     substring = w.text
+        # if len(substring) == 0:
+        #     substring = w.text
 
-        if needs_finding(substring) or substring == '„':
+        if needs_finding(substring):
             notice = ''
             find_end = find_start + len(substring) + SEARCH_WINDOW
             index = text.find(substring, find_start, find_end)
@@ -915,7 +915,7 @@ def extract_paragraph_text(
         offset = text_len
         text_words.extend(m.words)
     itree = make_word_interval_tree(text=text, text_words=text_words, iiif_base_uri=iiif_base_uri, canvas_id=canvas_id,
-                                    debug=True)
+                                    debug=False)
     # if '  ' in text:
     #     logger.error('double space in text')
     return text, marginalia_ranges, header_range, paragraph_ranges, itree

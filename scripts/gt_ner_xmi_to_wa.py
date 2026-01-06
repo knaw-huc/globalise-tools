@@ -297,6 +297,17 @@ class XMIProcessor:
             word_id = iv_data["word_id"]
             htr_start = min(htr_start, self.htr_word_offset[word_id].begin)
             htr_end = max(htr_end, self.htr_word_offset[word_id].end)
+            annotation_page_id = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{self.document_id}"
+            targets.append(
+                {
+                    "id": f"{annotation_page_id}#{word_id}",
+                    "type": "Annotation",
+                    "partOf": {
+                        "id": annotation_page_id,
+                        "type": "AnnotationPage"
+                    }
+                }
+            )
 
         if htr_end > 0:
             targets.append({
@@ -315,7 +326,7 @@ class XMIProcessor:
                 ]
             })
         else:
-            ic(overlapping_intervals, exact, feature_structure_begin, feature_structure_end, self.itree.items())
+            ic(overlapping_intervals, exact, feature_structure_begin, feature_structure_end)
             # targets.append({
             #     "type": "SpecificResource",
             #     "source": {}
