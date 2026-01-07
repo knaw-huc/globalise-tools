@@ -19,12 +19,12 @@ if ! [[ -d $XMIDIR/${inv_nr} ]]; then
 fi
 
 # extract word offsets
-#for t in $PAGEXMLDIR/${inv_nr}/NL*.xml; do
-#  base=$(basename $t|sed -e 's/.xml//')
-#  poetry run ./scripts/gt-extract-htr-word-offsets.py \
-#    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
-#    --output-dir $OUT/${inv_nr}/htr-word-offsets
-#done
+for t in $PAGEXMLDIR/${inv_nr}/NL*.xml; do
+  base=$(basename $t|sed -e 's/.xml//')
+  poetry run ./scripts/gt-extract-htr-word-offsets.py \
+    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
+    --output-dir $OUT/${inv_nr}/htr-word-offsets
+done
 
 # generate wwb annotations
 poetry run ./scripts/gt_ner_xmi_to_wa.py \
@@ -38,13 +38,13 @@ poetry run ./scripts/gt_ner_xmi_to_wa.py \
   --inv-nr           ${inv_nr}
 
 # generate transcription annotation pages
-#for t in $OUT/${inv_nr}/NL*.txt; do
-#  base=$(basename $t|sed -e 's/.txt//')
-#  poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
-#    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
-#    --pagetext   $OUT/${inv_nr}/${base}.txt \
-#    --output-dir $OUT/${inv_nr}/transcriptions
-#done
-#
-## group web annotations to annotation pages
-#poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
+for t in $OUT/${inv_nr}/NL*.txt; do
+  base=$(basename $t|sed -e 's/.txt//')
+  poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
+    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
+    --pagetext   $OUT/${inv_nr}/${base}.txt \
+    --output-dir $OUT/${inv_nr}/transcriptions
+done
+
+# group web annotations to annotation pages
+poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
