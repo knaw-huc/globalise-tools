@@ -56,7 +56,7 @@ def page_id(annotation: dict[str, object]) -> str:
     # ic(annotation)
     target_id = annotation["target"][0]["source"]["id"]
     return target_id.replace("https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:",
-                             "").replace("#page", "")
+                             "").replace("#page-normalized", "")
 
 
 def load_manifest(inv_nr: str) -> dict[str, object]:

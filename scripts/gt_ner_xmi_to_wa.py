@@ -109,7 +109,7 @@ class XMIProcessor:
         # source_list = [d['plain_text_source'] for d in document_data.values() if d['plain_text_md5'] == md5]
         if data:
             self.plain_text_source = data['plain_text_source']
-            self.htr_text_source = data['plain_text_source'].replace("page", "page-htr")
+            self.htr_text_source = data['plain_text_source'].replace("page-normalized", "page-htr")
             self.itree = IntervalTree([Interval(*iv) for iv in data['text_intervals']])
         else:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
@@ -1437,7 +1437,7 @@ def handle_page_xml(
     # txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
     # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
     # txt_version_uri = "urn:example:placeholder"
-    plain_text_source = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{base_name}#page"
+    plain_text_source = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{base_name}#page-normalized"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
     xpf.document_data[base_name] = {

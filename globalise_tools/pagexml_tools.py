@@ -88,8 +88,7 @@ def Annotation(
         body.append({"type": "TextualBody", "value": body_text})
     if body_classification:
         classification_uri = (
-                "https://data.globalise.huygens.knaw.nl/"
-                "hdl:20.500.14722/thesaurus:annotation:"
+                "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:annotation:"
                 + urllib.parse.quote(body_classification)
         )
         body.append({
@@ -122,6 +121,11 @@ def Annotation(
         anno["body"] = body
     if target:
         anno["target"] = target
+    if granularity == "page":
+        anno["purpose"] = "transcription-normalized"
+    if granularity == "page-htr":
+        anno["textGranularity"] = "page"
+        anno["purpose"] = "transcription-diplomatic"
     return anno
 
 
@@ -147,7 +151,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
     )
 
     block_idx = line_idx = word_idx = 0
-    page_anno_id = f"{base_id}#page"
+    page_anno_id = f"{base_id}#page-normalized"
     text_lines: List[str] = []
 
     # Regions
@@ -229,7 +233,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
     )
     annotations.append(
         Annotation(
-            id=page_anno_id + "-htr",
+            id=page_anno_id.replace("normalized", "htr"),
             granularity="page-htr",
             canvas_id=canvas_id,
             body_text="\n".join(text_lines),
@@ -245,7 +249,15 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
         "@context": [
             "http://iiif.io/api/extension/text-granularity/context.json",
             "http://iiif.io/api/presentation/3/context.json",
-            "http://www.w3.org/ns/anno.jsonld"
+            "http://www.w3.org/ns/anno.jsonld",
+            {
+                "transcription-diplomatic": {
+                    "@id": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/transcription/transcription-diplomatic"
+                },
+                "transcription-normalized": {
+                    "@id": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/transcription/transcription-normalized"
+                }
+            }
         ],
         "type": "AnnotationPage",
         "id": page_json_id,
