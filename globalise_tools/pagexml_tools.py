@@ -245,6 +245,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
         "@context": [
             "http://iiif.io/api/extension/text-granularity/context.json",
             "http://iiif.io/api/presentation/3/context.json",
+            "http://www.w3.org/ns/anno.jsonld"
         ],
         "type": "AnnotationPage",
         "id": page_json_id,

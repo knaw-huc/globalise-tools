@@ -160,7 +160,8 @@ def generate_transcription_annotation_page(out_dir: str, page_xml_path: str) -> 
     annotation_page = {
         "@context": [
             "http://iiif.io/api/extension/text-granularity/context.json",
-            "http://iiif.io/api/presentation/3/context.json"
+            "http://iiif.io/api/presentation/3/context.json",
+            "http://www.w3.org/ns/anno.jsonld"
         ],
         "type": "AnnotationPage",
         "id": f"https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/transcriptions/{page_id}.json",
