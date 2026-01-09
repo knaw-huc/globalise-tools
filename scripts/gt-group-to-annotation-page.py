@@ -1,11 +1,17 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 from argparse import Namespace
 from itertools import groupby
 from pathlib import Path
 
 from loguru import logger
+
+import globalise_tools.git_tools as git
+from globalise_tools.creator import CreatorFactory
+
+THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 
 def get_arguments() -> Namespace:
@@ -25,7 +31,7 @@ def as_item(a: dict[str, object]) -> dict[str, object]:
 
 
 def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict[str, object]],
-                          canvas_dimensions: list[list[str]]) -> None:
+                          canvas_dimensions: list[list[str]], creator: dict[str, str]):
     inv_nr = pageid.split("_")[-2]
     page_no = int(pageid.split("_")[-1])
     context = ["http://iiif.io/api/presentation/3/context.json"]
@@ -35,9 +41,10 @@ def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict
     width, height = canvas_dimensions[page_no - 1]
     page = {
         "@context": context,
-        "type": "AnnotationPage",
+        "type": ["DigitalObject", "AnnotationPage"],
         "id": f"https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/entities/{pageid}.json",
         "label": f"Entities of {pageid}.jpg",
+        "created_by": creator,
         "partOf": {
             "id": f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}",
             "type": "Canvas",
@@ -79,8 +86,11 @@ def group_to_page(annotations_path: str) -> None:
         annotations = json.load(f)
 
     groups = groupby(annotations, lambda x: page_id(x))
+    commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
+    cf = CreatorFactory(script_path=THIS_SCRIPT_PATH, commit_id=commit_id)
+    creator = cf.creator(label="Creation of Web Annotation Page, using... etc.")
     for pgid, page_annotations in groups:
-        write_annotation_page(out_dir, pgid, [pa for pa in page_annotations], canvas_dimensions)
+        write_annotation_page(out_dir, pgid, [pa for pa in page_annotations], canvas_dimensions, creator)
 
 
 @logger.catch

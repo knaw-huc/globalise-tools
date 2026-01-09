@@ -5,8 +5,10 @@ import json
 import os
 import re
 import uuid
+from argparse import Namespace
 from datetime import datetime
 from itertools import groupby
+from typing import Any
 from typing import Tuple
 
 import cassis as cas
@@ -21,9 +23,6 @@ from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
 from globalise_tools.model import ImageData
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
-
-
-from typing import Any
 
 
 class XMIProcessor:
@@ -401,7 +400,8 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[
+        str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -532,7 +532,7 @@ class XMIProcessorFactory:
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
-        self.commit_id = self._read_current_commit_id()
+        self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
 
     def get_xmi_processor(self, xmi_path: str) -> XMIProcessor:
         return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
@@ -543,15 +543,6 @@ class XMIProcessorFactory:
         logger.info(f"<= {path}")
         with open(path) as f:
             return json.load(f)
-
-    @staticmethod
-    def _read_current_commit_id() -> str:
-        if git.there_are_uncommitted_changes():
-            logger.warning("Uncommitted changes! Do a `git commit` first!")
-        return git.read_current_commit_id()
-
-
-from argparse import Namespace
 
 
 @logger.catch

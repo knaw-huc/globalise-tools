@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import json
+import os
 import sys
 from argparse import Namespace
 from pathlib import Path
@@ -8,6 +9,8 @@ from pathlib import Path
 from loguru import logger
 
 from globalise_tools.pagexml_tools import convert_pagexml_to_web_annotations
+
+THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 
 def get_arguments() -> Namespace:
@@ -37,49 +40,6 @@ def load_manifest(inv_nr: str) -> dict[str, object]:
     return manifest
 
 
-# def generate_transcription_annotation_page0(out_dir: str, page_xml_path: str) -> None:
-#     page_id = page_xml_path.split("/")[-1].replace(".xml", "")
-#     inv_nr = page_id.split("_")[-2]
-#     page_no = page_id.split("_")[-1]
-#     manifest = load_manifest(inv_nr)
-#     canvas_dimensions = [[c["width"], c["height"]] for c in manifest["items"]]
-#     width, height = canvas_dimensions[int(page_no) - 1]
-#
-#     items = []
-#     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
-#     scan_doc.get_regions()
-#
-#     annotation_page = {
-#         "@context": [
-#             "http://iiif.io/api/extension/text-granularity/context.json",
-#             "http://iiif.io/api/presentation/3/context.json",
-#             "http://www.w3.org/ns/anno.jsonld",
-#             {
-#                 "transcription-diplomatic": {
-#                     "@id": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/transcription/transcription-diplomatic"
-#                 },
-#                 "transcription-normalized": {
-#                     "@id": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/transcription/transcription-normalized"
-#                 }
-#             }
-#         ],
-#         "type": "AnnotationPage",
-#         "id": f"https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/transcriptions/{page_id}.json",
-#         "label": f"Transcription of {page_id}.jpg",
-#         "partOf": {
-#             "id": f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}",
-#             "type": "Canvas",
-#             "width": width,
-#             "height": height,
-#         },
-#         "items": []
-#     }
-#     out_path = f"{out_dir}/{page_id}.json"
-#     logger.info(f"=> {out_path}")
-#     with open(out_path, 'w') as f:
-#         json.dump(obj=annotation_page, fp=f)
-
-
 def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page_text_path: str) -> None:
     try:
         logger.info(f"<= {pagexml_path}")
@@ -102,7 +62,8 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
     page_no = int(page_id.split("_")[-1])
     canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}"
 
-    annotation_page = convert_pagexml_to_web_annotations(xml_string, canvas_id, page_text)
+    annotation_page = convert_pagexml_to_web_annotations(xml_string=xml_string, canvas_id=canvas_id,
+                                                         page_text=page_text, script_path=THIS_SCRIPT_PATH)
 
     out_path = f"{out_dir}/{page_id}.json"
     logger.info(f"=> {out_path}")

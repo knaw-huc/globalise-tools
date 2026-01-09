@@ -88,7 +88,7 @@ class PageXmlFixer:
         metadata = self._get_metadata_element(root)
         self._update_last_change(metadata)
         self._reorder_text_regions(page, new_reading_order)
-        self._add_processing_step(metadata, " + ".join(sorted(self.error_codes)))
+        self._add_processing_step(metadata)
         if self.error_codes:
             self._write_to_xml(tree, out_path)
 
@@ -97,10 +97,8 @@ class PageXmlFixer:
         page = root[page_index]
         return page
 
-    def _add_processing_step(self, metadata, error_codes: str) -> None:
-        if git.there_are_uncommitted_changes():
-            logger.warning("Uncommitted changes! Do a `git commit` first!")
-        commit_id = git.read_current_commit_id()
+    def _add_processing_step(self, metadata) -> None:
+        commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         metadata_item = etree.Element(
             "MetadataItem",
             attrib={

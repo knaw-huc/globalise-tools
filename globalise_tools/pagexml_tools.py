@@ -3,6 +3,8 @@ import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional
 
+import globalise_tools.git_tools as git
+from globalise_tools.creator import CreatorFactory
 from globalise_tools.model import Offset
 
 ns = {
@@ -133,7 +135,7 @@ def Annotation(
 
 
 def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
-                                       page_text: str = "") -> Dict[str, Any]:
+                                       page_text: str = "", script_path: str = "") -> Dict[str, Any]:
     annotations = []
 
     doc = ET.fromstring(xml_string)
@@ -245,10 +247,15 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
             + re.sub(r"\.jpg$", ".json", page_filename or "", flags=re.I)
     )
 
+    commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
+    cf = CreatorFactory(script_path=script_path, commit_id=commit_id)
+    creator = cf.creator(label="Creation of Web Annotation Page, using... etc.")
+
     annotation_page = {
         "@context": [
             "http://iiif.io/api/extension/text-granularity/context.json",
             "http://iiif.io/api/presentation/3/context.json",
+            "https://linked.art/ns/v1/linked-art.json",
             "http://www.w3.org/ns/anno.jsonld",
             {
                 "transcription-diplomatic": {
@@ -259,9 +266,10 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
                 }
             }
         ],
-        "type": "AnnotationPage",
+        "type": ["DigitalObject", "AnnotationPage"],
         "id": page_json_id,
         "label": f"Transcription of {page_filename}",
+        "created_by": creator,
         "items": annotations,
     }
 

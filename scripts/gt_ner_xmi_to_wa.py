@@ -28,6 +28,7 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
+from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
 from globalise_tools.model import ImageData, Offset
@@ -94,6 +95,7 @@ class XMIProcessor:
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         self.htr_word_offset = self._load_word_offsets(offsets_path)
+        self.creator_factory = CreatorFactory(script_path=THIS_SCRIPT_PATH, commit_id=commit_id)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         # ic(md5)
         data = None
@@ -357,7 +359,8 @@ class XMIProcessor:
             "id": anno_id,
             "type": ["Annotation", "DigitalObject"],
             "created": datetime.today().isoformat(),
-            "created_by": self._creator(),
+            "created_by": self.creator_factory.creator(
+                label="Creation of Web Annotations from Named Entity output in XMI format, using... etc."),
             "motivation": "classifying",
             "body": body,
             "target": targets
@@ -508,35 +511,6 @@ class XMIProcessor:
                     "value": svg
                 }
             }
-        }
-
-    def _creator(self) -> dict[str, str]:
-        ts = datetime.today().isoformat()
-        return {
-            "type": "DigitalMachineEvent",
-            "_label": "Creation of Web Annotations from Named Entity output in XMI format, using... etc.",
-            "carried_out_by": GLOBALISE_TEAM,
-            "timespan": {
-                "type": "TimeSpan",
-                "end_of_the_begin": ts,
-                "begin_of_the_end": ts,
-            },
-            "used_software_or_firmware": {
-                "id": "https://github.com/knaw-huc/globalise-tools/blob/"
-                      f"{self.commit_id}"
-                      f"/{THIS_SCRIPT_PATH}",
-                "type": "Software",
-                "name": THIS_SCRIPT_PATH,
-            }
-        }
-
-    def _generator(self) -> dict[str, str]:
-        return {
-            "id": "https://github.com/knaw-huc/globalise-tools/blob/"
-                  f"{self.commit_id}"
-                  f"/{THIS_SCRIPT_PATH}",
-            "type": "Software",
-            "name": THIS_SCRIPT_PATH
         }
 
     def _named_entity_body(self, feature_structure: FeatureStructure) -> list:
@@ -744,7 +718,7 @@ class XMIProcessor:
             "id": self._annotation_id(f"{target1_num}-{target2_num}"),
             "type": "Annotation",
             "generated": datetime.today().isoformat(),
-            "generator": self._generator(),
+            "generator": self.creator_factory.generator(),
             "motivation": "linking",
             "body": {
                 "purpose": "classifying",
@@ -1005,7 +979,7 @@ class XMIProcessorFactory:
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
-        self.commit_id = self._read_current_commit_id()
+        self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
         self.word_offsets_dir = word_offsets_dir
 
@@ -1039,12 +1013,6 @@ class XMIProcessorFactory:
         logger.info(f"<= {path}")
         with open(path) as f:
             return json.load(f)
-
-    @staticmethod
-    def _read_current_commit_id() -> str:
-        if git.there_are_uncommitted_changes():
-            logger.warning("Uncommitted changes! Do a `git commit` first!")
-        return git.read_current_commit_id()
 
 
 from argparse import Namespace
