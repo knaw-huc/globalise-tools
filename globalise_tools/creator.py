@@ -30,7 +30,7 @@ class CreatorFactory:
         }
 
     def _used_software_or_firmware(self):
-        return [self._(sp) for sp in self.script_paths]
+        return [self._software(sp) for sp in self.script_paths]
 
     def _software(self, script_path: str) -> dict[str, str]:
         return {
