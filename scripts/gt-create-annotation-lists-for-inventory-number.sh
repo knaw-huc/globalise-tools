@@ -32,8 +32,9 @@ generate-transcription-annotation-pages() {
     poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
       --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
       --pagetext   $OUT/${inv_nr}/${base}.txt \
-      --output-dir $OUT/${inv_nr}/transcriptions
+      --output-dir $OUT/${inv_nr}/transcriptions &
   done
+  wait
 }
 
 
