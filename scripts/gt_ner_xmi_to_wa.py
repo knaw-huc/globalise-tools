@@ -325,12 +325,12 @@ class XMIProcessor:
                     }
                 ]
             })
-        else:
-            ic(overlapping_intervals, exact, feature_structure_begin, feature_structure_end)
-            # targets.append({
-            #     "type": "SpecificResource",
-            #     "source": {}
-            # })
+        # else:
+        #     ic(overlapping_intervals, exact, feature_structure_begin, feature_structure_end)
+        #     # targets.append({
+        #     #     "type": "SpecificResource",
+        #     #     "source": {}
+        #     # })
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
         for canvas_id, image_data_groups in grouped_image_data:
             image_data_list = [i for i in image_data_groups]
