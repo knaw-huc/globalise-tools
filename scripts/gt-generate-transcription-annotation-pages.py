@@ -87,4 +87,16 @@ def main():
 
 
 if __name__ == '__main__':
+    # # Creating profile object
+    # ob = cProfile.Profile()
+    # ob.enable()
+
     main()
+
+    # ob.disable()
+    # sec = io.StringIO()
+    # sortby = SortKey.CUMULATIVE
+    # ps = pstats.Stats(ob, stream=sec).sort_stats(sortby)
+    # ps.print_stats()
+    #
+    # print(sec.getvalue())
