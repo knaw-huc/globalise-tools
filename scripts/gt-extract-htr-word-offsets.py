@@ -15,8 +15,15 @@ def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract word offsets from the given pagexml",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v",
+                        help="Turn on logging",
+                        action="store_true",
+                        default=False,
+                        dest='verbose'
+                        )
     parser.add_argument("-o", "--output-dir",
                         help="The directory to write the offset files to",
+                        default="/tmp",
                         type=str
                         )
     parser.add_argument("pagexml_paths",
@@ -50,6 +57,8 @@ def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
 @logger.catch
 def main():
     args = get_arguments()
+    if not args.verbose:
+        logger.remove()
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     extract_word_offsets(args.output_dir, args.pagexml_paths)
 
