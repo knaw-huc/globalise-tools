@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 import argparse
+import cProfile
 import copy
 import glob
 import hashlib
 import json
 import os
+import pstats
 import re
 import time
 import uuid
@@ -19,12 +21,10 @@ import cassis as cas
 import multiprocess as mp
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
-from circuitbreaker import circuit
 from icecream import ic
 from intervaltree import Interval, IntervalTree
 from loguru import logger
-from textrepo.client import FileType, TextRepoClient, VersionInfo
-from tqdm import tqdm
+from textrepo.client import FileType
 
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
@@ -1047,18 +1047,18 @@ def get_arguments() -> Namespace:
                         type=str,
                         required=True
                         )
-    parser.add_argument("-r",
-                        "--text-repo",
-                        help="The base url of the textrepo server to use",
-                        type=str,
-                        required=True
-                        )
-    parser.add_argument("-k",
-                        "--api-key",
-                        help="The api-key for the textrepo server",
-                        type=str,
-                        required=True
-                        )
+    # parser.add_argument("-r",
+    #                     "--text-repo",
+    #                     help="The base url of the textrepo server to use",
+    #                     type=str,
+    #                     required=True
+    #                     )
+    # parser.add_argument("-k",
+    #                     "--api-key",
+    #                     help="The api-key for the textrepo server",
+    #                     type=str,
+    #                     required=True
+    #                     )
     parser.add_argument("-o",
                         "--output-dir",
                         help="The directory to write the output files in",
@@ -1146,7 +1146,7 @@ class InventoryProcessingContext:
     output_dir: str
     pagexml_dir: str
     xpf: XMIProcessorFactory
-    trc: TextRepoClient
+    # trc: TextRepoClient
     plain_text_type: FileType
     presentation_version: int
 
@@ -1173,8 +1173,8 @@ def extract_ner_web_annotations(
         word_offsets_dir: str,
         type_system_path: str,
         output_dir: str,
-        textrepo_url: str,
-        api_key: str,
+        # textrepo_url: str,
+        # api_key: str,
         inv_nr: str = None
 ) -> None:
     timespan4inventory = load_timespan_dict()
@@ -1355,19 +1355,19 @@ def handle_xmi(
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
 
 
-@circuit(failure_threshold=10, expected_exception=ConnectionError)
-def upload_to_textrepo(
-        trc: TextRepoClient,
-        external_id: str, contents: str,
-        plain_text_file_type: FileType
-) -> VersionInfo:
-    txt_version_identifier = trc.import_version(
-        external_id=external_id,
-        type_name=plain_text_file_type.name,
-        contents=contents,
-        as_latest_version=True
-    )
-    return txt_version_identifier
+# @circuit(failure_threshold=10, expected_exception=ConnectionError)
+# def upload_to_textrepo(
+#         trc: TextRepoClient,
+#         external_id: str, contents: str,
+#         plain_text_file_type: FileType
+# ) -> VersionInfo:
+#     txt_version_identifier = trc.import_version(
+#         external_id=external_id,
+#         type_name=plain_text_file_type.name,
+#         contents=contents,
+#         as_latest_version=True
+#     )
+#     return txt_version_identifier
 
 
 def get_base_name(path: str):
@@ -1382,8 +1382,8 @@ def handle_page_xml(
         xmi_path: str,
         pagexml_dir: str,
         xpf: XMIProcessorFactory,
-        trc: TextRepoClient,
-        plain_text_file_type: FileType,
+        # trc: TextRepoClient,
+        # plain_text_file_type: FileType,
         iiif_base_uri_for_base_name: dict[str, str],
         canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
@@ -1427,36 +1427,28 @@ def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
 def main() -> None:
     # make loguru logger work with tqdm
     logger.remove()
-    logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+    # logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
     args = get_arguments()
     if args.xmi_dir:
         extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.word_offsets_dir, args.type_system,
-                                    args.output_dir, args.text_repo,
-                                    args.api_key, args.inv_nr)
+                                    args.output_dir, args.inv_nr)
 
 
 if __name__ == '__main__':
+    profiler = cProfile.Profile()
+    profiler.enable()
+
     main()
 
+    profiler.disable()
+
+    # Create stats object
+    stats = pstats.Stats(profiler)
+
+    # Sort by different metrics
+    stats.sort_stats('cumulative').print_stats(20)  # Top functions by cumulative time
+    stats.sort_stats('calls').print_stats(20)  # Top functions by call count
+    stats.sort_stats('time').print_stats(20)  # Top functions by time
+
 """
-Om de ner/event annotaties uit de xmi te kunnen mappen op de documenten zoals in tav gebruikt:
-- in tav: per inv.nr alle pagexml text achter elkaar, op line nivo voor physical, op para nivo voor logical
-- in xmi: per pagexml, voor logical text (met alternatieve afbrekingsoplossing?)
-
-Er moeten verschillende mappings komen:
-op logical word nivo -> physical textrepo coords -> pagexml word coords -> xmi text ranges
-via de pagexml words?
-xmi tokens -> pagexml words -> physical offset -> logical offset
-
-
-manifest
-4085
-9524I
-9524II
-ontbreken
-
-geen ner-annotations:
-10179
-10467
-4069
 """

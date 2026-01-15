@@ -142,4 +142,16 @@ In https://github.com/globalise-huygens/document-view-sandbox/tree/transcription
 Hierbij zijn de volgende punten verwezenlijkt:
 - TimeSpans hoeven geen URI te krijgen ( https://gitlab.huc.knaw.nl/globalise/web-annotation-testset/-/blob/develop/3589/samples/cmty_name.ttl?ref_type=heads#L18 )
 - generator/created_by is aangepast: https://gitlab.huc.knaw.nl/globalise/web-annotation-testset/-/blob/develop/3589/samples/cmty_name.json?ref_type=heads#L19-33
-- 
+
+----
+
+Om de ner/event annotaties uit de xmi te kunnen mappen op de documenten zoals in tav gebruikt:
+- in tav: per inv.nr alle pagexml text achter elkaar, op line nivo voor physical, op para nivo voor logical
+- in xmi: per pagexml, voor logical text (met alternatieve afbrekingsoplossing?)
+
+Er moeten verschillende mappings komen:
+op logical word nivo -> physical textrepo coords -> pagexml word coords -> xmi text ranges
+via de pagexml words?
+xmi tokens -> pagexml words -> physical offset -> logical offset
+
+---
