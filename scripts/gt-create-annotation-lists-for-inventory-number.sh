@@ -19,12 +19,9 @@ if ! [[ -d $XMIDIR/${inv_nr} ]]; then
 fi
 
 # extract word offsets
-for t in $PAGEXMLDIR/${inv_nr}/NL*.xml; do
-  base=$(basename $t|sed -e 's/.xml//')
-  poetry run ./scripts/gt-extract-htr-word-offsets.py \
-    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
-    --output-dir $OUT/${inv_nr}/htr-word-offsets
-done
+poetry run ./scripts/gt-extract-htr-word-offsets.py \
+  --output-dir $OUT/${inv_nr}/htr-word-offsets \
+  $PAGEXMLDIR/${inv_nr}/NL*.xml
 
 # generate wwb annotations
 poetry run ./scripts/gt_ner_xmi_to_wa.py \
@@ -46,5 +43,5 @@ for t in $OUT/${inv_nr}/NL*.txt; do
     --output-dir $OUT/${inv_nr}/transcriptions
 done
 
-# group web annotations to annotation pages
+## group web annotations to annotation pages
 poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
