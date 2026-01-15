@@ -145,3 +145,7 @@ pipelines/queryexpansion/*.fifu
 
 #prevent committing INT historical lexicon (not open unfortunately)
 pipelines/queryexpansion/int_*tsv
+
+work/
+tmp/
+inception-exports/
