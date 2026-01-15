@@ -19,6 +19,12 @@ def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Group web-annotations to an AnnotationPage, per page",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v",
+                        help="Turn on logging",
+                        action="store_true",
+                        default=False,
+                        dest='verbose'
+                        )
     parser.add_argument("annotations",
                         help="The file containing the annotations",
                         type=str
@@ -99,6 +105,8 @@ def group_to_page(annotations_path: str) -> None:
 @logger.catch
 def main() -> None:
     args = get_arguments()
+    if not args.verbose:
+        logger.remove()
     group_to_page(args.annotations)
 
 

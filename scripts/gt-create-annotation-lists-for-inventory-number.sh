@@ -1,5 +1,40 @@
 #!/usr/bin/env bash
 
+
+extract-word-offsets() {
+  poetry run ./scripts/gt-extract-htr-word-offsets.py \
+    -v \
+    --output-dir $OUT/${inv_nr}/htr-word-offsets \
+    $PAGEXMLDIR/${inv_nr}/NL*.xml
+}
+
+generate-web-annotations() {
+  poetry run ./scripts/gt_ner_xmi_to_wa.py \
+    -v \
+    --pagexml-dir      $PAGEXMLDIR \
+    --xmi-dir          $XMIDIR \
+    --word-offsets-dir $OUT/${inv_nr}/htr-word-offsets \
+    --type-system      data/typesystem.xml \
+    --output-dir       $OUT \
+    --inv-nr           ${inv_nr}
+}
+
+generate-transcription-annotation-pages() {
+  for t in $OUT/${inv_nr}/NL*.txt; do
+    base=$(basename $t|sed -e 's/.txt//')
+    poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
+      -v \
+      --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
+      --pagetext   $OUT/${inv_nr}/${base}.txt \
+      --output-dir $OUT/${inv_nr}/transcriptions
+  done
+}
+
+group-to-annotation-page() {
+  ## group web annotations to annotation pages
+  poetry run ./scripts/gt-group-to-annotation-page.py -v $OUT/${inv_nr}/ner-annotations.json
+}
+
 # create transcriptions and entries annotation pages for all the pagexml files in the given inv_nr
 ZIPDIR=~/c/data/globalise
 PAGEXMLDIR=work/pagexml
@@ -18,30 +53,7 @@ if ! [[ -d $XMIDIR/${inv_nr} ]]; then
   unzip $ZIPDIR/xmicas/${inv_nr}.zip -d $XMIDIR
 fi
 
-# extract word offsets
-poetry run ./scripts/gt-extract-htr-word-offsets.py \
-  --output-dir $OUT/${inv_nr}/htr-word-offsets \
-  $PAGEXMLDIR/${inv_nr}/NL*.xml
-
-# generate wwb annotations
-poetry run ./scripts/gt_ner_xmi_to_wa.py \
-  --pagexml-dir      $PAGEXMLDIR \
-  --xmi-dir          $XMIDIR \
-  --word-offsets-dir $OUT/${inv_nr}/htr-word-offsets \
-  --type-system      data/typesystem.xml \
-  --output-dir       $OUT \
-  --text-repo        https://globalise.tt.di.huc.knaw.nl/textrepo \
-  --api-key          ${TEXTREPO_API_KEY} \
-  --inv-nr           ${inv_nr}
-
-# generate transcription annotation pages
-for t in $OUT/${inv_nr}/NL*.txt; do
-  base=$(basename $t|sed -e 's/.txt//')
-  poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
-    --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
-    --pagetext   $OUT/${inv_nr}/${base}.txt \
-    --output-dir $OUT/${inv_nr}/transcriptions
-done
-
-## group web annotations to annotation pages
-poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
+extract-word-offsets && \
+generate-web-annotations && \
+generate-transcription-annotation-pages && \
+group-to-annotation-page

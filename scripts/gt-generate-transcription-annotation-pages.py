@@ -17,6 +17,12 @@ def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Generate transcription AnnotationPage from the given pagexml",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v",
+                        help="Turn on logging",
+                        action="store_true",
+                        default=False,
+                        dest='verbose'
+                        )
     parser.add_argument("-p", "--pagexml",
                         help="The pagexml file",
                         type=str
@@ -74,6 +80,8 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
 @logger.catch
 def main():
     args = get_arguments()
+    if not args.verbose:
+        logger.remove()
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     generate_transcription_annotation_page(args.output_dir, args.pagexml, args.pagetext)
 

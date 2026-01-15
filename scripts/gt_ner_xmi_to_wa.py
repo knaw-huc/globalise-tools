@@ -1,12 +1,10 @@
 #!/usr/bin/env python3
 import argparse
-import cProfile
 import copy
 import glob
 import hashlib
 import json
 import os
-import pstats
 import re
 import time
 import uuid
@@ -24,7 +22,7 @@ from cassis.typesystem import FeatureStructure
 from icecream import ic
 from intervaltree import Interval, IntervalTree
 from loguru import logger
-from textrepo.client import FileType
+from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
@@ -89,13 +87,13 @@ class XMIProcessor:
         self.xmi_path = xmi_path
         self.commit_id = commit_id
         self.presentation_version = presentation_version
-        # logger.info(f"<= {xmi_path}")
+        logger.info(f"<= {xmi_path}")
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         self.htr_word_offset = self._load_word_offsets(offsets_path)
-        self.creator_factory = CreatorFactory(script_path=THIS_SCRIPT_PATH, commit_id=commit_id)
+        self.creator_factory = CreatorFactory(script_paths=[THIS_SCRIPT_PATH], commit_id=commit_id)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         # ic(md5)
         data = None
@@ -1023,6 +1021,12 @@ def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract NER Web Annotations from XMI files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-v",
+                        help="Turn on logging",
+                        action="store_true",
+                        default=False,
+                        dest='verbose'
+                        )
     parser.add_argument("-x",
                         "--xmi-dir",
                         help="The directory containing the xmi files, grouped by inventory number",
@@ -1047,18 +1051,6 @@ def get_arguments() -> Namespace:
                         type=str,
                         required=True
                         )
-    # parser.add_argument("-r",
-    #                     "--text-repo",
-    #                     help="The base url of the textrepo server to use",
-    #                     type=str,
-    #                     required=True
-    #                     )
-    # parser.add_argument("-k",
-    #                     "--api-key",
-    #                     help="The api-key for the textrepo server",
-    #                     type=str,
-    #                     required=True
-    #                     )
     parser.add_argument("-o",
                         "--output-dir",
                         help="The directory to write the output files in",
@@ -1146,8 +1138,6 @@ class InventoryProcessingContext:
     output_dir: str
     pagexml_dir: str
     xpf: XMIProcessorFactory
-    # trc: TextRepoClient
-    plain_text_type: FileType
     presentation_version: int
 
 
@@ -1173,15 +1163,9 @@ def extract_ner_web_annotations(
         word_offsets_dir: str,
         type_system_path: str,
         output_dir: str,
-        # textrepo_url: str,
-        # api_key: str,
         inv_nr: str = None
 ) -> None:
     timespan4inventory = load_timespan_dict()
-    # trc = TextRepoClient(textrepo_url, api_key=api_key, verbose=False)
-    # plain_text_file_type = tt.get_file_type(trc, 'txt', 'text/plain')
-    plain_text_file_type = None
-    trc = None
     xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=inv_nr_sort_key)
     if inv_nr is not None:
         xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
@@ -1190,7 +1174,7 @@ def extract_ner_web_annotations(
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    run_in_parallel(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
+    run_in_parallel(output_dir, pagexml_dir, xmi_dirs, xpf)
     # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
 
@@ -1202,16 +1186,13 @@ def load_timespan_dict() -> dict[str, dict[str, str]]:
         return json.load(f)
 
 
-def run_in_parallel(output_dir: str, pagexml_dir: str, plain_text_file_type, trc, xmi_dirs,
-                    xpf) -> None:
+def run_in_parallel(output_dir: str, pagexml_dir: str, xmi_dirs: list[str], xpf: XMIProcessorFactory) -> None:
     contexts = [
         InventoryProcessingContext(
             xmi_dir,
             output_dir,
             pagexml_dir,
             xpf,
-            trc,
-            plain_text_file_type,
             PRESENTATION_VERSION
         )
         for xmi_dir in xmi_dirs
@@ -1226,7 +1207,7 @@ def run_in_parallel(output_dir: str, pagexml_dir: str, plain_text_file_type, trc
     #         logger.info(f"finished {result}")
 
 
-def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf) -> None:
+def run_sequentially(output_dir, pagexml_dir, xmi_dirs, xpf) -> None:
     start_time.value = time.perf_counter()
     for xmi_dir in xmi_dirs:
         context = InventoryProcessingContext(
@@ -1234,8 +1215,6 @@ def run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dir
             output_dir,
             pagexml_dir,
             xpf,
-            trc,
-            plain_text_file_type,
             PRESENTATION_VERSION
         )
         process_inventory(context)
@@ -1248,7 +1227,6 @@ def process_inventory(context: InventoryProcessingContext):
     export_dir = context.output_dir
     pagexml_dir = context.pagexml_dir
     xpf = context.xpf
-    trc = context.trc
 
     inv_nr = xmi_dir.split('/')[-1]
     out_dir = f"{export_dir}/{inv_nr}"
@@ -1269,8 +1247,7 @@ def process_inventory(context: InventoryProcessingContext):
         manifest = load_manifest(inv_nr)
         manifest_item_idx, iiif_base_uri_idx, canvas_id_idx = index_manifest_items(manifest)
         for xmi_path in xmi_paths:
-            plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, trc, context.plain_text_type,
-                                                iiif_base_uri_idx, canvas_id_idx)
+            plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, iiif_base_uri_idx, canvas_id_idx)
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, plain_text_source, manifest, manifest_item_idx,
                        context.presentation_version, out_dir)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
@@ -1355,21 +1332,6 @@ def handle_xmi(
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
 
 
-# @circuit(failure_threshold=10, expected_exception=ConnectionError)
-# def upload_to_textrepo(
-#         trc: TextRepoClient,
-#         external_id: str, contents: str,
-#         plain_text_file_type: FileType
-# ) -> VersionInfo:
-#     txt_version_identifier = trc.import_version(
-#         external_id=external_id,
-#         type_name=plain_text_file_type.name,
-#         contents=contents,
-#         as_latest_version=True
-#     )
-#     return txt_version_identifier
-
-
 def get_base_name(path: str):
     return path.split("/")[-1].replace(".xmi", "")
 
@@ -1382,8 +1344,6 @@ def handle_page_xml(
         xmi_path: str,
         pagexml_dir: str,
         xpf: XMIProcessorFactory,
-        # trc: TextRepoClient,
-        # plain_text_file_type: FileType,
         iiif_base_uri_for_base_name: dict[str, str],
         canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
@@ -1402,9 +1362,6 @@ def handle_page_xml(
                                                                                                             canvas_id=canvas_id)
 
     plain_text = text
-    # txt_version_identifier = upload_to_textrepo(trc, base_name, plain_text, plain_text_file_type)
-    # txt_version_uri = f"{trc.base_uri}/rest/versions/{txt_version_identifier.version_id}"
-    # txt_version_uri = "urn:example:placeholder"
     plain_text_source = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{base_name}#page-normalized"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
@@ -1425,30 +1382,16 @@ def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
 
 @logger.catch
 def main() -> None:
-    # make loguru logger work with tqdm
-    logger.remove()
-    # logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
     args = get_arguments()
+    logger.remove()
+    if args.verbose:
+        # make loguru logger work with tqdm
+        logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+
     if args.xmi_dir:
         extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.word_offsets_dir, args.type_system,
                                     args.output_dir, args.inv_nr)
 
 
 if __name__ == '__main__':
-    profiler = cProfile.Profile()
-    profiler.enable()
-
     main()
-
-    profiler.disable()
-
-    # Create stats object
-    stats = pstats.Stats(profiler)
-
-    # Sort by different metrics
-    stats.sort_stats('cumulative').print_stats(20)  # Top functions by cumulative time
-    stats.sort_stats('calls').print_stats(20)  # Top functions by call count
-    stats.sort_stats('time').print_stats(20)  # Top functions by time
-
-"""
-"""
