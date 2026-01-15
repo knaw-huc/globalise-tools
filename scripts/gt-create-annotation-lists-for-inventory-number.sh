@@ -1,5 +1,12 @@
 #!/usr/bin/env bash
 
+# create transcriptions and entries annotation pages for all the pagexml files in the given inv_nr
+ZIPDIR=~/c/data/globalise
+PAGEXMLDIR=work/pagexml
+XMIDIR=work/xmi
+OUT=work
+
+inv_nr=$1
 
 extract-word-offsets() {
   echo "1/4: extract word offsets"
@@ -36,15 +43,6 @@ generate-transcription-annotation-pages() {
   done
   wait
 }
-
-
-# create transcriptions and entries annotation pages for all the pagexml files in the given inv_nr
-ZIPDIR=~/c/data/globalise
-PAGEXMLDIR=work/pagexml
-XMIDIR=work/xmi
-OUT=work
-
-inv_nr=$1
 
 if ! [[ -d $PAGEXMLDIR/${inv_nr} ]]; then
   mkdir -p $PAGEXMLDIR
