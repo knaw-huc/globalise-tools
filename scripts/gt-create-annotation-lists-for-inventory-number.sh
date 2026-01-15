@@ -22,7 +22,7 @@ generate-web-annotations() {
 group-to-annotation-page() {
   ## group web annotations to annotation pages
   echo "3/4: group ner annotations to annotation pages"
-  poetry run ./scripts/gt-group-to-annotation-page.py -v $OUT/${inv_nr}/ner-annotations.json
+  poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
 }
 
 generate-transcription-annotation-pages() {
