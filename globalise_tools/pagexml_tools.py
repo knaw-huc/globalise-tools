@@ -119,15 +119,17 @@ def Annotation(
         "motivation": "supplementing" if body_text else "highlighting",
         "textGranularity": granularity,
     }
+    if granularity == "page":
+        anno["purpose"] = "transcription-normalized"
+        target.append({"type": "Canvas", "id": canvas_id})
+    if granularity == "page-htr":
+        anno["textGranularity"] = "page"
+        anno["purpose"] = "transcription-diplomatic"
+        target.append({"type": "Canvas", "id": canvas_id})
     if body:
         anno["body"] = body
     if target:
         anno["target"] = target
-    if granularity == "page":
-        anno["purpose"] = "transcription-normalized"
-    if granularity == "page-htr":
-        anno["textGranularity"] = "page"
-        anno["purpose"] = "transcription-diplomatic"
     return anno
 
 
