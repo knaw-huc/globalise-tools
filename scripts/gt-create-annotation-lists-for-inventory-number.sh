@@ -21,6 +21,7 @@ generate-web-annotations() {
     --pagexml-dir      $PAGEXMLDIR \
     --xmi-dir          $XMIDIR \
     --word-offsets-dir $OUT/${inv_nr}/htr-word-offsets \
+    --manifests-dir    /Users/bram/workspaces/globalise/manifests/inventories \
     --type-system      data/typesystem.xml \
     --output-dir       $OUT \
     --inv-nr           ${inv_nr}

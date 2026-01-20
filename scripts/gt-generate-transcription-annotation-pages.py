@@ -82,6 +82,8 @@ def main():
     args = get_arguments()
     if not args.verbose:
         logger.remove()
+        logger.add(sink=sys.stderr, level="WARNING")
+
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
     generate_transcription_annotation_page(args.output_dir, args.pagexml, args.pagetext)
 

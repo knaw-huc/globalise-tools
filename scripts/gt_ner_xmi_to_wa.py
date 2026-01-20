@@ -6,6 +6,7 @@ import hashlib
 import json
 import os
 import re
+import sys
 import time
 import uuid
 from dataclasses import dataclass
@@ -967,17 +968,16 @@ class XMIProcessor:
 
 class XMIProcessorFactory:
 
-    def __init__(
-            self,
-            typesystem_path: str,
-            word_offsets_dir: str,
-            timespan4inventory: dict[str, dict[str, str]]
-    ) -> None:
+    def __init__(self, typesystem_path: str, word_offsets_dir: str, timespan4inventory: dict[str, dict[str, str]],
+                 git_commit_id: str = None) -> None:
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
-        self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
+        if git_commit_id:
+            self.git_commit = git_commit_id
+        else:
+            self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
         self.word_offsets_dir = word_offsets_dir
 
@@ -1045,6 +1045,12 @@ def get_arguments() -> Namespace:
                         type=str,
                         required=True
                         )
+    parser.add_argument("-m",
+                        "--manifests-dir",
+                        help="The directory containing the manifest files, one per inventory number",
+                        type=str,
+                        required=True
+                        )
     parser.add_argument("-t",
                         "--type-system",
                         help="The TypeSystem.xml to use",
@@ -1054,6 +1060,10 @@ def get_arguments() -> Namespace:
     parser.add_argument("-o",
                         "--output-dir",
                         help="The directory to write the output files in",
+                        type=str
+                        )
+    parser.add_argument("--git-commit",
+                        help="The git commit to use for the provenance (will be calculated if omitted)",
                         type=str
                         )
     parser.add_argument("-i",
@@ -1139,6 +1149,7 @@ class InventoryProcessingContext:
     pagexml_dir: str
     xpf: XMIProcessorFactory
     presentation_version: int
+    manifests_dir: str
 
 
 def load_processed_inventories() -> list[str]:
@@ -1160,21 +1171,23 @@ def store_processed_inventories(processed_inventories: list[str]) -> None:
 def extract_ner_web_annotations(
         pagexml_dir: str,
         xmi_dir: str,
+        manifests_dir: str,
         word_offsets_dir: str,
         type_system_path: str,
         output_dir: str,
-        inv_nr: str = None
+        inv_nr: str = None,
+        git_commit: str = None,
 ) -> None:
     timespan4inventory = load_timespan_dict()
     xmi_dirs = sorted(glob.glob(f"{xmi_dir}/[0-9]*"), key=inv_nr_sort_key)
     if inv_nr is not None:
         xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
 
-    xpf = XMIProcessorFactory(type_system_path, word_offsets_dir, timespan4inventory)
+    xpf = XMIProcessorFactory(type_system_path, word_offsets_dir, timespan4inventory, git_commit)
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
-    run_in_parallel(output_dir, pagexml_dir, xmi_dirs, xpf)
+    run_in_parallel(output_dir, pagexml_dir, xmi_dirs, xpf, manifests_dir)
     # run_sequentially(output_dir, pagexml_dir, plain_text_file_type, trc, xmi_dirs, xpf)
     logger.info("done!")
 
@@ -1186,14 +1199,21 @@ def load_timespan_dict() -> dict[str, dict[str, str]]:
         return json.load(f)
 
 
-def run_in_parallel(output_dir: str, pagexml_dir: str, xmi_dirs: list[str], xpf: XMIProcessorFactory) -> None:
+def run_in_parallel(
+        output_dir: str,
+        pagexml_dir: str,
+        xmi_dirs: list[str],
+        xpf: XMIProcessorFactory,
+        manifests_dir: str
+) -> None:
     contexts = [
         InventoryProcessingContext(
             xmi_dir,
             output_dir,
             pagexml_dir,
             xpf,
-            PRESENTATION_VERSION
+            PRESENTATION_VERSION,
+            manifests_dir=manifests_dir
         )
         for xmi_dir in xmi_dirs
     ]
@@ -1244,7 +1264,7 @@ def process_inventory(context: InventoryProcessingContext):
         text_out_path = f"{out_dir}/text.txt"
         ner_annotations = []
         page_texts = []
-        manifest = load_manifest(inv_nr)
+        manifest = load_manifest(context.manifests_dir, inv_nr)
         manifest_item_idx, iiif_base_uri_idx, canvas_id_idx = index_manifest_items(manifest)
         for xmi_path in xmi_paths:
             plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, iiif_base_uri_idx, canvas_id_idx)
@@ -1270,8 +1290,8 @@ def index_manifest_items(manifest: dict[str, Any]) -> tuple[dict[str, int], dict
     return manifest_item_idx, iiif_base_uri_idx, canvas_id_idx
 
 
-def load_manifest(inv_nr: str) -> dict[str, object]:
-    manifest_path = f"/Users/bram/workspaces/globalise/manifests/inventories/{inv_nr}.json"
+def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
+    manifest_path = f"{manifests_dir}/{inv_nr}.json"
     logger.info(f"<= {manifest_path}")
     with open(manifest_path) as f:
         manifest = json.load(f)
@@ -1387,10 +1407,20 @@ def main() -> None:
     if args.verbose:
         # make loguru logger work with tqdm
         logger.add(lambda msg: tqdm.write(msg, end=""), colorize=True)
+    else:
+        logger.add(sink=sys.stderr, level="WARNING")
 
     if args.xmi_dir:
-        extract_ner_web_annotations(args.pagexml_dir, args.xmi_dir, args.word_offsets_dir, args.type_system,
-                                    args.output_dir, args.inv_nr)
+        extract_ner_web_annotations(
+            args.pagexml_dir,
+            args.xmi_dir,
+            args.manifests_dir,
+            args.word_offsets_dir,
+            args.type_system,
+            args.output_dir,
+            args.inv_nr,
+            args.git_commit
+        )
 
 
 if __name__ == '__main__':
