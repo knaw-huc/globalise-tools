@@ -28,6 +28,7 @@ from textrepo.client import TextRepoClient
 from uri import URI
 
 import globalise_tools.textrepo_tools as tt
+import globalise_tools.url_factory as uf
 from globalise_tools.document_metadata import (DocumentMetadata,
                                                read_document_selection)
 from globalise_tools.inception_client import InceptionClient
@@ -328,7 +329,7 @@ class DocumentsProcessor:
         parts = page_id.split('_')
         inventory_number = parts[-2]
         page_num = parts[-1].lstrip("0")
-        return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
+        return uf.canvas_id(inventory_number, page_num)
 
 
 @hydra.main(version_base=None)

@@ -298,7 +298,7 @@ class XMIProcessor:
             word_id = iv_data["word_id"]
             htr_start = min(htr_start, self.htr_word_offset[word_id].begin)
             htr_end = max(htr_end, self.htr_word_offset[word_id].end)
-            annotation_page_id = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{self.document_id}"
+            annotation_page_id = f"{uf.URI_BASE_PATTERN}annotations:transcriptions:{self.document_id}"
             targets.append(
                 {
                     "id": f"{annotation_page_id}#{word_id}",
@@ -1382,7 +1382,7 @@ def handle_page_xml(
                                                                                                             canvas_id=canvas_id)
 
     plain_text = text
-    plain_text_source = f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{base_name}#page-normalized"
+    plain_text_source = f"{uf.URI_BASE_PATTERN}annotations:transcriptions:{base_name}#page-normalized"
 
     md5 = hashlib.md5(plain_text.encode()).hexdigest()
     xpf.document_data[base_name] = {

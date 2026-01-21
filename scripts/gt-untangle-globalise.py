@@ -24,6 +24,7 @@ from uri import URI
 
 import globalise_tools.lang_deduction as ld
 import globalise_tools.tools as gt
+import globalise_tools.url_factory as uf
 from globalise_tools.lang_deduction import LangDeduction
 from globalise_tools.model import (AnnotationEncoder, DocumentMetadata,
                                    DocumentMetadata2, LogicalAnchorRange,
@@ -242,7 +243,7 @@ def to_web_annotation(annotation: Annotation,
 def document_web_annotation(all_annotations: list[Annotation], document_id: str, inventory_number: str,
                             webannotation_factory: WebAnnotationFactory, physical_segmented_version_id: str,
                             logical_segmented_version_id: str) -> WebAnnotation:
-    manifest_url = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
+    manifest_url = uf.manifest_url(inventory_number)
     physical_end_anchor = max([a.physical_span.end_anchor for a in all_annotations])
     logical_end_anchor = max([a.logical_span.end_anchor for a in all_annotations])
     return WebAnnotation(
@@ -583,7 +584,8 @@ def get_iiif_url(textrepo_client: TextRepoClient, external_id) -> str:
         return ""
 
 
-def download_page_xml(textrepo_client: TextRepoClient, external_id, output_directory: str) -> tuple[str, str, str | None]:
+def download_page_xml(textrepo_client: TextRepoClient, external_id, output_directory: str) -> tuple[
+    str, str, str | None]:
     error = None
     page_xml_path = f"{output_directory}/{external_id}.xml"
     # if not Path(page_xml_path).is_file():

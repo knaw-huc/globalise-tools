@@ -9,6 +9,7 @@ from pathlib import Path
 from loguru import logger
 
 import globalise_tools.git_tools as git
+import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from scripts.gt_ner_xmi_to_wa import THIS_SCRIPT_PATH as XMI_TO_WA_SCRIPT_PATH
 
@@ -58,7 +59,7 @@ def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict
         "label": f"Entities of {pageid}.jpg",
         "created_by": creator,
         "partOf": {
-            "id": f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}",
+            "id": uf.canvas_id(inv_nr, page_no),
             "type": "Canvas",
             "width": width,
             "height": height
@@ -74,7 +75,7 @@ def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict
 def page_id(annotation: dict[str, object]) -> str:
     # ic(annotation)
     target_id = annotation["target"][0]["source"]["id"]
-    return target_id.replace("https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:",
+    return target_id.replace(f"{uf.URI_BASE_PATTERN}annotations:transcriptions:",
                              "").replace("#page-normalized", "")
 
 

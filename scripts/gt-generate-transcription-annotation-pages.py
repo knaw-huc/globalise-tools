@@ -8,6 +8,7 @@ from pathlib import Path
 
 from loguru import logger
 
+import globalise_tools.url_factory as uf
 from globalise_tools.pagexml_tools import convert_pagexml_to_web_annotations
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -66,7 +67,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
     page_id = pagexml_path.split("/")[-1].replace(".xml", "")
     inv_nr = page_id.split("_")[-2]
     page_no = int(page_id.split("_")[-1])
-    canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inv_nr}.json/canvas/p{page_no}"
+    canvas_id = uf.canvas_id(inv_nr, page_no)
 
     annotation_page = convert_pagexml_to_web_annotations(xml_string=xml_string, canvas_id=canvas_id,
                                                          page_text=page_text, script_path=THIS_SCRIPT_PATH)

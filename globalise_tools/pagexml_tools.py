@@ -6,6 +6,7 @@ from typing import Any, Dict, List, Optional, Generator
 import globalise_tools.git_tools as git
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.model import Offset
+from globalise_tools.url_factory import URI_BASE_PATTERN
 
 ns = {
     'ns': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
@@ -90,7 +91,7 @@ def Annotation(
         body.append({"type": "TextualBody", "value": body_text})
     if body_classification:
         classification_uri = (
-                "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:annotation:"
+                f"{URI_BASE_PATTERN}thesaurus:annotation:"
                 + urllib.parse.quote(body_classification)
         )
         body.append({
@@ -149,10 +150,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
     height = int(get_attr(page, "imageHeight") or 0) or None
 
     base = re.sub(r"\.[a-zA-Z]+$", "", page_filename or "page")
-    base_id = (
-        "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/"
-        f"annotations:transcriptions:{urllib.parse.quote(base)}"
-    )
+    base_id = (f"{URI_BASE_PATTERN}annotations:transcriptions:{urllib.parse.quote(base)}")
 
     block_idx = line_idx = word_idx = 0
     page_anno_id = f"{base_id}#page-normalized"

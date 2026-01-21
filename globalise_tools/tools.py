@@ -11,6 +11,7 @@ from pagexml.model.physical_document_model import (Coords, PageXMLScan,
                                                    PageXMLTextRegion,
                                                    PageXMLWord)
 
+import globalise_tools.url_factory as uf
 from globalise_tools.lang_deduction import LangDeduction
 from globalise_tools.model import Document, DocumentMetadata, WebAnnotation
 from globalise_tools.nav_provider import NavProvider
@@ -158,7 +159,7 @@ class WebAnnotationFactory:
         parts = page_id.split('_')
         inventory_number = parts[-2]
         page_num = parts[-1].lstrip("0")
-        canvas_id = f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json/canvas/p{page_num}"
+        canvas_id = uf.canvas_id(inventory_number, page_num)
         return canvas_id
 
     def _init_iiif_base_url_idx(self, path: str) -> None:
