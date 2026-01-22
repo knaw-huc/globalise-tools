@@ -59,7 +59,7 @@ def manifest_url(inventory_number: str) -> str:
 
 
 def manifest_url0(inventory_number: str) -> str:
-    return f"{inventory_url(inventory_number)}.manifest.jsonld"
+    return f"{inventory_url(inventory_number)}.manifest"
 
 
 def canvas_id(inventory_number: str, page_num: int) -> str:
@@ -71,7 +71,7 @@ def canvas_url(identifier: str) -> str:
 
 
 def annotation_page_url(ap_type: AnnotationPageType, identifier: str) -> str:
-    return _base_url(f"annotations:{ap_type.value}", identifier) + ".jsonld"
+    return _base_url(f"annotations:{ap_type.value}", identifier)
 
 
 def annotation_url(ap_type: AnnotationPageType, ap_identifier: str, identifier: str) -> str:

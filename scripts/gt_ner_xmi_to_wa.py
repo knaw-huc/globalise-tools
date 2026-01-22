@@ -27,6 +27,7 @@ from tqdm import tqdm
 
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
+import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
@@ -1356,8 +1357,8 @@ def get_base_name(path: str):
     return path.split("/")[-1].replace(".xmi", "")
 
 
-def make_transcription_annotation_page(page_xml_path) -> None:
-    pass
+# def make_transcription_annotation_page(page_xml_path) -> None:
+#     pass
 
 
 def handle_page_xml(
@@ -1368,7 +1369,7 @@ def handle_page_xml(
         canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
     page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
-    make_transcription_annotation_page(page_xml_path)
+    # make_transcription_annotation_page(page_xml_path)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
     if base_name in iiif_base_uri_for_base_name:
         iiif_base_uri = iiif_base_uri_for_base_name[base_name]

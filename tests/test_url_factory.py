@@ -56,23 +56,23 @@ def test_manifest_url():
 # new
 def test_manifest_url0():
     assert uf.manifest_url0('3598') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:3598.manifest.jsonld'
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:3598.manifest'
 
 
 def test_canvas_url():
-    assert uf.canvas_url('canvas_identifier') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/canvas:canvas_identifier'
+    assert uf.canvas_url('NL-HaNA_1.04.02_3598_0797') == \
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/canvas:NL-HaNA_1.04.02_3598_0797'
 
 
 def test_annotation_page_url():
     assert uf.annotation_page_url(AnnotationPageType.TRANSCRIPTIONS, 'NL-HaNA_1.04.02_3598_0797') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:NL-HaNA_1.04.02_3598_0797.jsonld'
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:NL-HaNA_1.04.02_3598_0797'
     assert uf.annotation_page_url(AnnotationPageType.ENTITIES, 'NL-HaNA_1.04.02_3598_0798') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02_3598_0798.jsonld'
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02_3598_0798'
     assert uf.annotation_page_url(AnnotationPageType.EVENTS, 'NL-HaNA_1.04.02_3598_0799') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:events:NL-HaNA_1.04.02_3598_0799.jsonld'
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:events:NL-HaNA_1.04.02_3598_0799'
 
 
 def test_annotation_url():
-    assert uf.annotation_url(AnnotationPageType.TRANSCRIPTIONS, 'NL-HaNA_1.04.02_3598_0796', 'annotation_identifier') == \
-           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:NL-HaNA_1.04.02_3598_0796.jsonld#annotation_identifier'
+    assert uf.annotation_url(AnnotationPageType.TRANSCRIPTIONS, 'NL-HaNA_1.04.02_3598_0796', 'region_0751e75b-539e-4218-aae1-31099ed04177_6') == \
+           'https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:NL-HaNA_1.04.02_3598_0796#region_0751e75b-539e-4218-aae1-31099ed04177_6'
