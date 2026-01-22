@@ -43,8 +43,13 @@ def as_item(a: dict[str, object]) -> dict[str, object]:
     return a
 
 
-def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict[str, object]],
-                          canvas_dimensions: list[list[str]], creator: dict[str, str]):
+def write_annotation_page(
+        out_dir: str,
+        pageid: str,
+        page_annotations: list[dict[str, object]],
+        canvas_dimensions: list[list[str]],
+        creator: dict[str, str]
+):
     inv_nr = pageid.split("_")[-2]
     page_no = int(pageid.split("_")[-1])
     context = ["http://iiif.io/api/presentation/3/context.json"]
@@ -55,7 +60,8 @@ def write_annotation_page(out_dir: str, pageid: str, page_annotations: list[dict
     page = {
         "@context": context,
         "type": ["DigitalObject", "AnnotationPage"],
-        "id": f"https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/entities/{pageid}.json",
+        # "id": f"https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/entities/{pageid}.json",
+        "id": uf.annotation_page_url(uf.AnnotationPageType.ENTITIES, pageid),
         "label": f"Entities of {pageid}.jpg",
         "created_by": creator,
         "partOf": {

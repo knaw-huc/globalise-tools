@@ -430,7 +430,7 @@ class XMIProcessor:
         else:
             manifest = "TODO"
 
-        printable_entity_type = entity_type.replace('urn:example:globalise:entityType:', "")
+        printable_entity_type = entity_type.replace(f'{uf.URI_BASE_PATTERN}entityType:', "")
         if presentation_version == 2:
             return self._version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh)
         elif presentation_version == 3:
@@ -443,6 +443,7 @@ class XMIProcessor:
         str, str | list[str] | list[dict[str, str]]]:
         return {
             "@id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
+            # "@id": uf.annotation_url(uf.AnnotationPageType.ENTITIES,sel),
             "@type": "oa:Annotation",
             "motivation": [
                 "oa:commenting",
@@ -574,7 +575,7 @@ class XMIProcessor:
             return base | {
                 "value": quant.value,
                 "unit": {
-                    "id": f"urn:example:globalise:exchangeunit:{quant.unit_name}",
+                    "id": f"{uf.URI_BASE_PATTERN}exchangeunit:{quant.unit_name}",
                     "type": "ExchangeUnit",
                     "_label": quant.unit
                 }
@@ -939,19 +940,21 @@ class XMIProcessor:
         return web_anno
 
     def _annotation_id(self, extra_id: object) -> str:
-        return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
+        return uf.annotation_url(uf.AnnotationPageType.ENTITIES, self.document_id, str(extra_id))
+        # return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
     def _event_id(self, extra_id: object) -> str:
-        return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
+        return uf.event_url(str(extra_id))
+        # return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:example:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"{uf.URI_BASE_PATTERN}entity:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _event_argument_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:example:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"{uf.URI_BASE_PATTERN}event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _new_id(self, id_type: str) -> str:
-        return f"urn:example:globalise:{id_type.lower()}:{self._next_id_number():06d}"
+        return f"{uf.URI_BASE_PATTERN}{id_type.lower()}:{self._next_id_number():06d}"
 
     @staticmethod
     def _next_id_number() -> int:
