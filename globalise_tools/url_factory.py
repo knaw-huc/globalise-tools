@@ -1,6 +1,6 @@
 from enum import Enum
 
-URI_BASE_PATTERN = "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722:"
+URI_BASE_PATTERN = "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/"
 
 
 # see: https://gist.github.com/LvanWissen/736606df05b788aad38e3a74325300c7
