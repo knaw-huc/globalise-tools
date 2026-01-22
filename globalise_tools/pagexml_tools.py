@@ -4,9 +4,9 @@ import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional, Generator
 
 import globalise_tools.git_tools as git
+import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.model import Offset
-from globalise_tools.url_factory import URI_BASE_PATTERN
 
 ns = {
     'ns': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
@@ -90,10 +90,11 @@ def Annotation(
     if body_text:
         body.append({"type": "TextualBody", "value": body_text})
     if body_classification:
-        classification_uri = (
-                f"{URI_BASE_PATTERN}thesaurus:annotation:"
-                + urllib.parse.quote(body_classification)
-        )
+        # classification_uri = (
+        #         f"{uf.URI_BASE_PATTERN}thesaurus:annotation:"
+        #         + urllib.parse.quote(body_classification)
+        # )
+        classification_uri = uf.concept_url(f"annotation:{body_classification}")
         body.append({
             "type": "SpecificResource",
             "source": {
@@ -137,8 +138,12 @@ def Annotation(
 # ---------------- Main converter ----------------
 
 
-def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
-                                       page_text: str = "", script_path: str = "") -> Dict[str, Any]:
+def convert_pagexml_to_web_annotations(
+        xml_string: str,
+        canvas_id: str,
+        page_text: str = "",
+        script_path: str = ""
+) -> Dict[str, Any]:
     annotations = []
 
     doc = ET.fromstring(xml_string)
@@ -150,10 +155,11 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
     height = int(get_attr(page, "imageHeight") or 0) or None
 
     base = re.sub(r"\.[a-zA-Z]+$", "", page_filename or "page")
-    base_id = (f"{URI_BASE_PATTERN}annotations:transcriptions:{urllib.parse.quote(base)}")
+    ap_uri = uf.annotation_page_url(uf.AnnotationPageType.TRANSCRIPTIONS, base)
+    # base_id = (f"{URI_BASE_PATTERN}annotations:transcriptions:{urllib.parse.quote(base)}")
 
     block_idx = line_idx = word_idx = 0
-    page_anno_id = f"{base_id}#page-normalized"
+    page_anno_id = f"{ap_uri}#page-normalized"
     text_lines: List[str] = []
 
     # Regions
@@ -163,7 +169,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
         region_points = get_attr(region_coords, "points")
         region_svg = points_to_svg_path(region_points)
         region_id_raw = get_attr(region, "id") or f"block{block_idx}"
-        block_anno_id = f"{base_id}#{urllib.parse.quote(region_id_raw)}"
+        block_anno_id = f"{ap_uri}#{urllib.parse.quote(region_id_raw)}"
 
         if region_svg:
             annotations.append(
@@ -185,7 +191,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
             line_svg = points_to_svg_path(line_points)
             line_text = extract_text(line)
             line_id_raw = get_attr(line, "id") or f"line{line_idx}"
-            line_anno_id = f"{base_id}#{urllib.parse.quote(line_id_raw)}"
+            line_anno_id = f"{ap_uri}#{urllib.parse.quote(line_id_raw)}"
 
             if line_text:
                 text_lines.append(line_text)
@@ -210,7 +216,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
                 word_svg = points_to_svg_path(w_points)
                 w_text = extract_text(w)
                 word_id_raw = get_attr(w, "id") or f"word{word_idx}"
-                word_anno_id = f"{base_id}#{urllib.parse.quote(word_id_raw)}"
+                word_anno_id = f"{ap_uri}#{urllib.parse.quote(word_id_raw)}"
 
                 if word_svg or w_text:
                     annotations.append(
@@ -242,10 +248,10 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
         )
     )
 
-    page_json_id = (
-            "https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/transcriptions/"
-            + re.sub(r"\.jpg$", ".json", page_filename or "", flags=re.I)
-    )
+    # page_json_id = (
+    #         "https://globalise-huygens.github.io/document-view-sandbox/iiif/annotations/transcriptions/"
+    #         + re.sub(r"\.jpg$", ".json", page_filename or "", flags=re.I)
+    # )
 
     commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
     cf = CreatorFactory(script_paths=[script_path], commit_id=commit_id)
@@ -269,7 +275,7 @@ def convert_pagexml_to_web_annotations(xml_string: str, canvas_id: str,
             }
         ],
         "type": ["DigitalObject", "AnnotationPage"],
-        "id": page_json_id,
+        "id": ap_uri,
         "label": f"Transcription of {page_filename}",
         "created_by": creator,
         "items": annotations,
