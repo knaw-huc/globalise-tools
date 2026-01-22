@@ -45,6 +45,9 @@ generate-transcription-annotation-pages() {
   wait
 }
 
+echo "conversion starting at:"
+date
+
 if ! [[ -d $PAGEXMLDIR/${inv_nr} ]]; then
   mkdir -p $PAGEXMLDIR
   unzip $ZIPDIR/pagexml/${inv_nr}.zip -d $PAGEXMLDIR
@@ -59,4 +62,5 @@ time extract-word-offsets && \
 time generate-web-annotations && \
 time group-to-annotation-page && \
 time generate-transcription-annotation-pages && \
-echo "done!"
+echo "conversion finished at:"
+date

@@ -65,9 +65,9 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
         sys.exit(1)
 
     page_id = pagexml_path.split("/")[-1].replace(".xml", "")
-    inv_nr = page_id.split("_")[-2]
-    page_no = int(page_id.split("_")[-1])
-    canvas_id = uf.canvas_id(inv_nr, page_no)
+    # inv_nr = page_id.split("_")[-2]
+    # page_no = int(page_id.split("_")[-1])
+    canvas_id = uf.canvas_url(page_id)
 
     annotation_page = pt.convert_pagexml_to_web_annotations(
         xml_string=xml_string,
