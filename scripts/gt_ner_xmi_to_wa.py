@@ -282,7 +282,8 @@ class XMIProcessor:
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
-            canvas_id = iv_data["canvas_id"]
+            # canvas_id = iv_data["canvas_id"]
+            canvas_id = uf.canvas_url(self.document_id)
             coords = iv_data["coords"]
             manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
             xywh = self._to_xywh(coords)

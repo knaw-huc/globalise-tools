@@ -65,7 +65,7 @@ def write_annotation_page(
         "label": f"Entities of {pageid}.jpg",
         "created_by": creator,
         "partOf": {
-            "id": uf.canvas_id(inv_nr, page_no),
+            "id": uf.canvas_url(pageid),
             "type": "Canvas",
             "width": width,
             "height": height
