@@ -19,12 +19,12 @@ $(OUT)/annotation-lists/:
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
 data/pagexml/%.zip: | data/pagexml/
-	@if [ -z "$$SSHPASS" ]; then \
-		echo "SSHPASS is not set"; \
+	@if [ -z "$$SSHUSER" ]; then \
+		echo "SSHUSER is not set: user for hucdrive.huc.knaw.nl"; \
 		exit 1; \
 	fi
-	@if [ -z "$$SSHUSER" ]; then \
-		echo "SSHUSER is not set"; \
+	@if [ -z "$$SSHPASS" ]; then \
+		echo "SSHPASS is not set: password for SSHUSER"; \
 		exit 1; \
 	fi
 	sshpass -e scp -P 2222 ${SSHUSER}@hucdrive.huc.knaw.nl:globalise/$*-pagexml.zip $@
