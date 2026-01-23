@@ -54,16 +54,16 @@ def event_url(identifier: str) -> str:
 
 # Annotations and Manifest (IIIF)
 
-def manifest_url(inventory_number: str) -> str:
+def manifest_url0(inventory_number: str) -> str:
     return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
 
 
-def manifest_url0(inventory_number: str) -> str:
+def manifest_url(inventory_number: str) -> str:
     return f"{inventory_url(inventory_number)}.manifest"
 
 
 def canvas_id(inventory_number: str, page_num: int) -> str:
-    return f"{manifest_url(inventory_number)}/canvas/p{page_num}"
+    return f"{manifest_url0(inventory_number)}/canvas/p{page_num}"
 
 
 def canvas_url(identifier: str) -> str:
@@ -75,7 +75,7 @@ def annotation_page_url(ap_type: AnnotationPageType, identifier: str) -> str:
 
 
 def annotation_url(ap_type: AnnotationPageType, ap_identifier: str, identifier: str) -> str:
-    return f"{annotation_page_url(ap_type, ap_identifier)}#{identifier}"
+    return f"{annotation_page_url(ap_type, ap_identifier)}#annotation:{identifier}"
 
 
 # utility methods

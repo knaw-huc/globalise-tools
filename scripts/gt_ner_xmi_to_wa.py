@@ -944,7 +944,8 @@ class XMIProcessor:
         return uf.annotation_url(uf.AnnotationPageType.ENTITIES, self.document_id, str(extra_id))
         # return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
-    def _event_id(self, extra_id: object) -> str:
+    @staticmethod
+    def _event_id(extra_id: object) -> str:
         return uf.event_url(str(extra_id))
         # return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
@@ -955,7 +956,8 @@ class XMIProcessor:
         return f"{uf.URI_BASE_PATTERN}event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _new_id(self, id_type: str) -> str:
-        return f"{uf.URI_BASE_PATTERN}{id_type.lower()}:{self._next_id_number():06d}"
+        base = uf.annotation_page_url(uf.AnnotationPageType.ENTITIES, self.document_id)
+        return f"{base}#{id_type.lower()}:{self._next_id_number():06d}"
 
     @staticmethod
     def _next_id_number() -> int:

@@ -32,19 +32,30 @@ def get_arguments() -> Namespace:
                         help="The (post-processed) plain text of the pagexml",
                         type=str
                         )
+    # parser.add_argument("-m",
+    #                     "--manifests-dir",
+    #                     help="The directory containing the manifest files, one per inventory number",
+    #                     type=str,
+    #                     required=True
+    #                     )
     parser.add_argument("-o", "--output-dir",
                         help="The directory to write the annotation pages to",
                         type=str
                         )
+    parser.add_argument("--git-commit",
+                        help="The git commit to use for the provenance (will be calculated if omitted)",
+                        type=str
+                        )
+
     return parser.parse_args()
 
 
-def load_manifest(inv_nr: str) -> dict[str, object]:
-    manifest_path = f"/Users/bram/workspaces/globalise/manifests/inventories/{inv_nr}.json"
-    logger.info(f"<= {manifest_path}")
-    with open(manifest_path) as f:
-        manifest = json.load(f)
-    return manifest
+# def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
+#     manifest_path = f"{manifests_dir}/{inv_nr}.json"
+#     logger.info(f"<= {manifest_path}")
+#     with open(manifest_path) as f:
+#         manifest = json.load(f)
+#     return manifest
 
 
 def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page_text_path: str) -> None:
@@ -83,7 +94,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
 
 
 @logger.catch
-def main():
+def main() -> None:
     args = get_arguments()
     if not args.verbose:
         logger.remove()
