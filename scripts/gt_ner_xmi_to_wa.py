@@ -989,7 +989,7 @@ class XMIProcessorFactory:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
         if git_commit_id:
-            self.git_commit = git_commit_id
+            self.commit_id = git_commit_id
         else:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
