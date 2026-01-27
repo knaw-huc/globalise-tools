@@ -5,6 +5,7 @@ import os
 import sys
 from argparse import Namespace
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 
@@ -58,7 +59,8 @@ def get_arguments() -> Namespace:
 #     return manifest
 
 
-def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page_text_path: str) -> None:
+def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page_text_path: str,
+                                           commit_id: Optional[str] = None) -> None:
     try:
         logger.info(f"<= {pagexml_path}")
         with open(pagexml_path, "r", encoding="utf-8") as f:
@@ -84,7 +86,8 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
         xml_string=xml_string,
         canvas_id=canvas_id,
         page_text=page_text,
-        script_path=THIS_SCRIPT_PATH
+        script_path=THIS_SCRIPT_PATH,
+        commit_id=commit_id
     )
 
     out_path = f"{out_dir}/{page_id}.json"
@@ -101,7 +104,7 @@ def main() -> None:
         logger.add(sink=sys.stderr, level="WARNING")
 
     Path(args.output_dir).mkdir(parents=True, exist_ok=True)
-    generate_transcription_annotation_page(args.output_dir, args.pagexml, args.pagetext)
+    generate_transcription_annotation_page(args.output_dir, args.pagexml, args.pagetext, args.git_commit)
 
 
 if __name__ == '__main__':
