@@ -4,6 +4,7 @@
 ZIPDIR=~/c/data/globalise
 PAGEXMLDIR=work/pagexml
 XMIDIR=work/xmi
+MANIFESTDIR=/Users/bram/workspaces/globalise/manifests/inventories
 OUT=work
 
 inv_nr=$1
@@ -21,7 +22,7 @@ generate-web-annotations() {
     --pagexml-dir      $PAGEXMLDIR \
     --xmi-dir          $XMIDIR \
     --word-offsets-dir $OUT/${inv_nr}/htr-word-offsets \
-    --manifests-dir    /Users/bram/workspaces/globalise/manifests/inventories \
+    --manifests-dir    $MANIFESTDIR \
     --type-system      data/typesystem.xml \
     --output-dir       $OUT \
     --inv-nr           ${inv_nr}
@@ -30,7 +31,9 @@ generate-web-annotations() {
 group-to-annotation-page() {
   ## group web annotations to annotation pages
   echo "3/4: group ner annotations to annotation pages"
-  poetry run ./scripts/gt-group-to-annotation-page.py $OUT/${inv_nr}/ner-annotations.json
+  poetry run ./scripts/gt-group-to-annotation-page.py \
+    --manifests-dir $MANIFESTDIR \
+    $OUT/${inv_nr}/ner-annotations.json
 }
 
 generate-transcription-annotation-pages() {

@@ -2,9 +2,11 @@
 import argparse
 import json
 import os
+import sys
 from argparse import Namespace
 from itertools import groupby
 from pathlib import Path
+from typing import Optional
 
 from loguru import logger
 
@@ -25,6 +27,12 @@ def get_arguments() -> Namespace:
                         action="store_true",
                         default=False,
                         dest='verbose'
+                        )
+    parser.add_argument("-m",
+                        "--manifests-dir",
+                        help="The directory containing the manifest files, one per inventory number",
+                        type=str,
+                        required=True
                         )
     parser.add_argument("--git-commit",
                         help="The git commit to use for the provenance (will be calculated if omitted)",
@@ -85,20 +93,20 @@ def page_id(annotation: dict[str, object]) -> str:
                              "").replace("#page-normalized", "")
 
 
-def load_manifest(inv_nr: str) -> dict[str, object]:
-    manifest_path = f"/Users/bram/workspaces/globalise/manifests/inventories/{inv_nr}.json"
+def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
+    manifest_path = f"${manifests_dir}/{inv_nr}.json"
     logger.info(f"<= {manifest_path}")
     with open(manifest_path) as f:
         manifest = json.load(f)
     return manifest
 
 
-def group_to_page(annotations_path: str, git_commit: str = None) -> None:
+def group_to_page(annotations_path: str, manifests_dir: str, git_commit: Optional[str] = None) -> None:
     logger.info(f"<= {annotations_path}")
     out_dir = "/".join(annotations_path.split("/")[:-1]) + "/entities"
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     inv_nr = annotations_path.split("/")[1]
-    manifest = load_manifest(inv_nr)
+    manifest = load_manifest(manifests_dir, inv_nr)
     canvas_dimensions = [[c["width"], c["height"]] for c in manifest["items"]]
 
     with open(annotations_path) as f:
@@ -121,7 +129,8 @@ def main() -> None:
     args = get_arguments()
     if not args.verbose:
         logger.remove()
-    group_to_page(args.annotations, args.git_commit)
+        logger.add(sink=sys.stderr, level="WARNING")
+    group_to_page(args.annotations, args.manifests_dir, args.git_commit)
 
 
 if __name__ == '__main__':
