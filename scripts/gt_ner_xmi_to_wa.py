@@ -1118,25 +1118,25 @@ def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
         json.dump(ner_annotations, fp=f, indent=4, ensure_ascii=False)
 
 
-def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
-    list_id = out_path.replace("out/", f"{MANIFEST_BASE_URL}/")
-    anno_list = {
-        "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json"
-    }
-    if presentation_version == 2:
-        anno_list["@id"] = list_id
-        anno_list["@type"] = "sc:AnnotationList"
-        anno_list["resources"] = annotations
-    elif presentation_version == 3:
-        anno_list["id"] = list_id
-        anno_list["type"] = "AnnotationPage"
-        anno_list["items"] = annotations
-    else:
-        raise Exception(f"presentation_version {presentation_version} unknown")
-
-    # logger.info(f"=> {out_path}")
-    with open(out_path, 'w') as f:
-        json.dump(anno_list, fp=f, indent=4, ensure_ascii=False)
+# def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
+#     list_id = out_path.replace("out/", f"{MANIFEST_BASE_URL}/")
+#     anno_list = {
+#         "@context": f"http://iiif.io/api/presentation/{presentation_version}/context.json"
+#     }
+#     if presentation_version == 2:
+#         anno_list["@id"] = list_id
+#         anno_list["@type"] = "sc:AnnotationList"
+#         anno_list["resources"] = annotations
+#     elif presentation_version == 3:
+#         anno_list["id"] = list_id
+#         anno_list["type"] = "AnnotationPage"
+#         anno_list["items"] = annotations
+#     else:
+#         raise Exception(f"presentation_version {presentation_version} unknown")
+#
+#     # logger.info(f"=> {out_path}")
+#     with open(out_path, 'w') as f:
+#         json.dump(anno_list, fp=f, indent=4, ensure_ascii=False)
 
 
 def export_text(page_texts: list[str], out_path: str) -> None:
@@ -1166,20 +1166,20 @@ class InventoryProcessingContext:
     manifests_dir: str
 
 
-def load_processed_inventories() -> list[str]:
-    path = "out/processed_ner_inv.json"
-    if os.path.exists(path):
-        logger.info(f"<= {path}")
-        with open(path) as f:
-            return json.load(f)
-    return []
+# def load_processed_inventories() -> list[str]:
+#     path = "out/processed_ner_inv.json"
+#     if os.path.exists(path):
+#         logger.info(f"<= {path}")
+#         with open(path) as f:
+#             return json.load(f)
+#     return []
 
 
-def store_processed_inventories(processed_inventories: list[str]) -> None:
-    path = "out/processed_ner_inv.json"
-    logger.info(f"=> {path}")
-    with open(path, "w") as f:
-        json.dump(processed_inventories, fp=f, ensure_ascii=False)
+# def store_processed_inventories(processed_inventories: list[str]) -> None:
+#     path = "out/processed_ner_inv.json"
+#     logger.info(f"=> {path}")
+#     with open(path, "w") as f:
+#         json.dump(processed_inventories, fp=f, ensure_ascii=False)
 
 
 def extract_ner_web_annotations(
@@ -1285,7 +1285,7 @@ def process_inventory(context: InventoryProcessingContext):
             handle_xmi(xmi_path, ner_annotations, page_texts, xpf, plain_text_source, manifest, manifest_item_idx,
                        context.presentation_version, out_dir)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
-        store_manifest(inv_nr, manifest)
+        store_manifest(inv_nr, manifest, export_dir)
 
         export_ner_annotations(ner_annotations, anno_out_path)
         # export_in_ttl(ner_annotations, anno_out_path)
@@ -1312,8 +1312,8 @@ def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
     return manifest
 
 
-def store_manifest(inv_nr: str, manifest: dict[str, object]) -> None:
-    manifest_path = f"out/{inv_nr}/{inv_nr}.json"
+def store_manifest(inv_nr: str, manifest: dict[str, object], out_dir: str) -> None:
+    manifest_path = f"{out_dir}/{inv_nr}/{inv_nr}.json"
     logger.info(f"=> {manifest_path}")
     with open(manifest_path, 'w') as f:
         json.dump(obj=manifest, fp=f, ensure_ascii=False)
