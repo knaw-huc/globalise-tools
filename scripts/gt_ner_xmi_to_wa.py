@@ -103,6 +103,7 @@ class XMIProcessor:
         base_name = path_parts[-1].replace('.xmi', '')
 
         self.document_id = base_name
+        self.inventory_id = self.document_id.split("_")[2]
         for k, v in document_data.items():
             if v['plain_text_md5'] == md5:
                 self.document_id = k
@@ -285,7 +286,8 @@ class XMIProcessor:
             # canvas_id = iv_data["canvas_id"]
             canvas_id = uf.canvas_url(self.document_id)
             coords = iv_data["coords"]
-            manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
+            # manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
+            manifest_uri = uf.manifest_url(self.inventory_id)
             xywh = self._to_xywh(coords)
             iiif_base_uri = iv_data["iiif_base_uri"]
             image_data = ImageData(
@@ -337,8 +339,8 @@ class XMIProcessor:
         grouped_image_data = groupby(image_data_list, key=lambda x: x.canvas_id)
         for canvas_id, image_data_groups in grouped_image_data:
             image_data_list = [i for i in image_data_groups]
-            iiif_base_uri = [d.iiif_base_uri for d in image_data_list][0]
-            manifest_uri = [d.manifest_uri for d in image_data_list][0]
+            iiif_base_uri = image_data_list[0].iiif_base_uri
+            manifest_uri = image_data_list[0].manifest_uri
             xywh = [d.xywh for d in image_data_list]
 
             targets.extend(self._image_targets(iiif_base_uri, xywh))
@@ -390,7 +392,7 @@ class XMIProcessor:
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
             canvas_id = iv_data["canvas_id"]
             coords = iv_data["coords"]
-            manifest_uri = re.sub(r"/canvas/.*$", "", canvas_id)
+            manifest_uri = uf.manifest_url(self.inventory_id)
             xywh = self._to_xywh(coords)
             iiif_base_uri = iv_data["iiif_base_uri"]
             image_data = ImageData(
@@ -538,6 +540,7 @@ class XMIProcessor:
 
     def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "appellative_status") | {
+            "label": covered_text,
             "has_appellative_subject": {
                 "id": self._new_id(ner_data['appellative_subject']),
                 "type": ner_data['appellative_subject'],
@@ -556,6 +559,7 @@ class XMIProcessor:
 
     def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "classificatory_status") | {
+            "label": covered_text,
             "has_classificatory_subject": {
                 "id": self._new_id(ner_data['classificatory_subject']),
                 "type": ner_data['classificatory_subject'],
@@ -747,9 +751,12 @@ class XMIProcessor:
             "selector": selectors
         }
 
-    def _canvas_target(self, canvas_source: str,
-                       xywh_list: list[str],
-                       manifest_uri: str) -> dict[str, str | dict[str, str | dict[str, str]] | list]:
+    def _canvas_target(
+            self,
+            canvas_source: str,
+            xywh_list: list[str],
+            manifest_uri: str
+    ) -> dict[str, str | dict[str, str | dict[str, str]] | list]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "SpecificResource",
