@@ -39,7 +39,7 @@ group-to-annotation-page() {
 generate-transcription-annotation-pages() {
   echo "4/4: generate transcription annotation pages"
   for t in $OUT/${inv_nr}/NL*.txt; do
-    base=$(basename $t|sed -e 's/.txt//')
+    base=$(basename $t .txt)
     poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
       --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
       --pagetext   $OUT/${inv_nr}/${base}.txt \

@@ -94,7 +94,7 @@ def page_id(annotation: dict[str, object]) -> str:
 
 
 def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
-    manifest_path = f"${manifests_dir}/{inv_nr}.json"
+    manifest_path = f"{manifests_dir}/{inv_nr}.json"
     logger.info(f"<= {manifest_path}")
     with open(manifest_path) as f:
         manifest = json.load(f)
