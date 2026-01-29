@@ -1,6 +1,6 @@
 import re
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional, Generator
+from typing import Any, Dict, List, Optional, Iterator
 
 import globalise_tools.git_tools as git
 import globalise_tools.url_factory as uf
@@ -16,9 +16,9 @@ class AnnotationPageBuilder:
 
     def __init__(
             self,
-            page_id: str,
             xml_string: str,
-            canvas_id: str,
+            page_id: str = "",
+            canvas_id: str = "",
             page_text: str = "",
             script_path: str = "",
             commit_id: Optional[str] = None
@@ -69,7 +69,7 @@ class AnnotationPageBuilder:
                         granularity="block",
                         svg_path=region_svg,
                         body_classification=self._get_region_type(region),
-                        targets=[page_anno_id],
+                        annotation_targets=[page_anno_id],
                     )
                 )
 
@@ -92,7 +92,7 @@ class AnnotationPageBuilder:
                             id=line_anno_id,
                             granularity="line",
                             svg_path=line_svg,
-                            targets=[block_anno_id],
+                            annotation_targets=[block_anno_id],
                             body_text=line_text,
                         )
                     )
@@ -113,8 +113,9 @@ class AnnotationPageBuilder:
                                 id=word_anno_id,
                                 granularity="word",
                                 svg_path=word_svg,
-                                targets=[line_anno_id],
+                                annotation_targets=[line_anno_id],
                                 body_text=w_text,
+                                text_position=Offset(begin=0, end=0)
                             )
                         )
 
@@ -171,6 +172,26 @@ class AnnotationPageBuilder:
 
         return annotation_page
 
+    def get_word_offsets(self) -> Dict[str, Offset]:
+        doc = ET.fromstring(self.xml_string)
+
+        # Root elements
+        page = self._find_first(doc, "Page")
+        word_idx = 0
+        htr_word_offset = {}
+        offset = 0
+
+        for region in self._find_all(page, "TextRegion"):
+            for line in self._find_all(region, "TextLine"):
+                for w in self._find_all(line, "Word"):
+                    word_idx += 1
+                    w_text = self._extract_text(w)
+                    w_len = len(w_text)
+                    word_id_raw = self._get_attr(w, "id") or f"word{word_idx}"
+                    htr_word_offset[word_id_raw] = Offset(offset, offset + w_len)
+                    offset += w_len + 1
+
+        return htr_word_offset
 
     # ---------------- Annotation builder ----------------
 
@@ -179,9 +200,10 @@ class AnnotationPageBuilder:
             id: str,
             granularity: Optional[str] = None,
             svg_path: Optional[str] = None,
-            targets: Optional[List[str]] = None,
+            annotation_targets: Optional[List[str]] = None,
             body_text: Optional[str] = None,
             body_classification: Optional[str] = None,
+            text_position: Optional[Offset] = None,
     ) -> Dict[str, Any]:
         body = []
         if body_text:
@@ -209,8 +231,12 @@ class AnnotationPageBuilder:
                 "source": self.canvas_id,
                 "selector": {"type": "SvgSelector", "value": svg_path},
             })
-        for t in targets or []:
+
+        for t in annotation_targets or []:
             target.append({"id": t, "type": "Annotation"})
+
+        if text_position:
+            target.append(self.text_position_target(text_position))
 
         anno = {
             "type": "Annotation",
@@ -231,37 +257,35 @@ class AnnotationPageBuilder:
             anno["target"] = target
         return anno
 
-    def _get_word_offsets(self, xml_string: str) -> Dict[str, Offset]:
-        doc = ET.fromstring(xml_string)
-
-        # Root elements
-        page = self._find_first(doc, "Page")
-        word_idx = 0
-        htr_word_offset = {}
-        offset = 0
-
-        for region in self._find_all(page, "TextRegion"):
-            for line in self._find_all(region, "TextLine"):
-                for w in self._find_all(line, "Word"):
-                    word_idx += 1
-                    w_text = self._extract_text(w)
-                    w_len = len(w_text)
-                    word_id_raw = self._get_attr(w, "id") or f"word{word_idx}"
-                    htr_word_offset[word_id_raw] = Offset(offset, offset + w_len)
-                    offset += w_len + 1
-
-        return htr_word_offset
+    def text_position_target(self, text_position: Offset) -> dict[str, Any]:
+        return {
+            "type": "SpecificResource",
+            "source": {
+                "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{self.page_id}#page-htr",
+                "type": [
+                    "DigitalObject",
+                    "Annotation"
+                ]
+            },
+            "selector": [
+                {
+                    "type": "TextPositionSelector",
+                    "start": text_position.begin,
+                    "end": text_position.end
+                }
+            ]
+        }
 
     # ---------------- XML helpers ----------------
 
     @staticmethod
-    def _is_element(self, node: Optional[ET.Element]) -> bool:
+    def _is_element(node: Optional[ET.Element]) -> bool:
         return node is not None and isinstance(node.tag, str)
 
-    def _child_elements(self, node: Optional[ET.Element]) -> Generator[ET.Element]:
+    def _child_elements(self, node: Optional[ET.Element]) -> Iterator[ET.Element]:
         if node is None:
             return (c for c in [])
-        return (c for c in node if self._is_element(c))
+        return (c for c in node if self._is_element())
 
     def _find_first(self, node: Optional[ET.Element], name: str) -> Optional[ET.Element]:
         for c in self._child_elements(node):
