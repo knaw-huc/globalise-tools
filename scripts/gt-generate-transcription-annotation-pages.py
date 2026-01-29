@@ -82,13 +82,14 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
     # page_no = int(page_id.split("_")[-1])
     canvas_id = uf.canvas_url(page_id)
 
-    annotation_page = pt.convert_pagexml_to_web_annotations(
+    annotation_page = pt.AnnotationPageBuilder(
+        page_id=page_id,
         xml_string=xml_string,
         canvas_id=canvas_id,
         page_text=page_text,
         script_path=THIS_SCRIPT_PATH,
         commit_id=commit_id
-    )
+    ).build()
 
     out_path = f"{out_dir}/{page_id}.json"
     logger.info(f"=> {out_path}")
