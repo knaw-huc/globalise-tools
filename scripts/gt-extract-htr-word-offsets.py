@@ -46,7 +46,7 @@ def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
 
         page_id = pagexml_path.split("/")[-1].replace(".xml", "")
 
-        htr_word_offsets = AnnotationPageBuilder(xml_string=xml_string).get_word_offsets()
+        htr_word_offsets = AnnotationPageBuilder(xml_string=xml_string).htr_word_offsets
 
         out_path = f"{out_dir}/{page_id}.json"
         logger.info(f"=> {out_path}")

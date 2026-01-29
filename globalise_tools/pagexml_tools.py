@@ -32,15 +32,15 @@ class AnnotationPageBuilder:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         else:
             self.commit_id = commit_id
+        self.xml_doc = ET.fromstring(self.xml_string)
+        self.htr_word_offsets = self._get_word_offsets()
 
     # ---------------- Main converter ----------------
     def build(self) -> Dict[str, Any]:
         annotations = []
 
-        doc = ET.fromstring(self.xml_string)
-
         # Root elements
-        page = self._find_first(doc, "Page")
+        page = self._find_first(self.xml_doc, "Page")
         page_filename = self._get_attr(page, "imageFilename")
         width = int(self._get_attr(page, "imageWidth") or 0) or None
         height = int(self._get_attr(page, "imageHeight") or 0) or None
@@ -115,7 +115,7 @@ class AnnotationPageBuilder:
                                 svg_path=word_svg,
                                 annotation_targets=[line_anno_id],
                                 body_text=w_text,
-                                text_position=Offset(begin=0, end=0)
+                                text_position=self.htr_word_offsets[word_id_raw]
                             )
                         )
 
@@ -172,11 +172,11 @@ class AnnotationPageBuilder:
 
         return annotation_page
 
-    def get_word_offsets(self) -> Dict[str, Offset]:
-        doc = ET.fromstring(self.xml_string)
+    # ---------------- Annotation builder ----------------
 
+    def _get_word_offsets(self) -> Dict[str, Offset]:
         # Root elements
-        page = self._find_first(doc, "Page")
+        page = self._find_first(self.xml_doc, "Page")
         word_idx = 0
         htr_word_offset = {}
         offset = 0
@@ -192,8 +192,6 @@ class AnnotationPageBuilder:
                     offset += w_len + 1
 
         return htr_word_offset
-
-    # ---------------- Annotation builder ----------------
 
     def _build_annotation(
             self,
