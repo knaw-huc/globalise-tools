@@ -75,8 +75,7 @@ def extract_text(node: Optional[ET.Element]) -> Optional[str]:
 
 # ---------------- Annotation builder ----------------
 
-def Annotation(
-        *,
+def build_annotation(
         id: str,
         granularity: Optional[str] = None,
         canvas_id: Optional[str] = None,
@@ -173,7 +172,7 @@ def convert_pagexml_to_web_annotations(
 
         if region_svg:
             annotations.append(
-                Annotation(
+                build_annotation(
                     id=block_anno_id,
                     granularity="block",
                     canvas_id=canvas_id,
@@ -198,7 +197,7 @@ def convert_pagexml_to_web_annotations(
 
             if line_svg or line_text:
                 annotations.append(
-                    Annotation(
+                    build_annotation(
                         id=line_anno_id,
                         granularity="line",
                         canvas_id=canvas_id,
@@ -220,7 +219,7 @@ def convert_pagexml_to_web_annotations(
 
                 if word_svg or w_text:
                     annotations.append(
-                        Annotation(
+                        build_annotation(
                             id=word_anno_id,
                             granularity="word",
                             canvas_id=canvas_id,
@@ -232,7 +231,7 @@ def convert_pagexml_to_web_annotations(
 
     # Page
     annotations.append(
-        Annotation(
+        build_annotation(
             id=page_anno_id,
             granularity="page",
             canvas_id=canvas_id,
@@ -240,7 +239,7 @@ def convert_pagexml_to_web_annotations(
         )
     )
     annotations.append(
-        Annotation(
+        build_annotation(
             id=page_anno_id.replace("normalized", "htr"),
             granularity="page-htr",
             canvas_id=canvas_id,
