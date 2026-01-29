@@ -261,7 +261,7 @@ class AnnotationPageBuilder:
         return {
             "type": "SpecificResource",
             "source": {
-                "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:transcriptions:{self.page_id}#page-htr",
+                "id": f"{uf.annotation_page_url(uf.AnnotationPageType.TRANSCRIPTIONS, self.page_id)}#page-htr",
                 "type": [
                     "DigitalObject",
                     "Annotation"
@@ -285,7 +285,7 @@ class AnnotationPageBuilder:
     def _child_elements(self, node: Optional[ET.Element]) -> Iterator[ET.Element]:
         if node is None:
             return (c for c in [])
-        return (c for c in node if self._is_element())
+        return (c for c in node if self._is_element(c))
 
     def _find_first(self, node: Optional[ET.Element], name: str) -> Optional[ET.Element]:
         for c in self._child_elements(node):
