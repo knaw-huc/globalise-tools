@@ -171,61 +171,6 @@ class AnnotationPageBuilder:
 
         return annotation_page
 
-    # ---------------- XML helpers ----------------
-
-    @staticmethod
-    def _is_element(self, node: Optional[ET.Element]) -> bool:
-        return node is not None and isinstance(node.tag, str)
-
-    def _child_elements(self, node: Optional[ET.Element]) -> Generator[ET.Element]:
-        if node is None:
-            return (c for c in [])
-        return (c for c in node if self._is_element(c))
-
-    def _find_first(self, node: Optional[ET.Element], name: str) -> Optional[ET.Element]:
-        for c in self._child_elements(node):
-            if c.tag == f"{{{ns['ns']}}}{name}":
-                return c
-        return None
-
-    def _find_all(self, node: Optional[ET.Element], name: str) -> List[ET.Element]:
-        return [c for c in self._child_elements(node) if c.tag == f"{{{ns['ns']}}}{name}"]
-
-    @staticmethod
-    def _get_attr(node: Optional[ET.Element], key: str) -> Optional[str]:
-        if node is None:
-            return None
-        return node.attrib.get(key)
-
-    @staticmethod
-    def _points_to_svg_path(points: Optional[str]) -> Optional[str]:
-        if not points:
-            return None
-        trimmed = re.sub(r"\s+", " ", points.strip())
-        return f'<path d="M{trimmed}z"/>'
-
-    def _get_region_type(self, region: Optional[ET.Element]) -> Optional[str]:
-        """Extracts the 'type' from a custom attribute like: structure {type:page-number;}"""
-        if region is None:
-            return None
-        custom = self._get_attr(region, "custom")
-        if not custom:
-            return None
-        m = re.search(r"structure\s*\{([^}]*)}", custom, re.I)
-        inside = m.group(1) if m else custom
-        t = re.search(r"\btype\s*:\s*([^;\s}]+)", inside, re.I)
-        return t.group(1).strip() if t else None
-
-    def _extract_text(self, node: Optional[ET.Element]) -> Optional[str]:
-        if node is None:
-            return None
-        text_equiv = self._find_first(node, "TextEquiv")
-        unicode_el = self._find_first(text_equiv, "Unicode")
-        if unicode_el is not None and len(unicode_el) == 0 and unicode_el.text:
-            return unicode_el.text.strip() or None
-        if unicode_el is not None and unicode_el.text:
-            return unicode_el.text.strip() or None
-        return None
 
     # ---------------- Annotation builder ----------------
 
@@ -306,3 +251,59 @@ class AnnotationPageBuilder:
                     offset += w_len + 1
 
         return htr_word_offset
+
+    # ---------------- XML helpers ----------------
+
+    @staticmethod
+    def _is_element(self, node: Optional[ET.Element]) -> bool:
+        return node is not None and isinstance(node.tag, str)
+
+    def _child_elements(self, node: Optional[ET.Element]) -> Generator[ET.Element]:
+        if node is None:
+            return (c for c in [])
+        return (c for c in node if self._is_element(c))
+
+    def _find_first(self, node: Optional[ET.Element], name: str) -> Optional[ET.Element]:
+        for c in self._child_elements(node):
+            if c.tag == f"{{{ns['ns']}}}{name}":
+                return c
+        return None
+
+    def _find_all(self, node: Optional[ET.Element], name: str) -> List[ET.Element]:
+        return [c for c in self._child_elements(node) if c.tag == f"{{{ns['ns']}}}{name}"]
+
+    @staticmethod
+    def _get_attr(node: Optional[ET.Element], key: str) -> Optional[str]:
+        if node is None:
+            return None
+        return node.attrib.get(key)
+
+    @staticmethod
+    def _points_to_svg_path(points: Optional[str]) -> Optional[str]:
+        if not points:
+            return None
+        trimmed = re.sub(r"\s+", " ", points.strip())
+        return f'<path d="M{trimmed}z"/>'
+
+    def _get_region_type(self, region: Optional[ET.Element]) -> Optional[str]:
+        """Extracts the 'type' from a custom attribute like: structure {type:page-number;}"""
+        if region is None:
+            return None
+        custom = self._get_attr(region, "custom")
+        if not custom:
+            return None
+        m = re.search(r"structure\s*\{([^}]*)}", custom, re.I)
+        inside = m.group(1) if m else custom
+        t = re.search(r"\btype\s*:\s*([^;\s}]+)", inside, re.I)
+        return t.group(1).strip() if t else None
+
+    def _extract_text(self, node: Optional[ET.Element]) -> Optional[str]:
+        if node is None:
+            return None
+        text_equiv = self._find_first(node, "TextEquiv")
+        unicode_el = self._find_first(text_equiv, "Unicode")
+        if unicode_el is not None and len(unicode_el) == 0 and unicode_el.text:
+            return unicode_el.text.strip() or None
+        if unicode_el is not None and unicode_el.text:
+            return unicode_el.text.strip() or None
+        return None
