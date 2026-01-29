@@ -1,5 +1,4 @@
 import re
-import urllib.parse
 import xml.etree.ElementTree as ET
 from typing import Any, Dict, List, Optional, Generator
 
@@ -170,7 +169,7 @@ def convert_pagexml_to_web_annotations(
         region_points = get_attr(region_coords, "points")
         region_svg = points_to_svg_path(region_points)
         region_id_raw = get_attr(region, "id") or f"block{block_idx}"
-        block_anno_id = f"{ap_uri}#{urllib.parse.quote(region_id_raw)}"
+        block_anno_id = f"{ap_uri}#{region_id_raw}"
 
         if region_svg:
             annotations.append(
@@ -192,7 +191,7 @@ def convert_pagexml_to_web_annotations(
             line_svg = points_to_svg_path(line_points)
             line_text = extract_text(line)
             line_id_raw = get_attr(line, "id") or f"line{line_idx}"
-            line_anno_id = f"{ap_uri}#{urllib.parse.quote(line_id_raw)}"
+            line_anno_id = f"{ap_uri}#{line_id_raw}"
 
             if line_text:
                 text_lines.append(line_text)
@@ -217,7 +216,7 @@ def convert_pagexml_to_web_annotations(
                 word_svg = points_to_svg_path(w_points)
                 w_text = extract_text(w)
                 word_id_raw = get_attr(w, "id") or f"word{word_idx}"
-                word_anno_id = f"{ap_uri}#{urllib.parse.quote(word_id_raw)}"
+                word_anno_id = f"{ap_uri}#{word_id_raw}"
 
                 if word_svg or w_text:
                     annotations.append(
