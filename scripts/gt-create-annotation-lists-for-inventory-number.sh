@@ -57,7 +57,7 @@ zip-annotation-pages() {
   zip=${inv_nr}-annotation-lists.zip
   (cd $OUT/${inv_nr} && zip -q ../annotationlists/$zip {entities,transcriptions}/*.json) && \
   sshpass -e scp -P 2222 $OUT/annotationlists/$zip bramb@hucdrive.huc.knaw.nl:/annotationlists/ && \
-  rm -rf $OUT/annotationlists/$zip $PAGEXMLDIR/${inv_nr} && \
+  rm -rf $OUT/annotationlists/$zip $PAGEXMLDIR/${inv_nr} $OUT/${inv_nr} && \
   echo $inv_nr >>$OUT/inv_done.lst
 }
 
