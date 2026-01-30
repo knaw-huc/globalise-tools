@@ -10,14 +10,14 @@ OUT=work
 inv_nr=$1
 
 extract-word-offsets() {
-  echo "1/4: extract word offsets"
+  echo "1/5: extract word offsets"
   poetry run ./scripts/gt-extract-htr-word-offsets.py \
     --output-dir $OUT/${inv_nr}/htr-word-offsets \
     $PAGEXMLDIR/${inv_nr}/NL*.xml
 }
 
 generate-web-annotations() {
-  echo "2/4: generate entity web annotations"
+  echo "2/5: generate entity web annotations"
   poetry run ./scripts/gt_ner_xmi_to_wa.py \
     --pagexml-dir      $PAGEXMLDIR \
     --xmi-dir          $XMIDIR \
@@ -30,14 +30,14 @@ generate-web-annotations() {
 
 group-to-annotation-page() {
   ## group web annotations to annotation pages
-  echo "3/4: group ner annotations to annotation pages"
+  echo "3/5: group ner annotations to annotation pages"
   poetry run ./scripts/gt-group-to-annotation-page.py \
     --manifests-dir $MANIFESTDIR \
     $OUT/${inv_nr}/ner-annotations.json
 }
 
 generate-transcription-annotation-pages() {
-  echo "4/4: generate transcription annotation pages"
+  echo "4/5: generate transcription annotation pages"
   for t in $OUT/${inv_nr}/NL*.txt; do
     base=$(basename $t .txt)
     poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
@@ -48,22 +48,30 @@ generate-transcription-annotation-pages() {
   wait
 }
 
+zip-annotation-pages() {
+  echo "5/5: zip annotation pages"
+  mkdir $OUT/annotationlists
+  (cd $OUT/${inv_nr} && zip -q ../annotationlists/${inv_nr}-annotation-lists.zip {entities,transcriptions}/*.json) && \
+  sshpass -e scp -P 2222 annotationlists/${inv_nr}-annotation-lists.zip bramb@hucdrive.huc.knaw.nl:/annotationlists/
+}
+
 echo "conversion starting at:"
 date
 
 if ! [[ -d $PAGEXMLDIR/${inv_nr} ]]; then
   mkdir -p $PAGEXMLDIR
-  unzip $ZIPDIR/pagexml/${inv_nr}.zip -d $PAGEXMLDIR
+  unzip -q $ZIPDIR/pagexml/${inv_nr}.zip -d $PAGEXMLDIR
 fi
 
 if ! [[ -d $XMIDIR/${inv_nr} ]]; then
   mkdir -p $XMIDIR
-  unzip $ZIPDIR/xmicas/${inv_nr}.zip -d $XMIDIR
+  unzip -q $ZIPDIR/xmicas/${inv_nr}.zip -d $XMIDIR
 fi
 
 time extract-word-offsets && \
 time generate-web-annotations && \
 time group-to-annotation-page && \
 time generate-transcription-annotation-pages && \
+zip-annotation-pages && \
 echo "conversion finished at:"
 date
