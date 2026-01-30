@@ -50,9 +50,11 @@ generate-transcription-annotation-pages() {
 
 zip-annotation-pages() {
   echo "5/5: zip annotation pages"
-  mkdir $OUT/annotationlists
-  (cd $OUT/${inv_nr} && zip -q ../annotationlists/${inv_nr}-annotation-lists.zip {entities,transcriptions}/*.json) && \
-  sshpass -e scp -P 2222 annotationlists/${inv_nr}-annotation-lists.zip bramb@hucdrive.huc.knaw.nl:/annotationlists/
+  mkdir -p $OUT/annotationlists
+  zip=${inv_nr}-annotation-lists.zip
+  (cd $OUT/${inv_nr} && zip -q ../annotationlists/$zip {entities,transcriptions}/*.json) && \
+  sshpass -e scp -P 2222 $OUT/annotationlists/$zip bramb@hucdrive.huc.knaw.nl:/annotationlists/ && \
+  rm $OUT/annotationlists/$zip
 }
 
 echo "conversion starting at:"
