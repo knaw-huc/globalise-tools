@@ -61,7 +61,7 @@ zip-annotation-pages() {
   echo $inv_nr >>$OUT/inv_done.lst
 }
 
-echo "conversion of ${inv_nr} starting at:"
+echo -n "conversion of ${inv_nr} starting at: "
 date
 
 if ! [[ -d $PAGEXMLDIR/${inv_nr} ]]; then
@@ -79,5 +79,6 @@ time generate-web-annotations && \
 time group-to-annotation-page && \
 time generate-transcription-annotation-pages && \
 zip-annotation-pages && \
-echo "conversion finished at:"
+echo -n "conversion finished at: "
 date
+echo
