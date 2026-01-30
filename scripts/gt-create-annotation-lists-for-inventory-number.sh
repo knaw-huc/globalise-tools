@@ -6,7 +6,7 @@ PAGEXMLDIR=work/pagexml
 XMIDIR=work/xmi
 MANIFESTDIR=/Users/bram/workspaces/globalise/manifests/inventories
 OUT=work
-
+COMMIT=2026.01.30
 inv_nr=$1
 
 extract-word-offsets() {
@@ -19,6 +19,7 @@ extract-word-offsets() {
 generate-web-annotations() {
   echo "2/5: generate entity web annotations"
   poetry run ./scripts/gt_ner_xmi_to_wa.py \
+    --git-commit       $COMMIT \
     --pagexml-dir      $PAGEXMLDIR \
     --xmi-dir          $XMIDIR \
     --word-offsets-dir $OUT/${inv_nr}/htr-word-offsets \
@@ -32,6 +33,7 @@ group-to-annotation-page() {
   ## group web annotations to annotation pages
   echo "3/5: group ner annotations to annotation pages"
   poetry run ./scripts/gt-group-to-annotation-page.py \
+    --git-commit       $COMMIT \
     --manifests-dir $MANIFESTDIR \
     $OUT/${inv_nr}/ner-annotations.json
 }
@@ -41,6 +43,7 @@ generate-transcription-annotation-pages() {
   for t in $OUT/${inv_nr}/NL*.txt; do
     base=$(basename $t .txt)
     poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
+      --git-commit       $COMMIT \
       --pagexml    $PAGEXMLDIR/${inv_nr}/${base}.xml \
       --pagetext   $OUT/${inv_nr}/${base}.txt \
       --output-dir $OUT/${inv_nr}/transcriptions &
