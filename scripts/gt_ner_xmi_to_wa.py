@@ -79,7 +79,7 @@ class XMIProcessor:
             document_data,
             commit_id: str,
             xmi_path: str,
-            offsets_path: str,
+            htr_offset: dict[str, Offset],
             presentation_version: int = 2,
             time_span: dict[str, str] = None
     ) -> None:
@@ -94,7 +94,7 @@ class XMIProcessor:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
-        self.htr_word_offset = self._load_word_offsets(offsets_path)
+        self.htr_word_offset = htr_offset
         self.normalized_word_offset = {}
         self.creator_factory = CreatorFactory(script_paths=[THIS_SCRIPT_PATH], commit_id=commit_id)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
@@ -1008,7 +1008,7 @@ class XMIProcessor:
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str, word_offsets_dir: str, timespan4inventory: dict[str, dict[str, str]],
+    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]],
                  git_commit_id: str = None) -> None:
         logger.info(f"<= {typesystem_path}")
         with open(typesystem_path, 'rb') as f:
@@ -1019,19 +1019,17 @@ class XMIProcessorFactory:
         else:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
-        self.word_offsets_dir = word_offsets_dir
 
-    def get_xmi_processor(self, xmi_path: str, presentation_version: int = 2) -> XMIProcessor:
+    def get_xmi_processor(self, xmi_path: str, htr_offset: dict[str, Offset],
+                          presentation_version: int = 2) -> XMIProcessor:
         inv_nr = xmi_path.split('/')[-2]
-        page_id = xmi_path.split('/')[-1].replace(".xmi", "")
         timespan = self._time_span(inv_nr)
-        offsets_path = f"{self.word_offsets_dir}/{page_id}.json"
         return XMIProcessor(
             self.typesystem,
             self.document_data,
             self.commit_id,
             xmi_path,
-            offsets_path,
+            htr_offset,
             time_span=timespan,
             presentation_version=presentation_version
         )
@@ -1223,7 +1221,7 @@ def extract_ner_web_annotations(
     if inv_nr is not None:
         xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
 
-    xpf = XMIProcessorFactory(type_system_path, word_offsets_dir, timespan4inventory, git_commit)
+    xpf = XMIProcessorFactory(type_system_path, timespan4inventory, git_commit)
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
@@ -1300,16 +1298,26 @@ def process_inventory(context: InventoryProcessingContext):
 
         os.makedirs(f"{out_dir}/normalized-word-offsets", exist_ok=True)
         anno_out_path = f"{out_dir}/ner-annotations.json"
-        ttl_out_path = f"{out_dir}/ner-annotations.ttl"
+        # ttl_out_path = f"{out_dir}/ner-annotations.ttl"
         text_out_path = f"{out_dir}/text.txt"
         ner_annotations = []
         page_texts = []
         manifest = load_manifest(context.manifests_dir, inv_nr)
         manifest_item_idx, iiif_base_uri_idx, canvas_id_idx = index_manifest_items(manifest)
+        htr_offset = None
         for xmi_path in xmi_paths:
-            plain_text_source = handle_page_xml(xmi_path, pagexml_dir, xpf, iiif_base_uri_idx, canvas_id_idx)
-            handle_xmi(xmi_path, ner_annotations, page_texts, xpf, plain_text_source, manifest, manifest_item_idx,
-                       context.presentation_version, out_dir)
+            pagexml_path = get_page_xml_path(xmi_path, pagexml_dir)
+            plain_text_source = handle_page_xml(xmi_path, pagexml_path, xpf, iiif_base_uri_idx, canvas_id_idx)
+            handle_xmi(xmi_path,
+                       ner_annotations,
+                       page_texts,
+                       xpf,
+                       plain_text_source,
+                       manifest,
+                       manifest_item_idx,
+                       htr_offset,
+                       context.presentation_version,
+                       out_dir)
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest, export_dir)
 
@@ -1353,10 +1361,11 @@ def handle_xmi(
         plain_text_source: str,
         manifest: dict[str, object],
         manifest_item_idx: dict[str, int],
+        htr_offset: dict[str, Offset],
         presentation_version: int = 2,
         out_dir: str = None,
 ) -> None:
-    xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version)
+    xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version, htr_offset=htr_offset)
     page_text = xp.text
     page_texts.append(page_text)
     basename = get_base_name(xmi_path)
@@ -1406,12 +1415,12 @@ def get_base_name(path: str):
 
 def handle_page_xml(
         xmi_path: str,
-        pagexml_dir: str,
+        page_xml_path: str,
         xpf: XMIProcessorFactory,
         iiif_base_uri_for_base_name: dict[str, str],
         canvas_id_for_base_name: dict[str, str]) -> str:
     base_name = get_base_name(xmi_path)
-    page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
+    # page_xml_path = get_page_xml_path(xmi_path, pagexml_dir)
     # make_transcription_annotation_page(page_xml_path)
     scan_doc = px.parse_pagexml_file(pagexml_file=page_xml_path)
     if base_name in iiif_base_uri_for_base_name:
