@@ -31,7 +31,7 @@ import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
-from globalise_tools.model import ImageData, Offset
+from globalise_tools.model import ImageData, Offset, AnnotationEncoder
 from globalise_tools.tools import inv_nr_sort_key
 
 GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
@@ -95,6 +95,7 @@ class XMIProcessor:
         self.text = self.cas.get_sofa().sofaString
         self.text_len = len(self.text)
         self.htr_word_offset = self._load_word_offsets(offsets_path)
+        self.normalized_word_offset = {}
         self.creator_factory = CreatorFactory(script_paths=[THIS_SCRIPT_PATH], commit_id=commit_id)
         md5 = hashlib.md5(self.text.encode()).hexdigest()
         # ic(md5)
@@ -206,6 +207,11 @@ class XMIProcessor:
                 for a in self.cas.views[0].get_all_annotations()
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
+    def store_normalized_word_offsets(self, path: str) -> None:
+        logger.info(f"=> {path}")
+        with open(path, "w", encoding="utf-8") as f:
+            json.dump(self.normalized_word_offset, f, indent=2, ensure_ascii=False, cls=AnnotationEncoder)
+
     def _get_prefix(self, a) -> str:
         if not a:
             return ""
@@ -280,6 +286,8 @@ class XMIProcessor:
         image_data_list = []
         htr_start = 99999999
         htr_end = 0
+        overlapping_word_ids = []
+        overlapping_word_lengths = {}
         for iv in sorted(list(overlapping_intervals)):
             iv_begin, iv_end, iv_data = iv
             # logger.info(f"overlapping interval: [{iv_begin},{iv_end}]")
@@ -300,8 +308,11 @@ class XMIProcessor:
             image_data_list.append(image_data)
 
             word_id = iv_data["word_id"]
-            htr_start = min(htr_start, self.htr_word_offset[word_id].begin)
-            htr_end = max(htr_end, self.htr_word_offset[word_id].end)
+            overlapping_word_ids.append(word_id)
+            htr_offset = self.htr_word_offset[word_id]
+            htr_start = min(htr_start, htr_offset.begin)
+            htr_end = max(htr_end, htr_offset.end)
+            overlapping_word_lengths[word_id] = htr_offset.end - htr_offset.begin
             annotation_page_id = f"{uf.URI_BASE_PATTERN}annotations:transcriptions:{self.document_id}"
             targets.append(
                 {
@@ -315,6 +326,21 @@ class XMIProcessor:
             )
 
         if htr_end > 0:
+            # calculate normalized textpositions for overlapping words
+            normalized_text_position_selector = targets[-1]["selector"][1]
+            normalized_start = int(normalized_text_position_selector["start"])
+            normalized_end = int(normalized_text_position_selector["end"])
+            begin = normalized_start
+            for w in overlapping_word_ids[:-1]:
+                word_length = overlapping_word_lengths[w]
+                self.normalized_word_offset[w] = Offset(begin=begin, end=(begin + word_length))
+                begin += word_length + 1
+            # set last word offset
+            last_overlapping_word_id = overlapping_word_ids[-1]
+            word_length = overlapping_word_lengths[last_overlapping_word_id]
+            self.normalized_word_offset[last_overlapping_word_id] = Offset(begin=(normalized_end - word_length),
+                                                                           end=normalized_end)
+
             targets.append({
                 "type": "SpecificResource",
                 "source": {
@@ -1272,7 +1298,7 @@ def process_inventory(context: InventoryProcessingContext):
 
         xmi_paths = sorted(glob.glob(f"{xmi_dir}/*.xmi"))
 
-        os.makedirs(f"{out_dir}", exist_ok=True)
+        os.makedirs(f"{out_dir}/normalized-word-offsets", exist_ok=True)
         anno_out_path = f"{out_dir}/ner-annotations.json"
         ttl_out_path = f"{out_dir}/ner-annotations.ttl"
         text_out_path = f"{out_dir}/text.txt"
@@ -1345,6 +1371,10 @@ def handle_xmi(
     xp.document_id = basename
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
+
+    normalized_word_offsets_path = f"{out_dir}/normalized-word-offsets/{basename}.json"
+    xp.store_normalized_word_offsets(normalized_word_offsets_path)
+
     # entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
     # eva = xp.get_event_annotations(entity_ids)
     # ner_annotations.extend(eva)
