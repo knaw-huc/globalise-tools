@@ -14,6 +14,8 @@ import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
 from globalise_tools.url_factory import AnnotationPageType
 
+THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
+
 
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
@@ -84,7 +86,8 @@ def main():
         pagexml_dir=args.pagexml_dir,
         xmi_dir=args.xmi_dir,
         xmi_processor_factory=xpf,
-        manifest_path=args.manifest
+        manifest_path=args.manifest,
+        script_path=THIS_SCRIPT_PATH
     )
     apf.build_annotation_pages()
     store_annotation_pages(apf.transcription_pages, args.output_dir, AnnotationPageType.TRANSCRIPTIONS)

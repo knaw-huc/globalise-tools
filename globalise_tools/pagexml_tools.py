@@ -12,7 +12,7 @@ ns = {
 }
 
 
-class AnnotationPageBuilder:
+class TranscriptionAnnotationPageBuilder:
 
     def __init__(
             self,

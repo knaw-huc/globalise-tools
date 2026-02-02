@@ -4,20 +4,23 @@ from pathlib import Path
 
 from loguru import logger
 
+import globalise_tools.pagexml_tools as pt
+import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
-from globalise_tools.pagexml_tools import AnnotationPageBuilder
+from globalise_tools.pagexml_tools import TranscriptionAnnotationPageBuilder
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
 
 
 class AnnotationPageFactory:
     def __init__(self, inventory_number: str, pagexml_dir: str, xmi_dir: str,
-                 xmi_processor_factory: nx.XMIProcessorFactory, manifest_path: str) -> None:
+                 xmi_processor_factory: nx.XMIProcessorFactory, manifest_path: str, script_path: str) -> None:
         self.inventory_number = inventory_number
         self.pagexml_dir = pagexml_dir
         self.xmi_dir = xmi_dir
         self.entity_pages = {}
         self.transcription_pages = {}
         self.xmi_processor_factory = xmi_processor_factory
+        self.script_path = script_path
         self._load_manifest(manifest_path)
 
     def build_annotation_pages(self) -> None:
@@ -30,7 +33,8 @@ class AnnotationPageFactory:
                 xmi_path=xmi_path,
                 xpf=self.xmi_processor_factory,
                 iiif_base_uri_idx=self.iiif_base_uri_idx,
-                canvas_id_idx=self.canvas_id_idx
+                canvas_id_idx=self.canvas_id_idx,
+                script_path=self.script_path
             )
             self.transcription_pages[page_id] = dp.transcription_annotation_page
             if dp.entity_annotation_page:
@@ -45,23 +49,37 @@ class AnnotationPageFactory:
 
 class DocumentPageProcessor:
 
-    def __init__(self, page_id: str, pagexml_path: Path, xmi_path: Path, xpf: XMIProcessorFactory,
-                 iiif_base_uri_idx, canvas_id_idx) -> None:
+    def __init__(self, page_id: str, pagexml_path: Path, xmi_path: Path, xpf: XMIProcessorFactory, iiif_base_uri_idx,
+                 canvas_id_idx, script_path: str) -> None:
         self.page_id = page_id
         self.pagexml_path = pagexml_path
         self.xmi_path = xmi_path
         xml_string = self._read_page_xml(pagexml_path)
-        self.annotation_page_builder = AnnotationPageBuilder(xml_string=xml_string, commit_id=xpf.commit_id)
         self.transcription_annotation_page = {}
         self.entity_annotation_page = None
 
+        normalized_page_text = ""
+        canvas_id = uf.canvas_url(page_id)
+        annotation_page_builder = pt.TranscriptionAnnotationPageBuilder(
+            page_id=page_id,
+            xml_string=xml_string,
+            canvas_id=canvas_id,
+            script_path=script_path,
+            commit_id=xpf.commit_id
+        )
         if xmi_path.exists():
-            htr_word_offsets = self.annotation_page_builder.htr_word_offsets
+            htr_word_offsets = annotation_page_builder.htr_word_offsets
             logger.info(f"<= {xmi_path}")
             # plain_text_source = nx.handle_page_xml(xmi_path.name, pagexml_path.name, xpf, iiif_base_uri_idx,
             #                                        canvas_id_idx)
+            normalized_page_text = ""  # from xmi
 
             self.entity_annotation_page = {"x": 1}
+        else:
+            normalized_page_text = ""  # TODO: generate
+
+        annotation_page_builder.page_text = normalized_page_text
+        self.transcription_annotation_page = annotation_page_builder.build()
 
     @staticmethod
     def _read_page_xml(pagexml_path: Path) -> str:

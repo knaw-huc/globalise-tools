@@ -82,7 +82,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
     # page_no = int(page_id.split("_")[-1])
     canvas_id = uf.canvas_url(page_id)
 
-    annotation_page = pt.AnnotationPageBuilder(
+    annotation_page = pt.TranscriptionAnnotationPageBuilder(
         page_id=page_id,
         xml_string=xml_string,
         canvas_id=canvas_id,
