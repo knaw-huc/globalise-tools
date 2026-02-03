@@ -1,13 +1,14 @@
 import json
 import sys
 from pathlib import Path
+from typing import Any
 
+import multiprocess as mp
 from loguru import logger
 
 import globalise_tools.pagexml_tools as pt
 import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
-from globalise_tools.pagexml_tools import TranscriptionAnnotationPageBuilder
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
 
 
@@ -24,21 +25,39 @@ class AnnotationPageFactory:
         self._load_manifest(manifest_path)
 
     def build_annotation_pages(self) -> None:
-        for pagexml_path in sorted(Path(self.pagexml_dir).glob("*.xml")):
-            page_id = pagexml_path.name.split("/")[-1].replace(".xml", "")
-            xmi_path = Path(f"{self.xmi_dir}/{page_id}.xmi")
-            dp = DocumentPageProcessor(
-                page_id=page_id,
-                pagexml_path=pagexml_path,
-                xmi_path=xmi_path,
-                xpf=self.xmi_processor_factory,
-                iiif_base_uri_idx=self.iiif_base_uri_idx,
-                canvas_id_idx=self.canvas_id_idx,
-                script_path=self.script_path
-            )
-            self.transcription_pages[page_id] = dp.transcription_annotation_page
-            if dp.entity_annotation_page:
-                self.entity_pages[page_id] = dp.entity_annotation_page
+        pagexml_paths = sorted(Path(self.pagexml_dir).glob("*.xml"))
+        # self._run_in_parallel(pagexml_paths)
+        self._run_sequentially(pagexml_paths)
+
+    def _run_in_parallel(self, pagexml_paths: list[Path], pool_size: int = 5):
+        with mp.Pool(pool_size) as p:
+            results = p.map(func=self._process_pagexml, iterable=pagexml_paths)
+        for page_id, transcription_annotation_page, entity_annotation_page in results:
+            self.transcription_pages[page_id] = transcription_annotation_page
+            if entity_annotation_page:
+                self.entity_pages[page_id] = entity_annotation_page
+
+    def _run_sequentially(self, pagexml_paths: list[Path]):
+        for pagexml_path in pagexml_paths:
+            page_id, transcription_annotation_page, entity_annotation_page = self._process_pagexml(pagexml_path)
+            self.transcription_pages[page_id] = transcription_annotation_page
+            if entity_annotation_page:
+                self.entity_pages[page_id] = entity_annotation_page
+
+    def _process_pagexml(self, pagexml_path: Path) -> tuple[
+        str, dict[Any, Any] | dict[str, Any], dict[str, int] | None]:
+        page_id = pagexml_path.name.split("/")[-1].replace(".xml", "")
+        xmi_path = Path(f"{self.xmi_dir}/{page_id}.xmi")
+        dp = DocumentPageProcessor(
+            page_id=page_id,
+            pagexml_path=pagexml_path,
+            xmi_path=xmi_path,
+            xpf=self.xmi_processor_factory,
+            iiif_base_uri_idx=self.iiif_base_uri_idx,
+            canvas_id_idx=self.canvas_id_idx,
+            script_path=self.script_path
+        )
+        return page_id, dp.transcription_annotation_page, dp.entity_annotation_page
 
     def _load_manifest(self, manifest_path: str) -> None:
         logger.info(f"<= {manifest_path}")
