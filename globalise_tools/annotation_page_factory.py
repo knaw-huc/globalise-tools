@@ -78,7 +78,7 @@ class DocumentPageProcessor:
         else:
             normalized_page_text = ""  # TODO: generate
 
-        annotation_page_builder.page_text = normalized_page_text
+        annotation_page_builder.normalized_page_text = normalized_page_text
         self.transcription_annotation_page = annotation_page_builder.build()
 
     @staticmethod

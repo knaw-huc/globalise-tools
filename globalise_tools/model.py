@@ -16,6 +16,12 @@ class Offset:
     begin: int
     end: int
 
+@dataclass_json
+@dataclass
+class TextQuote:
+    exact: str
+    prefix: str
+    suffix: str
 
 @dataclass
 class Document:

@@ -5,7 +5,7 @@ from typing import Any, Dict, List, Optional, Iterator
 import globalise_tools.git_tools as git
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
-from globalise_tools.model import Offset
+from globalise_tools.model import Offset, TextQuote
 
 ns = {
     'ns': 'http://schema.primaresearch.org/PAGE/gts/pagecontent/2013-07-15'
@@ -26,7 +26,7 @@ class TranscriptionAnnotationPageBuilder:
         self.page_id = page_id
         self.xml_string = xml_string
         self.canvas_id = canvas_id
-        self.page_text = page_text
+        self.normalized_page_text = page_text
         self.script_path = script_path
         if not commit_id:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
@@ -34,6 +34,7 @@ class TranscriptionAnnotationPageBuilder:
             self.commit_id = commit_id
         self.xml_doc = ET.fromstring(self.xml_string)
         self.htr_word_offsets = self._get_word_offsets()
+        self.max_fix_len = 20
 
     # ---------------- Main converter ----------------
     def build(self) -> Dict[str, Any]:
@@ -51,7 +52,14 @@ class TranscriptionAnnotationPageBuilder:
 
         block_idx = line_idx = word_idx = 0
         page_anno_id = f"{ap_uri}#page-normalized"
+
         text_lines: List[str] = []
+        for region in self._find_all(page, "TextRegion"):
+            for line in self._find_all(region, "TextLine"):
+                line_text = self._extract_text(line)
+                if line_text:
+                    text_lines.append(line_text)
+        htr_text = "\n".join(text_lines)
 
         # Regions
         for region in self._find_all(page, "TextRegion"):
@@ -65,7 +73,7 @@ class TranscriptionAnnotationPageBuilder:
             if region_svg:
                 annotations.append(
                     self._build_annotation(
-                        id=block_anno_id,
+                        anno_id=block_anno_id,
                         granularity="block",
                         svg_path=region_svg,
                         body_classification=self._get_region_type(region),
@@ -83,13 +91,10 @@ class TranscriptionAnnotationPageBuilder:
                 line_id_raw = self._get_attr(line, "id") or f"line{line_idx}"
                 line_anno_id = f"{ap_uri}#{line_id_raw}"
 
-                if line_text:
-                    text_lines.append(line_text)
-
                 if line_svg or line_text:
                     annotations.append(
                         self._build_annotation(
-                            id=line_anno_id,
+                            anno_id=line_anno_id,
                             granularity="line",
                             svg_path=line_svg,
                             annotation_targets=[block_anno_id],
@@ -108,30 +113,33 @@ class TranscriptionAnnotationPageBuilder:
                     word_anno_id = f"{ap_uri}#{word_id_raw}"
 
                     if word_svg or w_text:
+                        text_position = self.htr_word_offsets[word_id_raw]
+                        text_quote = self._text_quote(htr_text, text_position)
                         annotations.append(
                             self._build_annotation(
-                                id=word_anno_id,
+                                anno_id=word_anno_id,
                                 granularity="word",
                                 svg_path=word_svg,
                                 annotation_targets=[line_anno_id],
                                 body_text=w_text,
-                                text_position=self.htr_word_offsets[word_id_raw]
+                                text_position=text_position,
+                                text_quote=text_quote
                             )
                         )
 
         # Page
         annotations.append(
             self._build_annotation(
-                id=page_anno_id,
+                anno_id=page_anno_id,
                 granularity="page",
-                body_text=self.page_text,
+                body_text=self.normalized_page_text,
             )
         )
         annotations.append(
             self._build_annotation(
-                id=page_anno_id.replace("normalized", "htr"),
+                anno_id=page_anno_id.replace("normalized", "htr"),
                 granularity="page-htr",
-                body_text="\n".join(text_lines),
+                body_text=htr_text,
             )
         )
 
@@ -195,17 +203,23 @@ class TranscriptionAnnotationPageBuilder:
 
     def _build_annotation(
             self,
-            id: str,
+            anno_id: str,
             granularity: Optional[str] = None,
             svg_path: Optional[str] = None,
             annotation_targets: Optional[List[str]] = None,
             body_text: Optional[str] = None,
             body_classification: Optional[str] = None,
             text_position: Optional[Offset] = None,
+            text_quote: Optional[TextQuote] = None
     ) -> Dict[str, Any]:
         body = []
         if body_text:
-            body.append({"type": "TextualBody", "value": body_text})
+            textual_body = {"type": "TextualBody", "value": body_text}
+            if granularity == "page":
+                textual_body["purpose"] = "transcription-normalized"
+            elif granularity == "page-htr":
+                textual_body["purpose"] = "transcription-diplomatic"
+            body.append(textual_body)
         if body_classification:
             # classification_uri = (
             #         f"{uf.URI_BASE_PATTERN}thesaurus:annotation:"
@@ -234,20 +248,18 @@ class TranscriptionAnnotationPageBuilder:
             target.append({"id": t, "type": "Annotation"})
 
         if text_position:
-            target.append(self.text_position_target(text_position))
+            target.append(self.text_position_target(text_position, text_quote))
 
         anno = {
             "type": "Annotation",
-            "id": id,
+            "id": anno_id,
             "motivation": "supplementing" if body_text else "highlighting",
             "textGranularity": granularity,
         }
         if granularity == "page":
-            anno["purpose"] = "transcription-normalized"
             target.append({"type": "Canvas", "id": self.canvas_id})
         if granularity == "page-htr":
             anno["textGranularity"] = "page"
-            anno["purpose"] = "transcription-diplomatic"
             target.append({"type": "Canvas", "id": self.canvas_id})
         if body:
             anno["body"] = body
@@ -255,7 +267,15 @@ class TranscriptionAnnotationPageBuilder:
             anno["target"] = target
         return anno
 
-    def text_position_target(self, text_position: Offset) -> dict[str, Any]:
+    def text_position_target(self, text_position: Offset, text_quote: TextQuote) -> dict[str, Any]:
+        text_quote_selector = {
+            "type": "TextQuoteSelector",
+            "exact": text_quote.exact,
+        }
+        if text_quote.prefix:
+            text_quote_selector["prefix"] = text_quote.prefix
+        if text_quote.suffix:
+            text_quote_selector["suffix"] = text_quote.suffix
         return {
             "type": "SpecificResource",
             "source": {
@@ -266,6 +286,7 @@ class TranscriptionAnnotationPageBuilder:
                 ]
             },
             "selector": [
+                text_quote_selector,
                 {
                     "type": "TextPositionSelector",
                     "start": text_position.begin,
@@ -329,3 +350,31 @@ class TranscriptionAnnotationPageBuilder:
         if unicode_el is not None and unicode_el.text:
             return unicode_el.text.strip() or None
         return None
+
+    def _text_quote(self, text: str, text_position: Offset) -> TextQuote:
+        start = text_position.begin
+        end = text_position.end
+        exact = text[start:end]
+        prefix = self._get_prefix(text, text_position)
+        suffix = self._get_suffix(text, text_position)
+        return TextQuote(exact=exact, prefix=prefix, suffix=suffix)
+
+    def _get_prefix(self, text: str, text_position: Offset) -> str:
+        extended_prefix_begin = max(0, text_position.begin - self.max_fix_len * 2)
+        extended_prefix = text[extended_prefix_begin:text_position.begin].lstrip().replace('\n', ' ')
+        first_space_index = extended_prefix.rfind(' ', 0, self.max_fix_len)
+        if first_space_index != -1:
+            prefix = extended_prefix[first_space_index + 1:]
+        else:
+            prefix = extended_prefix
+        return prefix
+
+    def _get_suffix(self, text: str, text_position: Offset) -> str:
+        extended_suffix_end = min(len(text), text_position.end + self.max_fix_len * 2)
+        extended_suffix = text[text_position.end:extended_suffix_end].rstrip().replace('\n', ' ')
+        last_space_index = extended_suffix.rfind(' ', 0, self.max_fix_len)
+        if last_space_index != -1:
+            suffix = extended_suffix[:last_space_index]
+        else:
+            suffix = extended_suffix
+        return suffix
