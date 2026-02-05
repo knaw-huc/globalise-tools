@@ -1,7 +1,7 @@
 import re
 import urllib.parse
 import xml.etree.ElementTree as ET
-from typing import Any, Dict, List, Optional, Generator
+from typing import Any, Dict, List, Optional, Iterator
 
 import globalise_tools.git_tools as git
 import globalise_tools.url_factory as uf
@@ -19,7 +19,7 @@ def is_element(node: Optional[ET.Element]) -> bool:
     return node is not None and isinstance(node.tag, str)
 
 
-def children_elements(node: Optional[ET.Element]) -> Generator[ET.Element]:
+def children_elements(node: Optional[ET.Element]) -> Iterator[ET.Element]:
     if node is None:
         return (c for c in [])
     return (c for c in node if is_element(c))
