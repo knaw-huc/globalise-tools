@@ -19,10 +19,9 @@ COMMIT=2026.02.05
 .make/init: .make/inventorynumbers.lst
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
-	poetry lock
 	poetry install
 	mv inventory2timespan.json document_data.json data/
-	touch $@
+	@touch $@
 
 data/pagexml/:
 	mkdir -p $@

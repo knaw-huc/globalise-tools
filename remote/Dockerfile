@@ -9,7 +9,7 @@ RUN apk update &&\
 COPY globalise_tools/ /work/globalise_tools/
 COPY scripts/ /work/scripts/
 COPY remote/ /work/remote/
-COPY poetry.lock poetry_scripts.py pyproject.toml README.md /work/
+COPY poetry_scripts.py pyproject.toml README.md /work/
 COPY remote/Makefile /work/Makefile
 COPY data/typesystem.xml /work/typesystem.xml
 COPY data/document_data.json /work/document_data.json
