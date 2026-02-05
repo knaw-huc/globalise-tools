@@ -88,7 +88,12 @@ def Annotation(
 ) -> Dict[str, Any]:
     body = []
     if body_text:
-        body.append({"type": "TextualBody", "value": body_text})
+        textual_body = {"type": "TextualBody", "value": body_text}
+        if granularity == "page":
+            textual_body["purpose"] = "transcription-normalized"
+        elif granularity == "page-htr":
+            textual_body["purpose"] = "transcription-diplomatic"
+        body.append(textual_body)
     if body_classification:
         # classification_uri = (
         #         f"{uf.URI_BASE_PATTERN}thesaurus:annotation:"
@@ -122,11 +127,9 @@ def Annotation(
         "textGranularity": granularity,
     }
     if granularity == "page":
-        anno["purpose"] = "transcription-normalized"
         target.append({"type": "Canvas", "id": canvas_id})
     if granularity == "page-htr":
         anno["textGranularity"] = "page"
-        anno["purpose"] = "transcription-diplomatic"
         target.append({"type": "Canvas", "id": canvas_id})
     if body:
         anno["body"] = body
