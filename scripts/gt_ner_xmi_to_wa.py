@@ -326,7 +326,7 @@ class XMIProcessor:
             )
 
         if htr_end > 0:
-            # calculate normalized textpositions for overlapping words
+            # calculate normalized text positions for overlapping words
             normalized_text_position_selector = targets[-1]["selector"][1]
             normalized_start = int(normalized_text_position_selector["start"])
             normalized_end = int(normalized_text_position_selector["end"])
@@ -1265,7 +1265,7 @@ def run_in_parallel(
     #         logger.info(f"finished {result}")
 
 
-def run_sequentially(output_dir, pagexml_dir, xmi_dirs, xpf) -> None:
+def run_sequentially(output_dir, pagexml_dir, xmi_dirs, xpf, manifests_dir: str) -> None:
     start_time.value = time.perf_counter()
     for xmi_dir in xmi_dirs:
         context = InventoryProcessingContext(
@@ -1273,7 +1273,8 @@ def run_sequentially(output_dir, pagexml_dir, xmi_dirs, xpf) -> None:
             output_dir,
             pagexml_dir,
             xpf,
-            PRESENTATION_VERSION
+            PRESENTATION_VERSION,
+            manifests_dir=manifests_dir
         )
         process_inventory(context)
         # show_progress(None)
@@ -1308,16 +1309,16 @@ def process_inventory(context: InventoryProcessingContext):
         for xmi_path in xmi_paths:
             pagexml_path = get_page_xml_path(xmi_path, pagexml_dir)
             plain_text_source = handle_page_xml(xmi_path, pagexml_path, xpf, iiif_base_uri_idx, canvas_id_idx)
-            handle_xmi(xmi_path,
-                       ner_annotations,
-                       page_texts,
-                       xpf,
-                       plain_text_source,
-                       manifest,
-                       manifest_item_idx,
-                       htr_offset,
-                       context.presentation_version,
-                       out_dir)
+            normalized_text, normalized_offset = handle_xmi(
+                xmi_path,
+                ner_annotations,
+                xpf,
+                plain_text_source,
+                manifest,
+                manifest_item_idx,
+                htr_offset,
+                context.presentation_version
+            )
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest, export_dir)
 
@@ -1356,24 +1357,21 @@ def store_manifest(inv_nr: str, manifest: dict[str, object], out_dir: str) -> No
 def handle_xmi(
         xmi_path: str,
         ner_annotations: list,
-        page_texts: list,
         xpf: XMIProcessorFactory,
         plain_text_source: str,
         manifest: dict[str, object],
         manifest_item_idx: dict[str, int],
         htr_offset: dict[str, Offset],
         presentation_version: int = 2,
-        out_dir: str = None,
-) -> None:
+) -> tuple[str, dict[str, Any]]:
     xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version, htr_offset=htr_offset)
     page_text = xp.text
-    page_texts.append(page_text)
     basename = get_base_name(xmi_path)
 
-    text_path = f"{out_dir}/{basename}.txt"
-    # logger.info(f"=> {text_path}")
-    with open(text_path, 'w') as f:
-        f.write(page_text)
+    # text_path = f"{out_dir}/{basename}.txt"
+    # # logger.info(f"=> {text_path}")
+    # with open(text_path, 'w') as f:
+    #     f.write(page_text)
 
     basename_parts = basename.split("_")
     xp.plain_text_source = plain_text_source
@@ -1381,8 +1379,8 @@ def handle_xmi(
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
 
-    normalized_word_offsets_path = f"{out_dir}/normalized-word-offsets/{basename}.json"
-    xp.store_normalized_word_offsets(normalized_word_offsets_path)
+    # normalized_word_offsets_path = f"{out_dir}/normalized-word-offsets/{basename}.json"
+    # xp.store_normalized_word_offsets(normalized_word_offsets_path)
 
     # entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
     # eva = xp.get_event_annotations(entity_ids)
@@ -1403,6 +1401,7 @@ def handle_xmi(
         ]
     else:
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
+    return page_text, xp.normalized_word_offset
 
 
 def get_base_name(path: str):
