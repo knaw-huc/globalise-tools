@@ -12,6 +12,7 @@ COPY remote/ /work/remote/
 COPY poetry.lock poetry_scripts.py pyproject.toml README.md /work/
 COPY remote/Makefile /work/Makefile
 COPY data/typesystem.xml /work/typesystem.xml
+COPY data/document_data.json /work/document_data.json
 COPY data/inventory2timespan.json /work/inventory2timespan.json
 
 RUN cd /work && \

@@ -7,9 +7,12 @@ ALL_INV=$(shell cat .make/inventorynumbers.lst)
 OUT=work
 PAGEXMLDIR=$(OUT)/pagexml
 XMIDIR=$(OUT)/xmi
+MANIFESTSDIR=data/manifests/
+COMMIT=2026.01.30
 
 .make/:
 	mkdir -p $@
+
 $(OUT)/annotation-lists/:
 	mkdir -p $@
 
@@ -21,6 +24,8 @@ $(OUT)/annotation-lists/:
 	grep -v Users pyproject.toml.bak > pyproject.toml
 	poetry lock
 	poetry install
+	mv inventory2timespan.json document_data.json data/
+	touch $@
 
 data/pagexml/:
 	mkdir -p $@
@@ -81,26 +86,39 @@ typesystem.xml:
 	  --word-offsets-dir $(OUT)/$*/htr-word-offsets \
 	  --type-system      typesystem.xml \
 	  --output-dir       $(OUT) \
+	  --manifests-dir    $(MANIFESTSDIR) \
 	  --inv-nr           $*
 	@touch $@
 
 $(OUT)/%/annotations/transcriptions/: .make/pagexml-% .make/normalized-text-% scripts/gt-generate-transcription-annotation-pages.py .make/init
 	@mkdir -p $@
 	for t in $(OUT)/$*/NL*.txt; do \
-		base=$$(basename $$t|sed -e 's/.txt//'); \
+		base=$$(basename $$t .txt); \
 		poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
-		--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
-		--pagetext   $(OUT)/$*/$$base.txt \
-		--output-dir $(OUT)/$*/annotations/transcriptions & \
+			--git-commit $(COMMIT) \
+			--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
+			--pagetext   $(OUT)/$*/$$base.txt \
+			--output-dir $(OUT)/$*/annotations/transcriptions & \
 	done
 	wait
 
-$(OUT)/%/ner-annotations.json: .make/normalized-text-%
-	echo "made $(OUT)/$*/ner-annotations.json"
+$(OUT)/%/ner-annotations.json: .make/normalized-text-% ./scripts/gt_ner_xmi_to_wa.py .make/init
+	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+    --git-commit       $(COMMIT) \
+    --pagexml-dir      $(PAGEXMLDIR) \
+    --xmi-dir          $(XMIDIR) \
+    --word-offsets-dir $(OUT)/$*/htr-word-offsets \
+    --manifests-dir    $(MANIFESTSDIR) \
+    --type-system      typesystem.xml \
+    --output-dir       $(OUT) \
+    --inv-nr           $*
 
 $(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
 	@mkdir -p $@
-	poetry run ./scripts/gt-group-to-annotation-page.py $(OUT)/$*/ner-annotations.json
+	poetry run ./scripts/gt-group-to-annotation-page.py \
+	    --git-commit    $(COMMIT) \
+	 	--manifests-dir $(MANIFESTSDIR) \
+		$(OUT)/$*/ner-annotations.json
 
 $(OUT)/annotation-lists/%.zip: $(OUT)/%/annotations/transcriptions/ $(OUT)/%/annotations/entities/ | $(OUT)/annotation-lists/
 	cd $(OUT)/$*/annotations/ && zip --quiet -r ../../annotation-lists/$*.zip entities transcriptions
