@@ -110,11 +110,12 @@ $(OUT)/annotation-lists/:
 	mkdir -p $@
 
 $(OUT)/annotation-lists/%.zip: $(OUT)/%/transcriptions/ $(OUT)/%/entities/ | $(OUT)/annotation-lists/
-	cd $(OUT)/$*/ && zip --quiet -r ../annotation-lists/$*.zip {entities,transcriptions}/*.json
+	cd $(OUT)/$*/ && zip -qrm ../annotation-lists/$*.zip {entities,transcriptions}/*.json
 	
 #.PHONY: $(addprefix annotation-lists-,$(ALL_INV))
 annotation-lists-%: $(OUT)/annotation-lists/%.zip
 	$(MAKE) $(OUT)/annotation-lists/$*.zip
+	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip
 
 .PHONY: all-annotation-lists
 all-annotation-lists: .make/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
