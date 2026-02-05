@@ -8,7 +8,7 @@ OUT=work
 PAGEXMLDIR=$(OUT)/pagexml
 XMIDIR=$(OUT)/xmi
 MANIFESTSDIR=data/manifests/
-COMMIT=2026.01.30
+COMMIT=2026.02.05
 
 .make/:
 	mkdir -p $@
