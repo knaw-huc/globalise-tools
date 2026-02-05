@@ -87,7 +87,7 @@ $(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% typesystem.xm
 	  --inv-nr           $*
 	@touch $@
 
-$(OUT)/%/annotations/transcriptions/: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
+$(OUT)/%/transcriptions/: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
 	@mkdir -p $@
 	for t in $(OUT)/$*/NL*.txt; do \
 		base=$$(basename $$t .txt); \
@@ -95,11 +95,11 @@ $(OUT)/%/annotations/transcriptions/: .make/pagexml-% $(OUT)/%/ner-annotations.j
 			--git-commit $(COMMIT) \
 			--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
 			--pagetext   $(OUT)/$*/$$base.txt \
-			--output-dir $(OUT)/$*/annotations/transcriptions & \
+			--output-dir $(OUT)/$*/transcriptions & \
 	done
 	wait
 
-$(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
+$(OUT)/%/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
 	@mkdir -p $@
 	poetry run ./scripts/gt-group-to-annotation-page.py \
 	    --git-commit    $(COMMIT) \
@@ -109,8 +109,8 @@ $(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group
 $(OUT)/annotation-lists/:
 	mkdir -p $@
 
-$(OUT)/annotation-lists/%.zip: $(OUT)/%/annotations/transcriptions/ $(OUT)/%/annotations/entities/ | $(OUT)/annotation-lists/
-	cd $(OUT)/$*/annotations/ && zip --quiet -r ../../annotation-lists/$*.zip entities transcriptions
+$(OUT)/annotation-lists/%.zip: $(OUT)/%/transcriptions/ $(OUT)/%/entities/ | $(OUT)/annotation-lists/
+	cd $(OUT)/$*/ && zip --quiet -r ../annotation-lists/$*.zip {entities,transcriptions}/*.json
 	
 #.PHONY: $(addprefix annotation-lists-,$(ALL_INV))
 annotation-lists-%: $(OUT)/annotation-lists/%.zip
