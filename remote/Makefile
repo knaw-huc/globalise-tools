@@ -16,7 +16,7 @@ COMMIT=2026.01.30
 .make/inventorynumbers.lst: | .make/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
-.make/init: | .make/
+.make/init: .make/inventorynumbers.lst
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
 	poetry lock
@@ -99,7 +99,6 @@ $(OUT)/%/annotations/transcriptions/: .make/pagexml-% $(OUT)/%/ner-annotations.j
 			--output-dir $(OUT)/$*/annotations/transcriptions & \
 	done
 	wait
-
 
 $(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
 	@mkdir -p $@
