@@ -13,9 +13,6 @@ COMMIT=2026.01.30
 .make/:
 	mkdir -p $@
 
-$(OUT)/annotation-lists/:
-	mkdir -p $@
-
 .make/inventorynumbers.lst: | .make/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
@@ -79,8 +76,9 @@ data/xmicas/%.zip: | data/xmicas/
 typesystem.xml:
 	echo "missing file: data/typesystem.xml"
 
-.make/normalized-text-%: .make/word-offsets-% .make/xmicas-% typesystem.xml scripts/gt_ner_xmi_to_wa.py .make/init
+$(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% typesystem.xml scripts/gt_ner_xmi_to_wa.py .make/init
 	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+	  --git-commit       $(COMMIT) \
 	  --pagexml-dir      $(PAGEXMLDIR) \
 	  --xmi-dir          $(XMIDIR) \
 	  --word-offsets-dir $(OUT)/$*/htr-word-offsets \
@@ -90,7 +88,7 @@ typesystem.xml:
 	  --inv-nr           $*
 	@touch $@
 
-$(OUT)/%/annotations/transcriptions/: .make/pagexml-% .make/normalized-text-% scripts/gt-generate-transcription-annotation-pages.py .make/init
+$(OUT)/%/annotations/transcriptions/: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
 	@mkdir -p $@
 	for t in $(OUT)/$*/NL*.txt; do \
 		base=$$(basename $$t .txt); \
@@ -102,16 +100,6 @@ $(OUT)/%/annotations/transcriptions/: .make/pagexml-% .make/normalized-text-% sc
 	done
 	wait
 
-$(OUT)/%/ner-annotations.json: .make/normalized-text-% ./scripts/gt_ner_xmi_to_wa.py .make/init
-	poetry run ./scripts/gt_ner_xmi_to_wa.py \
-    --git-commit       $(COMMIT) \
-    --pagexml-dir      $(PAGEXMLDIR) \
-    --xmi-dir          $(XMIDIR) \
-    --word-offsets-dir $(OUT)/$*/htr-word-offsets \
-    --manifests-dir    $(MANIFESTSDIR) \
-    --type-system      typesystem.xml \
-    --output-dir       $(OUT) \
-    --inv-nr           $*
 
 $(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
 	@mkdir -p $@
@@ -119,6 +107,9 @@ $(OUT)/%/annotations/entities/: $(OUT)/%/ner-annotations.json ./scripts/gt-group
 	    --git-commit    $(COMMIT) \
 	 	--manifests-dir $(MANIFESTSDIR) \
 		$(OUT)/$*/ner-annotations.json
+
+$(OUT)/annotation-lists/:
+	mkdir -p $@
 
 $(OUT)/annotation-lists/%.zip: $(OUT)/%/annotations/transcriptions/ $(OUT)/%/annotations/entities/ | $(OUT)/annotation-lists/
 	cd $(OUT)/$*/annotations/ && zip --quiet -r ../../annotation-lists/$*.zip entities transcriptions
