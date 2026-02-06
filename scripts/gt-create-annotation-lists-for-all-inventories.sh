@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 BATCHSIZE=1
-BAR_CHAR='|'
+BAR_CHAR='#'
 EMPTY_CHAR=' '
 start_time=$(date +%s)
 
@@ -39,7 +39,9 @@ progress-bar() {
 	printf '\e7' # save the cursor location
 	  printf '\e[%d;%dH' "$LINES" 0 # move cursor to the bottom line
 	  printf '\e[0K' # clear the line
+    echo -ne "\033[34m" # Set color to blue
 	  printf '%s' "$s" # print the progress bar
+	  echo -ne "\033[0m" # Reset color
 	printf '\e8' # restore the cursor location
 }
 
