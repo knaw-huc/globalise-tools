@@ -83,7 +83,7 @@ def write_annotation_page(
     out_path = f"{out_dir}/{pageid}.json"
     logger.info(f"=> {out_path}")
     with open(out_path, "w") as f:
-        json.dump(page, f, indent=2, ensure_ascii=False)
+        json.dump(page, f, ensure_ascii=False)
 
 
 def page_id(annotation: dict[str, object]) -> str:
