@@ -210,7 +210,7 @@ class XMIProcessor:
     def store_normalized_word_offsets(self, path: str) -> None:
         logger.info(f"=> {path}")
         with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.normalized_word_offset, f, indent=2, ensure_ascii=False, cls=AnnotationEncoder)
+            json.dump(self.normalized_word_offset, f, ensure_ascii=False, cls=AnnotationEncoder)
 
     def _get_prefix(self, a) -> str:
         if not a:
@@ -1139,7 +1139,7 @@ def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
     logger.info(f"=> {out_path}")
     # ic(ner_annotations[456])
     with open(out_path, 'w') as f:
-        json.dump(ner_annotations, fp=f, indent=4, ensure_ascii=False)
+        json.dump(ner_annotations, fp=f, ensure_ascii=False)
 
 
 # def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
