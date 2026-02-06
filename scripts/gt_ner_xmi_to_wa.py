@@ -17,22 +17,21 @@ from multiprocessing import Value
 from typing import Tuple, Any, Optional
 
 import cassis as cas
-import multiprocess as mp
-import pagexml.parser as px
-from cassis.typesystem import FeatureStructure
-from icecream import ic
-from intervaltree import Interval, IntervalTree
-from loguru import logger
-from tqdm import tqdm
-
 import globalise_tools.git_tools as git
 import globalise_tools.tools as gt
 import globalise_tools.url_factory as uf
+import multiprocess as mp
+import pagexml.parser as px
+from cassis.typesystem import FeatureStructure
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
+from icecream import ic
+from intervaltree import Interval, IntervalTree
+from loguru import logger
+from tqdm import tqdm
 
 GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
 
@@ -1115,7 +1114,7 @@ def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
     logger.info(f"=> {out_path}")
     # ic(ner_annotations[456])
     with open(out_path, 'w') as f:
-        json.dump(ner_annotations, fp=f, indent=4, ensure_ascii=False)
+        json.dump(ner_annotations, fp=f, ensure_ascii=False)
 
 
 # def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:

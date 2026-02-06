@@ -8,11 +8,10 @@ from itertools import groupby
 from pathlib import Path
 from typing import Optional
 
-from loguru import logger
-
 import globalise_tools.git_tools as git
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
+from loguru import logger
 from scripts.gt_ner_xmi_to_wa import THIS_SCRIPT_PATH as XMI_TO_WA_SCRIPT_PATH
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -83,7 +82,7 @@ def write_annotation_page(
     out_path = f"{out_dir}/{pageid}.json"
     logger.info(f"=> {out_path}")
     with open(out_path, "w") as f:
-        json.dump(page, f, indent=2, ensure_ascii=False)
+        json.dump(page, f, ensure_ascii=False)
 
 
 def page_id(annotation: dict[str, object]) -> str:
