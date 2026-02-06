@@ -20,7 +20,7 @@ class XMITestCase(unittest.TestCase):
                 "begin_of_the_end": ts,
             }
         }
-        xpf = XMIProcessorFactory(type_system_path,, None
+        xpf = XMIProcessorFactory(type_system_path)
         xp = xpf.get_xmi_processor(file_path)
         entity_annotations = [a for a in xp.cas.views[0].get_all_annotations() if
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
