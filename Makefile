@@ -19,6 +19,12 @@ data/pagexml_map.json: scripts/gt-create-pagexml-map.py data/external_ids.csv
 data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
 	poetry run scripts/gt-extract-scan-url-mapping.py
 
+data/inventory2dates.json:
+	echo "Contact Leon van Wissen for $@ ('een mapping tussen inventarisnummer en datum')"
+
+data/inventory2timespan.json: data/inventory2dates.json scripts/gt-convert-inventory-dates.py
+	poetry run scripts/gt-convert-inventory-dates.py
+
 .PHONY: extract-all
 extract-all:
 	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
