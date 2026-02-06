@@ -8,11 +8,10 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
-from loguru import logger
-
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
 from globalise_tools.url_factory import AnnotationPageType
+from loguru import logger
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -104,7 +103,7 @@ def store_annotation_pages(pages_dict: dict[str, dict[str, Any]], output_dir: st
         page_path = f"{output_dir}/{type.value}/{page_id}.json"
         logger.info(f"=> {page_path}")
         with open(page_path, "w") as f:
-            json.dump(page, f, indent=2, ensure_ascii=False)
+            json.dump(page, f, ensure_ascii=False)
 
 
 if __name__ == '__main__':

@@ -5,10 +5,9 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
-from loguru import logger
-
 from globalise_tools.model import AnnotationEncoder
 from globalise_tools.pagexml_tools import TranscriptionAnnotationPageBuilder
+from loguru import logger
 
 
 def get_arguments() -> Namespace:
@@ -51,7 +50,7 @@ def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
         out_path = f"{out_dir}/{page_id}.json"
         logger.info(f"=> {out_path}")
         with open(out_path, "w", encoding="utf-8") as f:
-            json.dump(htr_word_offsets, f, indent=2, ensure_ascii=False, cls=AnnotationEncoder)
+            json.dump(htr_word_offsets, f, ensure_ascii=False, cls=AnnotationEncoder)
 
 
 @logger.catch
