@@ -34,7 +34,6 @@ xlsxwriter = "^3.0.3"
 xmldict = "^0.4.1"
 multiprocess = "^0.70.17"
 
-# use `poetry install --with dev-bram` to use these dependencies
 loguru = "^0.7.3"
 spacy = "^3.8.7"
 rdflib = "^7.2.1"
@@ -42,6 +41,9 @@ pyld = "^2.0.4"
 ipykernel = "^7.1.0"
 pandas = "^2.3.3"
 pandas-stubs = "~=2.3.3"
+orjson = "^3.11.7"
+
+# use `poetry install --with dev-bram` to use these dependencies
 [tool.poetry.group.dev-bram.dependencies]
 circuitbreaker = "^2.0.0"
 dask = {extras = ["distributed"], version = "^2024.12.1"}
