@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import os
 import sys
 from argparse import Namespace
 from pathlib import Path
 from typing import Optional
 
+import orjson
 from loguru import logger
 
 import globalise_tools.pagexml_tools as pt
@@ -93,8 +93,9 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
 
     out_path = f"{out_dir}/{page_id}.json"
     logger.info(f"=> {out_path}")
-    with open(out_path, "w", encoding="utf-8") as f:
-        json.dump(annotation_page, f, ensure_ascii=False)
+    with open(out_path, "wb") as f:
+        s = orjson.dumps(annotation_page)
+        f.write(s)
 
 
 @logger.catch

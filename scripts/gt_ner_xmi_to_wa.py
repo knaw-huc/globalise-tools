@@ -3,7 +3,6 @@ import argparse
 import copy
 import glob
 import hashlib
-import json
 import os
 import re
 import sys
@@ -18,6 +17,7 @@ from typing import Tuple, Any, Optional
 
 import cassis as cas
 import multiprocess as mp
+import orjson
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
 from icecream import ic
@@ -31,7 +31,7 @@ import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
-from globalise_tools.model import ImageData, Offset, AnnotationEncoder
+from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
 
 GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
@@ -209,8 +209,8 @@ class XMIProcessor:
 
     def store_normalized_word_offsets(self, path: str) -> None:
         logger.info(f"=> {path}")
-        with open(path, "w", encoding="utf-8") as f:
-            json.dump(self.normalized_word_offset, f, ensure_ascii=False, cls=AnnotationEncoder)
+        with open(path, "wb") as f:
+            f.write(orjson.dumps(self.normalized_word_offset))
 
     def _get_prefix(self, a) -> str:
         if not a:
@@ -327,7 +327,8 @@ class XMIProcessor:
 
         if htr_end > 0:
             # calculate normalized text positions for overlapping words
-            normalized_text_position_selector = targets[-1]["selector"][1]
+            targets_with_selector = [t for t in targets if "selector" in t]
+            normalized_text_position_selector = targets_with_selector[-1]["selector"][1]
             normalized_start = int(normalized_text_position_selector["start"])
             normalized_end = int(normalized_text_position_selector["end"])
             begin = normalized_start
@@ -1002,7 +1003,7 @@ class XMIProcessor:
     def _load_word_offsets(offsets_path: str) -> dict[str, Offset]:
         logger.info(f"<= {offsets_path}")
         with open(offsets_path, 'rb') as f:
-            items = json.load(f).items()
+            items = orjson.loads(f.read()).items()
         return {k: Offset(v['begin'], v['end']) for k, v in items}
 
 
@@ -1019,6 +1020,7 @@ class XMIProcessorFactory:
         else:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
+        self.errors = []
 
     def get_xmi_processor(self, xmi_path: str, htr_offset: dict[str, Offset],
                           presentation_version: int = 2) -> XMIProcessor:
@@ -1037,18 +1039,22 @@ class XMIProcessorFactory:
     @cache
     def _time_span(self, inv_nr: str) -> dict[str, str]:
         ts = self.timespan4inventory.get(inv_nr, {})
-        return {
-            "type": "TimeSpan",
-            "end_of_the_begin": ts["end_of_the_begin"],
-            "begin_of_the_end": ts["begin_of_the_end"],
-        }
+        if ts:
+            return {
+                "type": "TimeSpan",
+                "end_of_the_begin": ts["end_of_the_begin"],
+                "begin_of_the_end": ts["begin_of_the_end"],
+            }
+        else:
+            self.errors.append(f"no timespan found for inv.nr. {inv_nr}")
+            return {"type": "TimeSpan"}
 
     @staticmethod
     def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
         logger.info(f"<= {path}")
         with open(path) as f:
-            return json.load(f)
+            return orjson.loads(f.read())
 
 
 from argparse import Namespace
@@ -1138,8 +1144,8 @@ def get_arguments() -> Namespace:
 def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
     logger.info(f"=> {out_path}")
     # ic(ner_annotations[456])
-    with open(out_path, 'w') as f:
-        json.dump(ner_annotations, fp=f, ensure_ascii=False)
+    with open(out_path, 'wb') as f:
+        f.write(orjson.dumps(ner_annotations))
 
 
 # def export_annotation_list(annotations: list[dict[str, object]], out_path: str, presentation_version: int = 2) -> None:
@@ -1234,7 +1240,7 @@ def load_timespan_dict() -> dict[str, dict[str, str]]:
     path = "data/inventory2timespan.json"
     logger.info(f"<= {path}")
     with open(path) as f:
-        return json.load(f)
+        return orjson.loads(f.read())
 
 
 def run_in_parallel(
@@ -1343,15 +1349,15 @@ def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
     manifest_path = f"{manifests_dir}/{inv_nr}.json"
     logger.info(f"<= {manifest_path}")
     with open(manifest_path) as f:
-        manifest = json.load(f)
+        manifest = orjson.loads(f.read())
     return manifest
 
 
 def store_manifest(inv_nr: str, manifest: dict[str, object], out_dir: str) -> None:
     manifest_path = f"{out_dir}/{inv_nr}/{inv_nr}.json"
     logger.info(f"=> {manifest_path}")
-    with open(manifest_path, 'w') as f:
-        json.dump(obj=manifest, fp=f, ensure_ascii=False)
+    with open(manifest_path, 'wb') as f:
+        f.write(orjson.dumps(manifest))
 
 
 def handle_xmi(

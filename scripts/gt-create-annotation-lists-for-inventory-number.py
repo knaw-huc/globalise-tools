@@ -1,6 +1,5 @@
 #!/usr/bin/env python3
 import argparse
-import json
 import os
 import sys
 import time
@@ -8,10 +7,12 @@ from argparse import Namespace
 from pathlib import Path
 from typing import Any
 
+import orjson
+from loguru import logger
+
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
 from globalise_tools.url_factory import AnnotationPageType
-from loguru import logger
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -96,14 +97,21 @@ def main():
     print(
         f"created {len(apf.transcription_pages) + len(apf.entity_pages)} annotation pages in  {toc - tic:0.4f} seconds")
 
+    errors = xpf.errors + apf.errors
+    if errors:
+        print(f"{len(errors)} errors occurred:")
+        for error in errors:
+            print(f"  {error}")
+        exit(1)
+
 
 def store_annotation_pages(pages_dict: dict[str, dict[str, Any]], output_dir: str, type: AnnotationPageType) -> None:
     for (page_id, page) in pages_dict.items():
         os.makedirs(f"{output_dir}/{type.value}", exist_ok=True)
         page_path = f"{output_dir}/{type.value}/{page_id}.json"
         logger.info(f"=> {page_path}")
-        with open(page_path, "w") as f:
-            json.dump(page, f, ensure_ascii=False)
+        with open(page_path, "wb") as f:
+            f.write(orjson.dumps(page))
 
 
 if __name__ == '__main__':

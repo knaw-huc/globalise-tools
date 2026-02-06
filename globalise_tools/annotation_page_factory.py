@@ -1,9 +1,10 @@
-import json
+import os
 import sys
 from pathlib import Path
 from typing import Any
 
 import multiprocess as mp
+import orjson
 from loguru import logger
 
 import globalise_tools.pagexml_tools as pt
@@ -22,6 +23,7 @@ class AnnotationPageFactory:
             manifest_path: str,
             script_path: str
     ) -> None:
+        self.errors = []
         self.inventory_number = inventory_number
         self.pagexml_dir = pagexml_dir
         self.xmi_dir = xmi_dir
@@ -32,9 +34,10 @@ class AnnotationPageFactory:
         self._load_manifest(manifest_path)
 
     def build_annotation_pages(self) -> None:
-        pagexml_paths = sorted(Path(self.pagexml_dir).glob("*.xml"))
-        # self._run_in_parallel(pagexml_paths)
-        self._run_sequentially(pagexml_paths)
+        if not self.errors:
+            pagexml_paths = sorted(Path(self.pagexml_dir).glob("*.xml"))
+            # self._run_in_parallel(pagexml_paths)
+            self._run_sequentially(pagexml_paths)
 
     def _run_in_parallel(self, pagexml_paths: list[Path], pool_size: int = 5):
         with mp.Pool(pool_size) as p:
@@ -69,10 +72,14 @@ class AnnotationPageFactory:
         return page_id, dp.transcription_annotation_page, dp.entity_annotation_page
 
     def _load_manifest(self, manifest_path: str) -> None:
-        logger.info(f"<= {manifest_path}")
-        with open(manifest_path) as f:
-            manifest = json.load(f)
-        self.manifest_item_idx, self.iiif_base_uri_idx, self.canvas_id_idx = nx.index_manifest_items(manifest)
+        if os.path.exists(manifest_path):
+            logger.info(f"<= {manifest_path}")
+            with open(manifest_path) as f:
+                manifest = orjson.loads(f.read())
+            self.manifest_item_idx, self.iiif_base_uri_idx, self.canvas_id_idx = nx.index_manifest_items(manifest)
+            self.manifest = manifest
+        else:
+            self.errors.append(f"No manifest found at {manifest_path}")
 
 
 class DocumentPageProcessor:
