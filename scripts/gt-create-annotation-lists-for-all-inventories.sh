@@ -20,7 +20,9 @@ progress-bar() {
   local elapsed_time=$((current_time - start_time))
   local estimated_time=$((elapsed_time * len / current - elapsed_time))
 
-	local suffix=" $current/$len ($perc_done%) ETR: ${estimated_time}s"
+  local dhms=$(seconds-to-dhms $estimated_time)
+
+	local suffix=" $current/$len ($perc_done%) ETR: ${dhms}"
 
 	local length=$((COLUMNS - ${#suffix} - 2))
 	local num_bars=$((perc_done * length / 100))
@@ -43,6 +45,18 @@ progress-bar() {
 	  printf '%s' "$s" # print the progress bar
 	  echo -ne "\033[0m" # Reset color
 	printf '\e8' # restore the cursor location
+}
+
+seconds-to-dhms() {
+  local total=$1
+  local days hours minutes seconds
+
+  (( days    = total / 86400 ))
+  (( hours   = (total % 86400) / 3600 ))
+  (( minutes = (total % 3600) / 60 ))
+  (( seconds = total % 60 ))
+
+  printf "%d:%02d:%02d:%02d\n" "$days" "$hours" "$minutes" "$seconds"
 }
 
 process-inventory() {
