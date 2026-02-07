@@ -10,6 +10,17 @@ XMIDIR=$(OUT)/xmi
 MANIFESTSDIR=data/manifests
 COMMIT=2026.02.05
 
+.PHONY: check-ssh
+check-ssh:
+	@if [ -z "$$SSHUSER" ]; then \
+		echo "SSHUSER is not set: user for hucdrive.huc.knaw.nl"; \
+		exit 1; \
+	fi
+	@if [ -z "$$SSHPASS" ]; then \
+		echo "SSHPASS is not set: password for SSHUSER"; \
+		exit 1; \
+	fi
+
 .make/:
 	mkdir -p $@
 
@@ -26,16 +37,14 @@ COMMIT=2026.02.05
 data/pagexml/:
 	mkdir -p $@
 
-data/pagexml/%.zip: | data/pagexml/
-	@if [ -z "$$SSHUSER" ]; then \
-		echo "SSHUSER is not set: user for hucdrive.huc.knaw.nl"; \
-		exit 1; \
-	fi
-	@if [ -z "$$SSHPASS" ]; then \
-		echo "SSHPASS is not set: password for SSHUSER"; \
-		exit 1; \
-	fi
-	sshpass -e scp -P 2222 ${SSHUSER}@hucdrive.huc.knaw.nl:globalise/$*-pagexml.zip $@
+data/pagexml/%.zip: REMOTE_SUFFIX = pagexml
+
+data/xmicas/%.zip:  REMOTE_SUFFIX = xmi
+
+data/%/%.zip: |  check-ssh data/%/
+	sshpass -e scp -P 2222 \
+	  $(SSHUSER)@hucdrive.huc.knaw.nl:globalise/$*-$(REMOTE_SUFFIX).zip \
+	  $@
 
 .make/pagexml-%: data/pagexml/%.zip | .make/
 	@mkdir -p $(PAGEXMLDIR)
@@ -44,17 +53,6 @@ data/pagexml/%.zip: | data/pagexml/
 
 data/xmicas/:
 	mkdir -p $@
-
-data/xmicas/%.zip: | data/xmicas/
-	@if [ -z "$$SSHUSER" ]; then \
-		echo "SSHUSER is not set: user for hucdrive.huc.knaw.nl"; \
-		exit 1; \
-	fi
-	@if [ -z "$$SSHPASS" ]; then \
-		echo "SSHPASS is not set: password for SSHUSER"; \
-		exit 1; \
-	fi
-	sshpass -e scp -P 2222 ${SSHUSER}@hucdrive.huc.knaw.nl:globalise/$*-xmi.zip $@
 
 .make/xmicas-%: data/xmicas/%.zip | .make/
 	@mkdir -p $(XMIDIR)
