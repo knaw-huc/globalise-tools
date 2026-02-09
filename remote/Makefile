@@ -119,7 +119,7 @@ $(OUT)/annotation-lists/%.zip: .make/transcriptions-% .make/entities-% | $(OUT)/
 	cd $(OUT)/$*/ && zip -qrm ../annotation-lists/$*.zip {entities,transcriptions}/*.json
 	
 #.PHONY: $(addprefix annotation-lists-,$(ALL_INV))
-annotation-lists-%: $(OUT)/annotation-lists/%.zip
+annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 	$(MAKE) $(OUT)/annotation-lists/$*.zip
 	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip
 
