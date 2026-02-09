@@ -24,7 +24,7 @@ data/inventory2dates.json:
 
 data/inventory2timespan.json: data/inventory2dates.json scripts/gt-convert-inventory-dates.py scripts/gt-validate-inventory-timespan-completeness.py
 	poetry run scripts/gt-convert-inventory-dates.py
-	poetry run scripts/gt-validate-inventory-timespan-completeness.py
+	poetry run gt-validate-inventory-timespan-completeness
 
 .PHONY: extract-all
 extract-all:

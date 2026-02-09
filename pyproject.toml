@@ -49,7 +49,7 @@ circuitbreaker = "^2.0.0"
 dask = {extras = ["distributed"], version = "^2024.12.1"}
 retry = "^0.9.2"
 annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
-pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
+#pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
 provenance-client = { path = "/Users/bram/workspaces/provenance/provenance-python-client", develop = true }
 textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
 
@@ -61,6 +61,7 @@ gt-fix-reading-order = "globalise_tools.scripts.gt_fix_reading_order:main"
 gt-merge-manual-corrections = "globalise_tools.scripts.gt_merge_manual_corrections:main"
 gt-align-rgp = "globalise_tools.scripts.gt_align_rgp:main"
 gt-align-rgp-lines = "globalise_tools.scripts.gt_align_rgp_lines:main"
+gt-validate-inventory-timespan-completeness = "poetry_scripts:gt_validate_inventory_timespan_completeness"
 version = 'poetry_scripts:version'
 
 [build-system]
