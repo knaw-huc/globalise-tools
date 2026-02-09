@@ -10,6 +10,12 @@ XMIDIR=$(OUT)/xmi
 MANIFESTSDIR=data/manifests
 COMMIT=2026.02.05
 
+# gate task to limit parallelism
+.PHONY: hucdrive-gate
+.NOTPARALLEL: hucdrive-gate
+hucdrive-gate:
+	@:
+
 .PHONY: check-ssh
 check-ssh:
 	@if [ -z "$$SSHUSER" ]; then \
@@ -41,7 +47,7 @@ data/pagexml/%.zip: REMOTE_SUFFIX = pagexml
 
 data/xmicas/%.zip:  REMOTE_SUFFIX = xmi
 
-data/%/%.zip: |  check-ssh data/%/
+data/%/%.zip: | hucdrive-gate check-ssh data/%/
 	sshpass -e scp -P 2222 \
 	  $(SSHUSER)@hucdrive.huc.knaw.nl:globalise/$*-$(REMOTE_SUFFIX).zip \
 	  $@
