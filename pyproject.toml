@@ -56,6 +56,7 @@ textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-pyth
 gt-align-rgp = "globalise_tools.scripts.gt_align_rgp:main"
 gt-align-rgp-lines = "globalise_tools.scripts.gt_align_rgp_lines:main"
 gt-classify-language = "globalise_tools.scripts.gt_classify_language:main"
+gt-convert-inventory-dates = "scripts.gt_convert_inventory_dates:main"
 gt-extract-lines = "globalise_tools.scripts.gt_extract_lines:main"
 gt-fix-reading-order = "scripts.gt_fix_reading_order:main"
 gt-map-pagexml-to-iiif-url = "scripts.gt_map_pagexml_to_iiif_url:main"

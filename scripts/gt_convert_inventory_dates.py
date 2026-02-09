@@ -3,7 +3,6 @@ import json
 from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
-from icecream import ic
 from loguru import logger
 from progressbar import ETA, Bar, ProgressBar, SimpleProgress, Timer
 
