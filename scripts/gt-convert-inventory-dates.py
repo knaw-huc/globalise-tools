@@ -3,6 +3,7 @@ import json
 from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
+from icecream import ic
 from loguru import logger
 from progressbar import ETA, Bar, ProgressBar, SimpleProgress, Timer
 
@@ -50,10 +51,13 @@ def convert_inventory2dates() -> None:
 
     inventory2timespan = {}
     with ProgressBar(widgets=widgets, max_value=len(data), redirect_stdout=True) as bar:
-        for i, inv_nr in enumerate(data):
-            dates = data[inv_nr]
-            time_span = as_time_span(dates)
-            inventory2timespan[inv_nr] = time_span.__dict__
+        for i, record in enumerate(data):
+            inv_nr = record["inventory_number"]
+            dates = [record["date_start"], record["date_end"]]
+            valid_dates = [d for d in dates if d]
+            if valid_dates:
+                time_span = as_time_span(valid_dates)
+                inventory2timespan[inv_nr] = time_span.__dict__
             # print(inv_nr)
             # print(dates)
             # print(time_span)
