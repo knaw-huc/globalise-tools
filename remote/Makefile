@@ -3,11 +3,11 @@ SHELL=/bin/bash
 .SECONDARY:
 .DELETE_ON_ERROR:
 
-ALL_INV=$(shell cat .make/inventorynumbers.lst)
 OUT=work
 PAGEXMLDIR=$(OUT)/pagexml
 XMIDIR=$(OUT)/xmi
 MANIFESTSDIR=data/manifests
+ALL_INV=$(shell cat $(OUT)/inventorynumbers.lst)
 COMMIT=2026.02.05
 
 # gate task to limit parallelism
@@ -30,10 +30,10 @@ check-ssh:
 .make/:
 	mkdir -p $@
 
-.make/inventorynumbers.lst: | .make/
+$(OUT)/inventorynumbers.lst: | data/xmicas/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
-.make/init: .make/inventorynumbers.lst
+.make/init: $(OUT)/inventorynumbers.lst
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
 	poetry install
@@ -124,7 +124,16 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip
 
 .PHONY: all-annotation-lists
-all-annotation-lists: .make/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
+all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
+
+$(OUT)/inv-done.lst:
+	@touch $@
+
+$(OUT)/inv-done-sorted.lst: $(OUT)/inv-done.lst
+	sort -n $(OUT)/inv-done.lst > $@
+
+$(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
+	diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
 
 .PHONY: help
 help:

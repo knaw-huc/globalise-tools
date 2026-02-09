@@ -61,7 +61,8 @@ seconds-to-dhms() {
 
 process-inventory() {
 	local invnr=("$@")
-	echo "processing $invnr"
+	echo "make -j annotation-lists-$invnr"
+	echo $invnr >> work/inv-done.lst
 }
 
 init-term() {
@@ -89,7 +90,7 @@ main() {
 	trap init-term winch
 	init-term
 
-  readarray -t invnrs < data/inventory-numbers.lst
+  readarray -t invnrs < work/inv-todo.lst
 	local len=${#invnrs[@]}
 	echo "processing $len inventories"
 
