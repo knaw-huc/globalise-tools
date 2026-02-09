@@ -120,7 +120,11 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+def main():
     args = get_arguments()
     if args.data_dir:
         map_pagexml_to_iiif_url(args.data_dir)
+
+
+if __name__ == '__main__':
+    main()

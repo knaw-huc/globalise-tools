@@ -4,8 +4,8 @@ SHELL=/bin/bash
 pagexml_directory := ~/c/data/globalise/pagexml
 xmi_directory := ~/c/data/globalise/ner
 
-data/iiif-url-mapping.csv: scripts/gt-map-pagexml-to-iiif-url.py data/NL-HaNA_1.04.02_mets.csv
-	poetry run scripts/gt-map-pagexml-to-iiif-url.py --data-dir data
+data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv
+	poetry run gt-map-pagexml-to-iiif-url --data-dir data
 
 data/generale_missiven.csv:
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
@@ -104,7 +104,7 @@ run-inception:
 .PHONY: process-ner-xmi
 process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
 	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run scripts/gt_ner_xmi_to_wa.py \
+	poetry run gt-ner-xmi-to-wa \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir ~/c/data/globalise/ner \
 		--type-system=data/typesystem.xml \
@@ -114,7 +114,7 @@ process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_director
 
 out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
 	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run scripts/gt_ner_xmi_to_wa.py \
+	poetry run gt-ner-xmi-to-wa \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir .local/new \
 		--type-system=data/typesystem.xml \
