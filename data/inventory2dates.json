@@ -24432,8 +24432,8 @@
         "inventory_number": "4084B"
     },
     {
-        "date_end": null,
-        "date_start": null,
+        "date_end": "1721-12-31",
+        "date_start": "1719-01-01",
         "id": "3e7e3341-ee60-45c2-8cb1-4b1f3fd3d185",
         "inventory_number": "4085"
     },
@@ -38616,14 +38616,14 @@
         "inventory_number": "9523"
     },
     {
-        "date_end": null,
-        "date_start": null,
+        "date_end": "1732-12-31",
+        "date_start": "1729-01-01",
         "id": "9d643e50-f551-46f4-a67e-d70367263bd7",
         "inventory_number": "9524I"
     },
     {
-        "date_end": null,
-        "date_start": null,
+        "date_end": "1732-12-31",
+        "date_start": "1729-01-01",
         "id": "6033cf03-8b30-4893-be3a-c117994464c7",
         "inventory_number": "9524II"
     },
