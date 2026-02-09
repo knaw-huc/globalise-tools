@@ -61,7 +61,7 @@ seconds-to-dhms() {
 
 process-inventory() {
 	local invnr=("$@")
-	echo "make -j annotation-lists-$invnr"
+	make -j annotation-lists-$invnr
 	echo $invnr >> work/inv-done.lst
 }
 

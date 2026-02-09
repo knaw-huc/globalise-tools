@@ -130,7 +130,7 @@ $(OUT)/inv-done.lst:
 	@touch $@
 
 $(OUT)/inv-done-sorted.lst: $(OUT)/inv-done.lst
-	sort -n $(OUT)/inv-done.lst > $@
+	sort -nu $(OUT)/inv-done.lst > $@
 
 $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
 	diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
