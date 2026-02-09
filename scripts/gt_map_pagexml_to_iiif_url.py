@@ -2,6 +2,7 @@
 import argparse
 import csv
 import xml.etree.ElementTree as ET
+from argparse import Namespace
 from dataclasses import dataclass
 from pathlib import Path
 from xml.etree.ElementTree import Element
@@ -103,10 +104,6 @@ def map_pagexml_to_iiif_url(data_dir: str) -> None:
     print_missing_files(missing_files)
 
 
-from argparse import Namespace
-
-
-@logger.catch
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Create a csv file mapping a pagexml base name to a IIIF base url",
@@ -120,6 +117,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
+@logger.catch
 def main():
     args = get_arguments()
     if args.data_dir:
