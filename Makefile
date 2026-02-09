@@ -22,7 +22,7 @@ data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
 data/inventory2dates.json:
 	echo "Contact Leon van Wissen for $@ ('een mapping tussen inventarisnummer en datum')"
 
-data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py scripts/gt-validate-inventory-timespan-completeness.py
+data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
