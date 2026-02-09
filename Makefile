@@ -44,34 +44,33 @@ web-annotations:
 
 .PHONY: test-untangle
 test-untangle: data/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
-	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
+	poetry run scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
 
 .PHONY: test-missive-annotations
 test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt-create-missive-annotations.py conf/test.yaml
-	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
+	poetry run scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
 
 .PHONY: test-inception-annotations
 test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations-2024.py conf/test.yaml
-	poetry run ./scripts/gt-convert-inception-annotations-2024.py -cd conf -cn test.yaml
+	poetry run scripts/gt-convert-inception-annotations-2024.py -cd conf -cn test.yaml
 
 .PHONY: test-xmi-generation
 test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/test.yaml
-	poetry run ./scripts/gt-import-document.py -cd conf -cn test.yaml
+	poetry run scripts/gt-import-document.py -cd conf -cn test.yaml
 
 .PHONY: prod-xmi-generation
 prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
-	poetry run ./scripts/gt-import-document.py -cd conf -cn prod.yaml
+	poetry run scripts/gt-import-document.py -cd conf -cn prod.yaml
 
 .PHONY: convert-example-xmi
 convert-example-xmi:
-	./scripts/gt-convert-example-xmi.sh
+	scripts/gt-convert-example-xmi.sh
 
 .PHONY: fix-reading-order
 fix-reading-order:
-#	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
-	poetry run scripts/gt_fix_reading_order.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
+	poetry run gt-fix-reading-order -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
 
 .PHONY: extract-paragraph-text
 extract-paragraph-text:
@@ -88,11 +87,11 @@ watch-mongodb-data-space:
 
 .PHONY: process-manifests
 process-manifests:
-	poetry run ./scripts/gt-process-manifests.py
+	poetry run scripts/gt-process-manifests.py
 
 .PHONY: test-paragraph-extraction
 test-paragraph-extraction:
-	poetry run ./scripts/gt-extract-paragraph-text.py
+	poetry run scripts/gt-extract-paragraph-text.py
 
 .PHONY: run-provenance
 run-provenance:
@@ -103,9 +102,9 @@ run-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
 
 .PHONY: process-ner-xmi
-process-ner-xmi: ./scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
+process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
 	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+	poetry run scripts/gt_ner_xmi_to_wa.py \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir ~/c/data/globalise/ner \
 		--type-system=data/typesystem.xml \
@@ -113,9 +112,9 @@ process-ner-xmi: ./scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_direct
 		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
 		--api-key=$(TEXTREPO_API_KEY)
 
-out/3598/ner-annotations.json: ./scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
+out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
 	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
-	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+	poetry run scripts/gt_ner_xmi_to_wa.py \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir .local/new \
 		--type-system=data/typesystem.xml \
