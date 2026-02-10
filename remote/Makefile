@@ -121,7 +121,7 @@ $(OUT)/annotation-lists/%.zip: .make/transcriptions-% .make/entities-% | $(OUT)/
 #.PHONY: $(addprefix annotation-lists-,$(ALL_INV))
 annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 	$(MAKE) $(OUT)/annotation-lists/$*.zip
-	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip
+	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip
 
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
@@ -133,7 +133,8 @@ $(OUT)/inv-done-sorted.lst: $(OUT)/inv-done.lst
 	sort -nu $(OUT)/inv-done.lst > $@
 
 $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
-	diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
+	#diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
+	diff -wB work/inventorynumbers.lst work/inv-done-sorted.lst | grep "^-" | grep -v "lst" | sed -e "s/^-//" | sort -un > $@
 
 .PHONY: help
 help:
