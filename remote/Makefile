@@ -33,12 +33,15 @@ check-ssh:
 $(OUT)/inventorynumbers.lst: | data/xmicas/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
-.make/init: $(OUT)/inventorynumbers.lst
+.make/init: $(OUT)/inventorynumbers.lst | .make/
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
 	poetry install
 	mv inventory2timespan.json document_data.json typesystem.xml data/
 	@touch $@
+
+.PHONY: init
+init: .make/init
 
 data/pagexml/:
 	mkdir -p $@
