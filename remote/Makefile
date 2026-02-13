@@ -118,7 +118,7 @@ $(OUT)/annotation-lists/:
 	mkdir -p $@
 
 $(OUT)/annotation-lists/%.zip: .make/combined-% | $(OUT)/annotation-lists/
-	cd $(OUT)/$*/ && zip -qrm ../annotation-lists/$*.zip {entities,transcriptions}/*.json
+	cd $(OUT)/$*/ && zip -qrm ../annotation-lists/$*.zip {entities,transcriptions}/*.json && cd .. && find $* -depth -empty -delete
 	
 $(OUT)/inv-done.lst:
 	@touch $@
@@ -131,7 +131,7 @@ $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
 	diff -wB work/inventorynumbers.lst work/inv-done-sorted.lst | grep "^-" | grep -v "lst" | sed -e "s/^-//" | sort -un > $@
 
 annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
-	$(MAKE) $(OUT)/annotation-lists/$*.zip
+#	$(MAKE) $(OUT)/annotation-lists/$*.zip
 	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip && rm -rf $(OUT)/$*/ $(PAGEXMLDIR)/$*/ $(XMIDIR)/$*/
 
 .PHONY: all-annotation-lists
