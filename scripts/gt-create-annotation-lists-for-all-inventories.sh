@@ -20,9 +20,10 @@ progress-bar() {
   local elapsed_time=$((current_time - start_time))
   local estimated_time=$((elapsed_time * len / current - elapsed_time))
 
+  local run=$(seconds-to-dhms $elapsed_time)
   local dhms=$(seconds-to-dhms $estimated_time)
 
-  local suffix=" $current/$len ($perc_done%) ETR: ${dhms}"
+  local suffix=" $current/$len ($perc_done%) | RUN: ${run} | ETR: ${dhms}"
 
   local length=$((COLUMNS - ${#suffix} - 2))
   local num_bars=$((perc_done * length / 100))
@@ -39,11 +40,11 @@ progress-bar() {
   s+=$suffix
 
   printf '\e7' # save the cursor location
-    printf '\e[%d;%dH' "$LINES" 0 # move cursor to the bottom line
-    printf '\e[0K' # clear the line
-    echo -ne "\033[34m" # Set color to blue
-    printf '%s' "$s" # print the progress bar
-    echo -ne "\033[0m" # Reset color
+  printf '\e[%d;%dH' "$LINES" 0 # move cursor to the bottom line
+  printf '\e[0K' # clear the line
+  echo -ne "\033[34m" # Set color to blue
+  printf '%s' "$s" # print the progress bar
+  echo -ne "\033[0m" # Reset color
   printf '\e8' # restore the cursor location
 }
 
@@ -61,7 +62,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs --keep-going $(for i in "${invnrs[@]}"; do echo -n "annotation-lists-$i "; done)
+  echo make --jobs --keep-going $(for i in "${invnrs[@]}"; do echo -n "annotation-lists-$i "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
@@ -102,6 +103,10 @@ main() {
     process-inventory "${invnrs[@]:i:BATCHSIZE}"
   done
   progress-bar "$len" "$len"
+  local current_time=$(date +%s)
+  local elapsed_time=$((current_time - start_time))
+  local run=$(seconds-to-dhms $elapsed_time)
+  echo "done in $run"
 }
 
 main "$@"
