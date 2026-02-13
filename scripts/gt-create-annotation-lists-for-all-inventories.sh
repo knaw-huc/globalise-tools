@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-BATCHSIZE=1
+BATCHSIZE=5
 BAR_CHAR='#'
 EMPTY_CHAR=' '
 start_time=$(date +%s)
@@ -60,9 +60,11 @@ seconds-to-dhms() {
 }
 
 process-inventory() {
-	local invnr=("$@")
-	make -j annotation-lists-$invnr
-	echo $invnr >> work/inv-done.lst
+	local invnrs=("$@")
+  make -j $(for i in "${invnrs[@]}"; do echo -n "annotation-lists-$i "; done)
+  for invnr in "${invnrs[@]}"; do
+	  echo $invnr >> work/inv-done.lst
+	done
 }
 
 init-term() {
@@ -97,24 +99,9 @@ main() {
 	local i
 	for ((i = 0; i < len; i += BATCHSIZE)); do
 		progress-bar "$((i+1))" "$len"
-		process-inventory "${invnrs[i]}"
+		process-inventory "${invnrs[@]:i:BATCHSIZE}"
 	done
 	progress-bar "$len" "$len"
 }
 
 main "$@"
-
-#
-#total_steps=${#invnrs[*]}
-#
-#for ((i=1; i<total_steps; i++)); do
-#  inv=${invnrs[$((i-1))]}
-#
-#  echo "make annotation-lists-$inv"
-#
-#  current_time=$(date +%s)
-#  elapsed_time=$((current_time - start_time))
-#  estimated_time=$((elapsed_time * total_steps / i - elapsed_time))
-#  echo -ne "\rProgress: [$i/${total_steps}] - Estimated Time Remaining: ${estimated_time}s"
-#  echo
-#done
