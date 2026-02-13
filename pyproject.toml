@@ -45,7 +45,7 @@ xmldict = "^0.4.1"
 # use `poetry install --with dev-bram` to use these dependencies
 [tool.poetry.group.dev-bram.dependencies]
 circuitbreaker = "^2.0.0"
-dask = {extras = ["distributed"], version = "^2024.12.1"}
+dask = { extras = ["distributed"], version = "^2024.12.1" }
 retry = "^0.9.2"
 annorepo-client = { path = "/Users/bram/workspaces/annorepo/annorepo-client", develop = true }
 #pagexml-tools = { path = "/Users/bram/workspaces/pagexml", develop = true }
@@ -57,6 +57,7 @@ gt-align-rgp = "globalise_tools.scripts.gt_align_rgp:main"
 gt-align-rgp-lines = "globalise_tools.scripts.gt_align_rgp_lines:main"
 gt-classify-language = "globalise_tools.scripts.gt_classify_language:main"
 gt-convert-inventory-dates = "scripts.gt_convert_inventory_dates:main"
+gt-create-annotation-lists-for-inventory-number = "scripts.create_annotation_lists_for_inventory_number:main"
 gt-extract-lines = "globalise_tools.scripts.gt_extract_lines:main"
 gt-fix-reading-order = "scripts.gt_fix_reading_order:main"
 gt-map-pagexml-to-iiif-url = "scripts.gt_map_pagexml_to_iiif_url:main"

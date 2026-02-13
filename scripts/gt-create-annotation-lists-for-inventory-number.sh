@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 
 inv=$1
-poetry run ./scripts/gt-create-annotation-lists-for-inventory-number.py \
+poetry run gt-create-annotation-lists-for-inventory-number \
   --pagexml-dir  work/pagexml/$inv \
   --xmi-dir      work/xmi/$inv \
   --output-dir   work/$inv \
