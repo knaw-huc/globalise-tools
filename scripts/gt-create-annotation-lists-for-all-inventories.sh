@@ -61,7 +61,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make -j $(for i in "${invnrs[@]}"; do echo -n "annotation-lists-$i "; done)
+  make --jobs --keep-going $(for i in "${invnrs[@]}"; do echo -n "annotation-lists-$i "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
