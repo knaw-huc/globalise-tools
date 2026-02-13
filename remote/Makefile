@@ -111,7 +111,7 @@ data/typesystem.xml:
 #	@touch $@
 
 .make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% data/typesystem.xml .make/pagexml-%
-	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
+	./scripts/gt-create-annotation-lists-for-inventory-number.sh $* && rm -rf $(PAGEXMLDIR)/$*/ $(XMIDIR)/$*/
 	@touch $@
 
 $(OUT)/annotation-lists/:
@@ -132,7 +132,7 @@ $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
 
 annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 #	$(MAKE) $(OUT)/annotation-lists/$*.zip
-	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip && rm -rf $(OUT)/$*/ $(PAGEXMLDIR)/$*/ $(XMIDIR)/$*/
+	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip
 
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
