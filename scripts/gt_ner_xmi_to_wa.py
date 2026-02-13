@@ -1369,7 +1369,7 @@ def handle_xmi(
         manifest_item_idx: dict[str, int],
         htr_offset: dict[str, Offset],
         presentation_version: int = 2,
-) -> tuple[str, dict[str, Any]]:
+) -> tuple[list, str, dict[str, Any]]:
     xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version, htr_offset=htr_offset)
     page_text = xp.text
     basename = get_base_name(xmi_path)
@@ -1407,7 +1407,7 @@ def handle_xmi(
         ]
     else:
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
-    return page_text, xp.normalized_word_offset
+    return ner_annotations, page_text, xp.normalized_word_offset
 
 
 def get_base_name(path: str):

@@ -112,6 +112,10 @@ $(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% typesystem.xm
 		$(OUT)/$*/ner-annotations.json
 	@touch $@
 
+.make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% typesystem.xml .make/pagexml-%
+	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
+	@touch $@
+
 $(OUT)/annotation-lists/:
 	mkdir -p $@
 

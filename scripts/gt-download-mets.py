@@ -2,6 +2,7 @@
 import argparse
 import csv
 import os
+from argparse import Namespace
 from pathlib import Path
 
 import requests
@@ -52,9 +53,6 @@ def download_mets(data_dir: str) -> None:
     print_failed_urls(failed_urls)
 
 
-from argparse import Namespace
-
-
 @logger.catch
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
@@ -69,7 +67,11 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+def main():
     args = get_arguments()
     if args.data_dir:
         download_mets(args.data_dir)
+
+
+if __name__ == '__main__':
+    main()
