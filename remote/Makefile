@@ -37,7 +37,7 @@ $(OUT)/inventorynumbers.lst: | data/xmicas/
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
 	poetry install
-	mv inventory2timespan.json document_data.json data/
+	mv inventory2timespan.json document_data.json typesystem.xml data/
 	@touch $@
 
 data/pagexml/:
@@ -68,68 +68,58 @@ data/xmicas/:
 .make/annotation-pages-%: .make/pagexml-% | .make/
 	@touch $@
 
-#.PHONY: $(addprefix annotation-pages-,$(ALL_INV))
-#annotation-pages-%: .make/annotation-pages-%
-.make/word-offsets-%: .make/pagexml-% scripts/gt-extract-htr-word-offsets.py .make/init
-	poetry run ./scripts/gt-extract-htr-word-offsets.py \
-	  --output-dir $(OUT)/$*/htr-word-offsets \
-	  $(PAGEXMLDIR)/$*/NL*.xml
-	@touch $@
+#.make/word-offsets-%: .make/pagexml-% scripts/gt-extract-htr-word-offsets.py .make/init
+#	poetry run ./scripts/gt-extract-htr-word-offsets.py \
+#	  --output-dir $(OUT)/$*/htr-word-offsets \
+#	  $(PAGEXMLDIR)/$*/NL*.xml
+#	@touch $@
 
-typesystem.xml:
-	echo "missing file: data/typesystem.xml"
+data/typesystem.xml:
+	@echo "missing file: data/typesystem.xml"
 
-$(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% typesystem.xml scripts/gt_ner_xmi_to_wa.py .make/init
-	poetry run ./scripts/gt_ner_xmi_to_wa.py \
-	  --git-commit       $(COMMIT) \
-	  --pagexml-dir      $(PAGEXMLDIR) \
-	  --xmi-dir          $(XMIDIR) \
-	  --word-offsets-dir $(OUT)/$*/htr-word-offsets \
-	  --type-system      typesystem.xml \
-	  --output-dir       $(OUT) \
-	  --manifests-dir    $(MANIFESTSDIR) \
-	  --inv-nr           $*
-	@touch $@
+#$(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% data/typesystem.xml scripts/gt_ner_xmi_to_wa.py .make/init
+#	poetry run ./scripts/gt_ner_xmi_to_wa.py \
+#	  --git-commit       $(COMMIT) \
+#	  --pagexml-dir      $(PAGEXMLDIR) \
+#	  --xmi-dir          $(XMIDIR) \
+#	  --word-offsets-dir $(OUT)/$*/htr-word-offsets \
+#	  --type-system      typesystem.xml \
+#	  --output-dir       $(OUT) \
+#	  --manifests-dir    $(MANIFESTSDIR) \
+#	  --inv-nr           $*
+#	@touch $@
 
-.make/transcriptions-%: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
-	@mkdir -p $(OUT)/$*/transcriptions
-	for t in $(OUT)/$*/NL*.txt; do \
-		base=$$(basename $$t .txt); \
-		poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
-			--git-commit $(COMMIT) \
-			--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
-			--pagetext   $(OUT)/$*/$$base.txt \
-			--output-dir $(OUT)/$*/transcriptions & \
-	done
-	wait
-	@touch $@
+#.make/transcriptions-%: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
+#	@mkdir -p $(OUT)/$*/transcriptions
+#	for t in $(OUT)/$*/NL*.txt; do \
+#		base=$$(basename $$t .txt); \
+#		poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
+#			--git-commit $(COMMIT) \
+#			--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
+#			--pagetext   $(OUT)/$*/$$base.txt \
+#			--output-dir $(OUT)/$*/transcriptions & \
+#	done
+#	wait
+#	@touch $@
 
-.make/entities-%: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
-	@mkdir -p $(OUT)/$*/entities
-	poetry run ./scripts/gt-group-to-annotation-page.py \
-	    --git-commit    $(COMMIT) \
-	 	--manifests-dir $(MANIFESTSDIR) \
-		$(OUT)/$*/ner-annotations.json
-	@touch $@
+#.make/entities-%: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
+#	@mkdir -p $(OUT)/$*/entities
+#	poetry run ./scripts/gt-group-to-annotation-page.py \
+#	    --git-commit    $(COMMIT) \
+#	 	--manifests-dir $(MANIFESTSDIR) \
+#		$(OUT)/$*/ner-annotations.json
+#	@touch $@
 
-.make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% typesystem.xml .make/pagexml-%
+.make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% data/typesystem.xml .make/pagexml-%
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
 	@touch $@
 
 $(OUT)/annotation-lists/:
 	mkdir -p $@
 
-$(OUT)/annotation-lists/%.zip: .make/transcriptions-% .make/entities-% | $(OUT)/annotation-lists/
+$(OUT)/annotation-lists/%.zip: .make/combined-% | $(OUT)/annotation-lists/
 	cd $(OUT)/$*/ && zip -qrm ../annotation-lists/$*.zip {entities,transcriptions}/*.json
 	
-#.PHONY: $(addprefix annotation-lists-,$(ALL_INV))
-annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
-	$(MAKE) $(OUT)/annotation-lists/$*.zip
-	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip
-
-.PHONY: all-annotation-lists
-all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
-
 $(OUT)/inv-done.lst:
 	@touch $@
 
@@ -139,6 +129,13 @@ $(OUT)/inv-done-sorted.lst: $(OUT)/inv-done.lst
 $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
 	#diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
 	diff -wB work/inventorynumbers.lst work/inv-done-sorted.lst | grep "^-" | grep -v "lst" | sed -e "s/^-//" | sort -un > $@
+
+annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
+	$(MAKE) $(OUT)/annotation-lists/$*.zip
+	sshpass -e scp -P 2222 $(OUT)/annotation-lists/$*.zip ${SSHUSER}@hucdrive.huc.knaw.nl:annotationlists/$*-annotation-lists.zip && rm $(OUT)/annotation-lists/$*.zip && rm -rf $(OUT)/$*/ $(PAGEXMLDIR)/$*/ $(XMIDIR)/$*/
+
+.PHONY: all-annotation-lists
+all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
 .PHONY: help
 help:
