@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-BATCHSIZE=5
+BATCHSIZE=10
 BAR_CHAR='#'
 EMPTY_CHAR=' '
 start_time=$(date +%s)
