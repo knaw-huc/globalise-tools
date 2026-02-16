@@ -114,7 +114,7 @@ data/typesystem.xml:
 #	@touch $@
 
 .make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% data/typesystem.xml .make/pagexml-%
-	./scripts/gt-create-annotation-lists-for-inventory-number.sh $* && rm -rf $(PAGEXMLDIR)/$*/ $(XMIDIR)/$*/
+	./scripts/gt-create-annotation-lists-for-inventory-number.sh $* && rm -rf {$(PAGEXMLDIR),$(XMIDIR)}/$*/ .make/{pagexml,xmicas}-$*
 	@touch $@
 
 $(OUT)/annotation-lists/:
