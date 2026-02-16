@@ -142,7 +142,7 @@ class DocumentPageProcessor:
             )
 
             if ner_annotations:
-                canvas_dimensions = {str(c["label"]["en"][0]): Dimensions(c["width"], c["height"]) for c in
+                canvas_dimensions = {self._page_id(c): Dimensions(c["width"], c["height"]) for c in
                                      manifest["items"]}
                 self.entity_annotation_page = self._make_annotation_page(
                     page_id=page_id,
@@ -155,6 +155,10 @@ class DocumentPageProcessor:
 
         annotation_page_builder.normalized_page_text = normalized_page_text
         self.transcription_annotation_page = annotation_page_builder.build()
+
+    @staticmethod
+    def _page_id(canvas_item: dict[str, Any]) -> str:
+        return canvas_item["label"]["en"][0].split(" ")[0]
 
     @staticmethod
     def _as_item(a: dict[str, object]) -> dict[str, object]:

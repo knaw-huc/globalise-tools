@@ -1337,11 +1337,26 @@ def process_inventory(context: InventoryProcessingContext):
     return xmi_dir
 
 
+def _iiif_base_uri(canvas_item: dict[str, Any]) -> str:
+    first_service = canvas_item['items'][0]['items'][0]['body']['service'][0]
+    if "@id" in first_service:
+        return first_service['@id']
+    elif "id" in first_service:
+        return first_service['id']
+    else:
+        logger.error(f"no @id or id found in item.items[0].items[0].body.service[0]")
+        return None
+
+
+def _page_id(canvas_item: dict[str, Any]) -> str:
+    return canvas_item["label"]["en"][0].split(" ")[0]
+
+
 def index_manifest_items(manifest: dict[str, Any]) -> tuple[dict[str, int], dict[str, str], dict[str, str]]:
-    manifest_item_idx = {item["label"]["en"][0]: i for i, item in enumerate(manifest["items"])}
-    iiif_base_uri_idx = {item["label"]["en"][0]: item['items'][0]['items'][0]['body']['service'][0]['@id'] for item in
+    manifest_item_idx = {_page_id(item): i for i, item in enumerate(manifest["items"])}
+    iiif_base_uri_idx = {_page_id(item): _iiif_base_uri(item) for item in
                          manifest["items"]}
-    canvas_id_idx = {item["label"]["en"][0]: item['id'] for item in manifest["items"]}
+    canvas_id_idx = {_page_id(item): item['id'] for item in manifest["items"]}
     return manifest_item_idx, iiif_base_uri_idx, canvas_id_idx
 
 
