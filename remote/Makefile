@@ -8,7 +8,7 @@ PAGEXMLDIR=$(OUT)/pagexml
 XMIDIR=$(OUT)/xmi
 MANIFESTSDIR=data/manifests
 ALL_INV=$(shell cat $(OUT)/inventorynumbers.lst)
-COMMIT=2026.02.05
+COMMIT=2026.02.16
 
 # gate task to limit parallelism
 .PHONY: hucdrive-gate
