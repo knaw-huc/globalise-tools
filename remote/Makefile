@@ -127,11 +127,11 @@ $(OUT)/inv-done.lst:
 	@touch $@
 
 $(OUT)/inv-done-sorted.lst: $(OUT)/inv-done.lst
-	sort -nu $(OUT)/inv-done.lst > $@
+	sort -u $(OUT)/inv-done.lst | sort -n > $@
 
 $(OUT)/inv-todo.lst: $(OUT)/inv-done-sorted.lst $(OUT)/inventorynumbers.lst
 	#diff --suppress-common-lines --strip-trailing-cr --minimal $(OUT)/inventorynumbers.lst $(OUT)/inv-done-sorted.lst | grep "<" | sed -e "s/< //" > $@
-	diff -wB work/inventorynumbers.lst work/inv-done-sorted.lst | grep "^-" | grep -v "lst" | sed -e "s/^-//" | sort -un > $@
+	diff -wB work/inventorynumbers.lst work/inv-done-sorted.lst | grep "^-" | grep -v "lst" | sed -e "s/^-//" | sort -u | sort -n > $@
 
 annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 #	$(MAKE) $(OUT)/annotation-lists/$*.zip
