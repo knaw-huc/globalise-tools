@@ -11,6 +11,7 @@ import globalise_tools.pagexml_tools as pt
 import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.creator import CreatorFactory
+from globalise_tools.model import Dimensions
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
 
 
@@ -141,7 +142,8 @@ class DocumentPageProcessor:
             )
 
             if ner_annotations:
-                canvas_dimensions = [[c["width"], c["height"]] for c in manifest["items"]]
+                canvas_dimensions = {str(c["label"]["en"][0]): Dimensions(c["width"], c["height"]) for c in
+                                     manifest["items"]}
                 self.entity_annotation_page = self._make_annotation_page(
                     page_id=page_id,
                     annotations=ner_annotations,
@@ -164,15 +166,14 @@ class DocumentPageProcessor:
             self,
             page_id: str,
             annotations: list[dict[str, object]],
-            canvas_dimensions: list[list[str]],
+            canvas_dimensions: dict[str, Dimensions],
             creator: dict[str, str]
     ):
         context = ["http://iiif.io/api/presentation/3/context.json"]
         # assumption: all annotations have the same @context
         context += annotations[0]["@context"]
         items = [self._as_item(a) for a in annotations]
-        page_no = int(page_id.split("_")[-1])
-        width, height = canvas_dimensions[page_no - 1]
+        dim = canvas_dimensions[page_id]
         page = {
             "@context": context,
             "type": ["DigitalObject", "AnnotationPage"],
@@ -182,8 +183,8 @@ class DocumentPageProcessor:
             "partOf": {
                 "id": uf.canvas_url(page_id),
                 "type": "Canvas",
-                "width": width,
-                "height": height
+                "width": dim.width,
+                "height": dim.height
             },
             "items": items
         }

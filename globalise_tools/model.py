@@ -1,14 +1,15 @@
+import uuid
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum
 from json import JSONEncoder
 from typing import Optional
 
-import uuid
 from dataclasses_json import dataclass_json
 from pagexml.model.physical_document_model import Coords
 
 import globalise_tools.tools as gt
+
 
 @dataclass_json
 @dataclass
@@ -16,12 +17,14 @@ class Offset:
     begin: int
     end: int
 
+
 @dataclass_json
 @dataclass
 class TextQuote:
     exact: str
     prefix: str
     suffix: str
+
 
 @dataclass
 class Document:
@@ -264,3 +267,9 @@ class ImageData:
     manifest_uri: str
     xywh: str
     coords: list
+
+
+@dataclass
+class Dimensions:
+    width: int
+    height: int
