@@ -71,47 +71,8 @@ data/xmicas/:
 .make/annotation-pages-%: .make/pagexml-% | .make/
 	@touch $@
 
-#.make/word-offsets-%: .make/pagexml-% scripts/gt-extract-htr-word-offsets.py .make/init
-#	poetry run ./scripts/gt-extract-htr-word-offsets.py \
-#	  --output-dir $(OUT)/$*/htr-word-offsets \
-#	  $(PAGEXMLDIR)/$*/NL*.xml
-#	@touch $@
-
 data/typesystem.xml:
 	@echo "missing file: data/typesystem.xml"
-
-#$(OUT)/%/ner-annotations.json: .make/word-offsets-% .make/xmicas-% data/typesystem.xml scripts/gt_ner_xmi_to_wa.py .make/init
-#	poetry run ./scripts/gt_ner_xmi_to_wa.py \
-#	  --git-commit       $(COMMIT) \
-#	  --pagexml-dir      $(PAGEXMLDIR) \
-#	  --xmi-dir          $(XMIDIR) \
-#	  --word-offsets-dir $(OUT)/$*/htr-word-offsets \
-#	  --type-system      typesystem.xml \
-#	  --output-dir       $(OUT) \
-#	  --manifests-dir    $(MANIFESTSDIR) \
-#	  --inv-nr           $*
-#	@touch $@
-
-#.make/transcriptions-%: .make/pagexml-% $(OUT)/%/ner-annotations.json scripts/gt-generate-transcription-annotation-pages.py .make/init
-#	@mkdir -p $(OUT)/$*/transcriptions
-#	for t in $(OUT)/$*/NL*.txt; do \
-#		base=$$(basename $$t .txt); \
-#		poetry run ./scripts/gt-generate-transcription-annotation-pages.py \
-#			--git-commit $(COMMIT) \
-#			--pagexml    $(PAGEXMLDIR)/$*/$$base.xml \
-#			--pagetext   $(OUT)/$*/$$base.txt \
-#			--output-dir $(OUT)/$*/transcriptions & \
-#	done
-#	wait
-#	@touch $@
-
-#.make/entities-%: $(OUT)/%/ner-annotations.json ./scripts/gt-group-to-annotation-page.py .make/init
-#	@mkdir -p $(OUT)/$*/entities
-#	poetry run ./scripts/gt-group-to-annotation-page.py \
-#	    --git-commit    $(COMMIT) \
-#	 	--manifests-dir $(MANIFESTSDIR) \
-#		$(OUT)/$*/ner-annotations.json
-#	@touch $@
 
 .make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% data/typesystem.xml .make/pagexml-%
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $* && rm -rf {$(PAGEXMLDIR),$(XMIDIR)}/$*/ .make/{pagexml,xmicas}-$*
@@ -141,8 +102,22 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
+upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
+	mkdir $(OUT)/$*/
+	cd $(OUT)/$*/ && unzip -o ../annotation-lists/$*-annotation-lists.zip
+	@echo "uploading annotation lists for $* ..."
+	@echo "done, cleaning up ..."
+	#rm -rf $(OUT)/$*/
+
+.PHONY: upload-all
+upload-all: scripts/gt-upload-all-annotation-lists.sh
+	./scripts/gt-upload-all-annotation-lists.sh
+
 .PHONY: help
 help:
 	@echo "available make targets:"
-	@echo "  make annotation-lists-<invnr>"
-	@echo "  make all-annotation-lists"
+	@echo "  init                     - set up the environment for the scripts to run in"
+	@echo "  annotation-lists-<invnr> - generate entities and transcription annotation pages for the given inventory number"
+	@echo "  all-annotation-lists     - generate all entities and transcription annotation pages"
+	@echo "  upload-<invnr>           - upload the annotationlists of the given inventory number to the object store"
+	@echo "  upload-all               - upload all annotationlists to the object store"
