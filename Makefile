@@ -1,5 +1,13 @@
 all: help
 SHELL=/bin/bash
+.SECONDARY:
+.DELETE_ON_ERROR:
+
+RED=\033[0;31m
+GREEN=\033[0;32m
+YELLOW=\033[0;33m
+BLUE=\033[0;34m
+RESET=\033[0m
 
 pagexml_directory := ~/c/data/globalise/pagexml
 xmi_directory := ~/c/data/globalise/ner
@@ -20,7 +28,7 @@ data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
 	poetry run scripts/gt-extract-scan-url-mapping.py
 
 data/inventory2dates.json:
-	echo "Contact Leon van Wissen for $@ ('een mapping tussen inventarisnummer en datum')"
+	echo -e "$(RED)Contact Leon van Wissen for $@ ('een mapping tussen inventarisnummer en datum')$(RESET)"
 
 data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
 	poetry run gt-convert-inventory-dates
@@ -103,7 +111,7 @@ run-inception:
 
 .PHONY: process-ner-xmi
 process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
-	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
 	poetry run gt-ner-xmi-to-wa \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir ~/c/data/globalise/ner \
@@ -113,7 +121,7 @@ process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_director
 		--api-key=$(TEXTREPO_API_KEY)
 
 out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
-	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo "ENV variable TEXTREPO_API_KEY not set, set and retry" && exit 1 ; fi
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
 	poetry run gt-ner-xmi-to-wa \
 		--pagexml-dir ~/c/data/globalise/pagexml \
 		--xmi-dir .local/new \
@@ -161,41 +169,41 @@ docker-run:
 
 .PHONY: help
 help:
-	@echo "make-tools for globalise-tools"
+	@echo -e "make-tools for $(GREEN)globalise-tools$(RESET)"
 	@echo
-	@echo "Please use \`make <target>', where <target> is one of:"
-	@echo "  install                    - to install the necessary requirements"
-	@echo "  install-spacy-model        - to load the 'nl_core_news_lg' language model used by spacy"
+	@echo -e "Please use \`$(YELLOW)make <target>$(RESET)', where $(YELLOW)<target>$(RESET) is one of:"
+	@echo -e "  $(BLUE)install$(RESET)                    - to install the necessary requirements"
+	@echo -e "  $(BLUE)install-spacy-model$(RESET)        - to load the 'nl_core_news_lg' language model used by spacy"
 	@echo
-	@echo "  docker                     - build a docker container containing everything"
-	@echo "  docker-run                 - run the docker container interactively (build it first)"
-#	@echo "  extract-all            		to extract text and annotations from all document directories"
-#	@echo "  web-annotations            - to generate the web-annotations"
+	@echo -e "  $(BLUE)docker$(RESET)                     - build a docker container containing everything"
+	@echo -e "  $(BLUE)docker-run$(RESET)                 - run the docker container interactively (build it first)"
+#	@echo -e "  $(BLUE)extract-all$(RESET)            		to extract text and annotations from all document directories"
+#	@echo -e "  $(BLUE)web-annotations$(RESET)            - to generate the web-annotations"
 	@echo
-	@echo "  version-update-patch       - to update the project version to the next patch version"
-	@echo "  version-update-minor       - to update the project version to the next minor version"
-	@echo "  version-update-major       - to update the project version to the next major version"
+	@echo -e "  $(BLUE)version-update-patch$(RESET)       - to update the project version to the next patch version"
+	@echo -e "  $(BLUE)version-update-minor$(RESET)       - to update the project version to the next minor version"
+	@echo -e "  $(BLUE)version-update-major$(RESET)       - to update the project version to the next major version"
 	@echo
-	@echo "  run-provenance             - to start a local provenance server"
-	@echo "  run-inception              - to start a local inception"
-	@echo "  stop-inception             - to stop the local inception"
+	@echo -e "  $(BLUE)run-provenance$(RESET)             - to start a local provenance server"
+	@echo -e "  $(BLUE)run-inception$(RESET)              - to start a local inception"
+	@echo -e "  $(BLUE)stop-inception$(RESET)             - to stop the local inception"
 	@echo
-	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
-#	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
-#	@echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
-	@echo "  test-xmi-generation        - to generate xmi using test settings"
-	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo -e "  $(BLUE)test-untangle$(RESET)              - to generate and upload segmented text and web-annotations using test settings"
+#	@echo -e "  $(BLUE)test-missive-annotations$(RESET)   - to generate general missive web-annotations using test settings"
+#	@echo -e "  $(BLUE)test-inception-annotations$(RESET) - to generate document web-annotations from the inception export using test settings"
+	@echo -e "  $(BLUE)test-xmi-generation$(RESET)        - to generate xmi using test settings"
+	@echo -e "  $(BLUE)prod-xmi-generation$(RESET)        - to generate xmi using prod settings"
 	@echo
-	@echo "  process-ner-xmi            - to generate web annotations from the ner enriched xmi files"
+	@echo -e "  $(BLUE)process-ner-xmi$(RESET)            - to generate web annotations from the ner enriched xmi files"
 	@echo
-	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
-	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
+	@echo -e "  $(BLUE)convert-example-xmi$(RESET)        - to generate web annotations from the example set of xmi files"
+	@echo -e "  $(BLUE)fix-reading-order$(RESET)          - to generate pagexml with corrected reading order"
 	@echo
-	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
-	@echo "  extract-paragraph-text     - to generate a tsv file with the paragraph text of the pagexml"
+	@echo -e "  $(BLUE)test-paragraph-extraction$(RESET)  - to generate logical and physical text segment files"
+	@echo -e "  $(BLUE)extract-paragraph-text$(RESET)     - to generate a tsv file with the paragraph text of the pagexml"
 	@echo
-	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
-	@echo "  detect-copy-paste          - find code duplication"
+	@echo -e "  $(BLUE)sample$(RESET)                     - to extract a sample of web annotations where every type is represented"
+	@echo -e "  $(BLUE)detect-copy-paste$(RESET)          - find code duplication"
 	@echo
-	@echo "  browse-globalise-inception - to open the globalise inception in a browser"
+	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
 	@echo
