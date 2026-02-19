@@ -42,9 +42,9 @@ progress-bar() {
   printf '\e7' # save the cursor location
   printf '\e[%d;%dH' "$LINES" 0 # move cursor to the bottom line
   printf '\e[0K' # clear the line
-  echo -ne "\033[34m" # Set color to blue
+  printf '\033[34m' # Set color to blue
   printf '%s' "$s" # print the progress bar
-  echo -ne "\033[0m" # Reset color
+  printf '\033[0m' # Reset color
   printf '\e8' # restore the cursor location
 }
 
@@ -62,7 +62,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs --keep-going $(for i in "${invnrs[@]}"; do echo -n "upload-$i "; done)
+  make --jobs --keep-going $(for i in "${invnrs[@]}"; do printf "upload-$i "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
