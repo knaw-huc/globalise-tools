@@ -38,6 +38,8 @@ check-ssh:
 $(OUT)/inventorynumbers.lst: | data/xmicas/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
+.PHONY: init
+init: .make/init
 .make/init: $(OUT)/inventorynumbers.lst | .make/
 	cp pyproject.toml pyproject.toml.bak
 	grep -v Users pyproject.toml.bak > pyproject.toml
@@ -45,8 +47,6 @@ $(OUT)/inventorynumbers.lst: | data/xmicas/
 	mv inventory2timespan.json document_data.json typesystem.xml data/
 	@touch $@
 
-.PHONY: init
-init: .make/init
 
 data/pagexml/:
 	mkdir -p $@
@@ -112,7 +112,7 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	cd $(OUT)/$*/ && \
 	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip && \
 	for j in {entities,transcriptions}/*.json ; do \
-	  gzip $$j && \
+	  gzip --force $$j && \
 	  mv $$j.gz $$j ; \
 	done
 	@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
