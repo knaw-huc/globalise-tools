@@ -10,6 +10,11 @@ MANIFESTSDIR=data/manifests
 ALL_INV=$(shell cat $(OUT)/inventorynumbers.lst)
 COMMIT=2026.02.16
 
+GREEN=\033[0;32m
+RED=\033[0;31m
+BLUE=\033[0;34m
+RESET=\033[0m
+
 # gate task to limit parallelism
 .PHONY: hucdrive-gate
 .NOTPARALLEL: hucdrive-gate
@@ -19,11 +24,11 @@ hucdrive-gate:
 .PHONY: check-ssh
 check-ssh:
 	@if [ -z "$$SSHUSER" ]; then \
-		echo "SSHUSER is not set: user for hucdrive.huc.knaw.nl"; \
+		echo -e "$(RED)SSHUSER is not set: user for hucdrive.huc.knaw.nl$(RESET)"; \
 		exit 1; \
 	fi
 	@if [ -z "$$SSHPASS" ]; then \
-		echo "SSHPASS is not set: password for SSHUSER"; \
+		echo -e "$(RED)SSHPASS is not set: password for SSHUSER$(RESET)"; \
 		exit 1; \
 	fi
 
@@ -72,7 +77,7 @@ data/xmicas/:
 	@touch $@
 
 data/typesystem.xml:
-	@echo "missing file: data/typesystem.xml"
+	@echo -e "$(RED)missing file: data/typesystem.xml$(RESET)"
 
 .make/combined-%: .make/init scripts/gt-create-annotation-lists-for-inventory-number.sh .make/xmicas-% data/typesystem.xml .make/pagexml-%
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $* && rm -rf {$(PAGEXMLDIR),$(XMIDIR)}/$*/ .make/{pagexml,xmicas}-$*
@@ -103,11 +108,17 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
-	mkdir $(OUT)/$*/
-	cd $(OUT)/$*/ && unzip -o ../annotation-lists/$*-annotation-lists.zip
-	@echo "uploading annotation lists for $* ..."
-	@echo "done, cleaning up ..."
-	#rm -rf $(OUT)/$*/
+	mkdir -p $(OUT)/$*/ && \
+	cd $(OUT)/$*/ && \
+	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip && \
+	for j in {entities,transcriptions}/*.json ; do \
+	  gzip $$j && \
+	  mv $$j.gz $$j ; \
+	done
+	@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
+	s5cmd cp --content-type "application/json" --content-encoding "gzip" "work/$*/*" s3://globalise-data/annotations/ > /dev/null
+	@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
+	rm -rf $(OUT)/$*/
 
 .PHONY: upload-all
 upload-all: scripts/gt-upload-all-annotation-lists.sh
@@ -115,9 +126,9 @@ upload-all: scripts/gt-upload-all-annotation-lists.sh
 
 .PHONY: help
 help:
-	@echo "available make targets:"
-	@echo "  init                     - set up the environment for the scripts to run in"
-	@echo "  annotation-lists-<invnr> - generate entities and transcription annotation pages for the given inventory number"
-	@echo "  all-annotation-lists     - generate all entities and transcription annotation pages"
-	@echo "  upload-<invnr>           - upload the annotationlists of the given inventory number to the object store"
-	@echo "  upload-all               - upload all annotationlists to the object store"
+	@echo "available \`make' targets:"
+	@echo -e "  $(BLUE)init$(RESET)                     - set up the environment for the scripts to run in"
+	@echo -e "  $(BLUE)annotation-lists-<invnr>$(RESET) - generate entities and transcription annotation pages for the given inventory number"
+	@echo -e "  $(BLUE)all-annotation-lists$(RESET)     - generate all entities and transcription annotation pages"
+	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the object store"
+	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotationlists to the object store"
