@@ -107,6 +107,15 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
+install-%: $(OUT)/annotation-lists/%-annotation-lists.zip
+	mkdir -p $(OUT)/$*/ && \
+        cd $(OUT)/$*/ && \
+        unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
+	for ep in $(OUT)/$*/entities/*.json ; do \
+  		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
+	done
+	gzip $(OUT)/$*.nq
+
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
 	cd $(OUT)/$*/ && \
@@ -115,10 +124,10 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	  gzip --force $$j && \
 	  mv $$j.gz $$j ; \
 	done
-	@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
-	s5cmd cp --content-type "application/json" --content-encoding "gzip" "work/$*/*" s3://globalise-data/annotations/ > /dev/null
-	@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
-	rm -rf $(OUT)/$*/
+	#@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
+	#s5cmd cp --content-type "application/json" --content-encoding "gzip" "work/$*/*" s3://globalise-data/annotations/ > /dev/null
+	#@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
+	#rm -rf $(OUT)/$*/
 
 .PHONY: upload-all
 upload-all: scripts/gt-upload-all-annotation-lists.sh
@@ -130,5 +139,9 @@ help:
 	@echo -e "  $(BLUE)init$(RESET)                     - set up the environment for the scripts to run in"
 	@echo -e "  $(BLUE)annotation-lists-<invnr>$(RESET) - generate entities and transcription annotation pages for the given inventory number"
 	@echo -e "  $(BLUE)all-annotation-lists$(RESET)     - generate all entities and transcription annotation pages"
+	@echo
 	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the object store"
 	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotationlists to the object store"
+	@echo
+	@echo -e "  $(BLUE)install-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the qlever"
+
