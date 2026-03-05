@@ -1,7 +1,16 @@
-<html>
-<head><title>301 Moved Permanently</title></head>
-<body>
-<center><h1>301 Moved Permanently</h1></center>
-<hr><center>nginx</center>
-</body>
-</html>
+{
+  "@context": {
+    "search": "http://iiif.io/api/search/1#",
+
+    "ignored": {"@id": "search:ignored", "@container": "@set"},
+    "match": {"@id": "search:match"},
+    "before": {"@id": "search:before"},
+    "after": {"@id": "search:after"},
+    "count": {"@id": "search:count"},
+
+    "hits": {"@id": "search:hasHitList", "@container": "@list", "@type": "@id"},
+    "terms": {"@id": "search:hasTermList", "@container": "@list", "@type": "@id"},
+    "annotations": {"@id": "search:refines", "@container": "@set", "@type": "@id"},
+    "selectors": {"@id": "search:hasSelector", "@container": "@set", "@type":"@id"}
+  }
+}
