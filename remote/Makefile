@@ -47,7 +47,6 @@ init: .make/init
 	mv inventory2timespan.json document_data.json typesystem.xml data/
 	@touch $@
 
-
 data/pagexml/:
 	mkdir -p $@
 
@@ -112,12 +111,12 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
 	mkdir -p $(OUT)/$*/fixed
-	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
 	for j in $(OUT)/$*/entities/*.json; do \
 		cat $$j \
 		| sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' \
 		| ./scripts/rewrite_context.py > $(OUT)/$*/fixed/$$(basename $$j) ; \
 	done
+	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
 	riot --quiet --syntax json-ld --output=nquads $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
 	rm -rf $(OUT)/$*/
 
