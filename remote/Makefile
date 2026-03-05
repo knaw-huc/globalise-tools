@@ -107,17 +107,17 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
-$(OUT)/%.nq: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_context.py
-	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication"
+$(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_context.py
 	mkdir -p $(OUT)/$*/ && \
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
-	for ep in $(OUT)/$*/entities/*.json ; do \
-		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --time --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
-	done && rm -rf $(OUT)/$*/
-
-$(OUT)/%.nq.gz: $(OUT)/%.nq
-	sort -u $(OUT)/$*.nq | gzip > $(OUT)/$*.nq.gz
+	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
+	cat $(OUT)/$*/entities/*.json \
+	| sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' \
+	| ./scripts/rewrite_context.py \
+	| riot --time --syntax json-ld --output=N-QUADS --compress - \
+	> $(OUT)/$*.nq.gz && \
+	rm -rf $(OUT)/$*/
 
 index/:
 	mkdir -p index
