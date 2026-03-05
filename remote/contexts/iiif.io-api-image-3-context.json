@@ -143,19 +143,19 @@
       "@context": {
       	"Collection": {
       		"@id": "iiif_prezi:Collection",
-      		"@context": "http://iiif.io/api/presentation/3/context.json"
+      		"@context": "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-presentation-3-context.json"
       	},
       	"Manifest": {
       		"@id": "iiif_prezi:Manifest",
-      		"@context": "http://iiif.io/api/presentation/3/context.json"      		
+      		"@context": "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-presentation-3-context.json"      		
       	},
       	"Canvas": {
       		"@id": "iiif_prezi:Canvas",
-      		"@context": "http://iiif.io/api/presentation/3/context.json"      		
+      		"@context": "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-presentation-3-context.json"      		
       	},
       	"Range": {
       		"@id": "iiif_prezi:Range",
-      		"@context": "http://iiif.io/api/presentation/3/context.json"      		
+      		"@context": "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-presentation-3-context.json"      		
       	}
       }
     },
@@ -168,7 +168,7 @@
 	    "ImageService1": {
 	      "@id": "http://iiif.io/api/image/1#ImageService",
 	      "@context": [
-	        "http://iiif.io/api/image/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-image-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -178,7 +178,7 @@
 	    "ImageService2": {
 	      "@id": "http://iiif.io/api/image/2#ImageService",
 	      "@context": [
-	        "http://iiif.io/api/image/2/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-image-2-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -188,7 +188,7 @@
 	    "SearchService1": {
 	      "@id": "http://iiif.io/api/search/1#SearchService",
 	      "@context": [
-	        "http://iiif.io/api/search/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-search-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -198,7 +198,7 @@
 	    "AutoCompleteService1": {
 	      "@id": "http://iiif.io/api/search/1#AutoCompleteService",
 	      "@context": [
-	        "http://iiif.io/api/search/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-search-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -208,7 +208,7 @@
 	    "AuthCookieService1": {
 	      "@id": "http://iiif.io/api/auth/1#CookieService",
 	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -218,7 +218,7 @@
 	    "AuthTokenService1": {
 	      "@id": "http://iiif.io/api/auth/1#TokenService",
 	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
@@ -228,7 +228,7 @@
 	    "AuthLogoutService1": {
 	      "@id": "http://iiif.io/api/auth/1#LogoutService",
 	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
+	        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
 	        {
 	          "id": null,
 	          "type": null
