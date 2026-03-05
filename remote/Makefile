@@ -107,14 +107,30 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 .PHONY: all-annotation-lists
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
-install-%: $(OUT)/annotation-lists/%-annotation-lists.zip
+$(OUT)/%.nq: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_context.py
 	mkdir -p $(OUT)/$*/ && \
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
 	for ep in $(OUT)/$*/entities/*.json ; do \
   		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
 	done
-	sort -u $(OUT)/$*.nq > $(OUT)/$*.nq.gz
+
+n-quads-%: $(OUT)/%.nq.gz
+$(OUT)/%.nq.gz: $(OUT)/%.nq
+	sort -u $(OUT)/$*.nq | gzip > $(OUT)/$*.nq.gz
+
+index/:
+	mkdir -p index
+
+index/globalise.nq.gz: $(wildcard $(OUT)/*.nq.gz) | index/
+	zcat $(OUT)/*.nq.gz | sort -u | gzip > index/globalise.nq.gz
+
+qlever-index: index/globalise.nq.gz | index/
+	cd index && qlever index --format nq
+
+.PHONY: generate-all-n-quads
+generate-all-n-quads: scripts/gt-generate-all-n-quads.sh
+	./scripts/gt-generate-all-n-quads.sh
 
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
@@ -143,5 +159,10 @@ help:
 	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the object store"
 	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotationlists to the object store"
 	@echo
-	@echo -e "  $(BLUE)install-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the qlever"
+	@echo -e "  $(BLUE)n-quads-<invnr>$(RESET)          - convert all entities annotation pages for the given inventory number to a gzipped list of unique n-quads"
+	@echo -e "  $(BLUE)generate-all-n-quads$(RESET)     - convert all entities annotation pages for all inventory numbers to gzipped lists of unique n-quads"
+	@echo -e "  $(BLUE)qlever-index$(RESET)             - index the quads of all entities annotation pages in qlever"
 
+#curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?rel ?target where { "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02__9999_0002#annotation:16" ?rel ?target }'
+#curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?sub ?rel ?obj where { ?sub ?rel ?obj }'
+#curl -s localhost:7019 -H "Accept: text/csv" --data-urlencode query='select ?rel ?obj where { <https://github.com/knaw-huc/globalise-tools/blob/2026.02.13/scripts/gt_create_annotation_lists_for_inventory_number.py> ?rel ?obj }'

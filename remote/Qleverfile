@@ -1,0 +1,31 @@
+# Qleverfile for Globalise, use with https://github.com/ad-freiburg/qlever-control
+#
+# qlever get-data  #
+# qlever index     #
+# qlever start     # starts the server (instant)
+
+[data]
+NAME              = globalise
+BASE_URL          =
+GET_DATA_CMD      =
+DESCRIPTION       = globalise ${BASE_URL}
+TEXT_DESCRIPTION  = All literals, search with FILTER CONTAINS(?var, "...")
+
+[index]
+INPUT_FILES     = globalise.nq.gz
+CAT_INPUT_FILES = zcat ${INPUT_FILES}
+SETTINGS_JSON   = { "ascii-prefixes-only": false, "num-triples-per-batch": 100000 }
+
+[server]
+PORT               = 7019
+ACCESS_TOKEN       = ${data:NAME}_976E34D9-7EB2-499D-AAA8-F1A5F4934C4A
+MEMORY_FOR_QUERIES = 5G
+CACHE_MAX_SIZE     = 2G
+TIMEOUT            = 30s
+
+[runtime]
+SYSTEM = native
+IMAGE  = docker.io/adfreiburg/qlever:latest
+
+[ui]
+UI_CONFIG = globalise
