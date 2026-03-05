@@ -1,0 +1,320 @@
+{
+    "@context": {
+        "crmdig": "http://www.ics.forth.gr/isl/CRMdig/",
+        "crm": "http://www.cidoc-crm.org/cidoc-crm/",
+        "owl": "http://www.w3.org/2002/07/owl#",
+        "rdf": "http://www.w3.org/1999/02/22-rdf-syntax-ns#",
+        "rdfs": "http://www.w3.org/2000/01/rdf-schema#",
+        "xsd": "http://www.w3.org/2001/XMLSchema#",
+        "id": "@id",
+        "type": "@type",
+        "AnnotationEvent": "crmdig:D30_Annotation_Event",
+        "AnnotationObject": "crmdig:D29_Annotation_Object",
+        "Area": "crmdig:D35_Area",
+        "DataObject": "crmdig:D9_Data_Object",
+        "DataTransferEvent": "crmdig:D12_Data_Transfer_Event",
+        "DigitalDevice": "crmdig:D8_Digital_Device",
+        "DigitalInformationCarrier": "crmdig:D13_Digital_Information_Carrier",
+        "DigitalMachineEvent": "crmdig:D7_Digital_Machine_Event",
+        "DigitalMeasurementEvent": "crmdig:D11_Digital_Measurement_Event",
+        "DigitalObject": "crmdig:D1_Digital_Object",
+        "DigitizationProcess": "crmdig:D2_Digitization_Process",
+        "FormalDerivation": "crmdig:D3_Formal_Derivation",
+        "PersonName": "crmdig:D21_Person_Name",
+        "Room": "crmdig:D23_Room",
+        "Software": "crmdig:D14_Software",
+        "SoftwareExecution": "crmdig:D10_Software_Execution",
+        "annotates": {
+            "@id": "crmdig:L43_annotates",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "created_annotation": {
+            "@id": "crmdig:L48_created_annotation",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "created_derivative": {
+            "@id": "crmdig:L22_created_derivative",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "created_logfile": {
+            "@id": "crmdig:L24_created_logfile",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "digitized": {
+            "@id": "crmdig:L1_digitized",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "documents": {
+            "@id": "crmdig:L60_documents",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "happened_on_device": {
+            "@id": "crmdig:L12_happened_on_device",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_comment": "crmdig:L47_has_comment",
+        "has_commissioner": {
+            "@id": "crmdig:L35_has_commissioner",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_contractor": {
+            "@id": "crmdig:L34_has_contractor",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_created": {
+            "@id": "crmdig:L20_has_created",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_ending_date_time": "crmdig:L32_has_ending_date-time",
+        "has_first_name": "crmdig:L51_has_first_name",
+        "has_input": {
+            "@id": "crmdig:L10_had_input",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_inventory_no": "crmdig:L55_has_inventory_no",
+        "has_last_name": "crmdig:L52_has_last_name",
+        "has_maker": {
+            "@id": "crmdig:L33_has_maker",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_modified": {
+            "@id": "crmdig:L18_has_modified",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_operator": {
+            "@id": "crmdig:L30_has_operator",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_output": {
+            "@id": "crmdig:L11_had_output",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_pixel_height": "crmdig:L57_has_pixel_height",
+        "has_pixel_width": "crmdig:L56_has_pixel_width",
+        "has_preferred_label": "crmdig:L4_has_preferred_label",
+        "has_primary_area": {
+            "@id": "crmdig:L49i_has_primary_area",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_propagated_area": {
+            "@id": "crmdig:L50i_has_propagated_area",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_receiver": {
+            "@id": "crmdig:L16_has_receiver",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_responsible_organization": {
+            "@id": "crmdig:L29_has_responsible_organization",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_sender": {
+            "@id": "crmdig:L15_has_sender",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_serial_number": "crmdig:L59_has_serial_number",
+        "has_starting_date_time": "crmdig:L31_has_starting_date-time",
+        "is_annotated_by": {
+            "@id": "crmdig:L43i_is_annotated_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_commissioner_for": {
+            "@id": "crmdig:L35i_is_commissioner_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_contractor_for": {
+            "@id": "crmdig:L34i_is_contractor_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_documented_by": {
+            "@id": "crmdig:L60i_is_documented_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_maker_of": {
+            "@id": "crmdig:L33i_is_maker_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_not_uniquely_identified_by": "crmdig:L53_is_not_uniquely_identified_by",
+        "is_operator_of": {
+            "@id": "crmdig:L30i_is_operator_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_primary_area_of": {
+            "@id": "crmdig:L49_is_primary_area_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_propagated_area_of": {
+            "@id": "crmdig:L50_is_propagated_area_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_responsible_organization_for": {
+            "@id": "crmdig:L29i_is_responsible_organization_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_same_as": {
+            "@id": "crmdig:L54_is_same-as",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_same_as_i": {
+            "@id": "crmdig:L54i_is_same-as",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_stored_on": {
+            "@id": "crmdig:L19i_is_stored_on",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "measured_thing_of_type": {
+            "@id": "crmdig:L17_measured_thing_of_type",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "parameters_for": {
+            "@id": "crmdig:L13i_parameters_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "stores": {
+            "@id": "crmdig:L19_stores",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "transferred": {
+            "@id": "crmdig:L14_transferred",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "used_as_derivation_source": {
+            "@id": "crmdig:L21_used_as_derivation_source",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "used_as_source": {
+            "@id": "crmdig:L2_used_as_source",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "used_parameters": {
+            "@id": "crmdig:L13_used_parameters",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "used_software_or_firmware": {
+            "@id": "crmdig:L23_used_software_or_firmware",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_annotation_created_by": {
+            "@id": "crmdig:L48i_was_annotation_created_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_created_by": {
+            "@id": "crmdig:L20i_was_created_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_derivation_source_for": {
+            "@id": "crmdig:L21i_was_derivation_source_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_derivative_created_by": {
+            "@id": "crmdig:L22i_was_derivative_created_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_device_for": {
+            "@id": "crmdig:L12i_was_device_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_digitized_by": {
+            "@id": "crmdig:L1i_was_digitized_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_input_of": {
+            "@id": "crmdig:L10i_was_input_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_logfile_created_by": {
+            "@id": "crmdig:L24i_was_logfile_created_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_modified_by": {
+            "@id": "crmdig:L18i_was_modified_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_ongoing_at": "crmdig:L61_was_ongoing_at",
+        "was_output_of": {
+            "@id": "crmdig:L11i_was_output_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_receiver_for": {
+            "@id": "crmdig:L16i_was_receiver_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_sender_for": {
+            "@id": "crmdig:L15i_was_sender_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_software_or_firmware_used_by": {
+            "@id": "crmdig:L23i_was_software_or_firmware_used_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_source_for": {
+            "@id": "crmdig:L2i_was_source_for",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_transferred_by": {
+            "@id": "crmdig:L14i_was_transferred_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_type_of_thing_measured_by": {
+            "@id": "crmdig:L17i_was_type_of_thing_measured_by",
+            "@type": "@id",
+            "@container": "@set"
+        }
+    }
+}
