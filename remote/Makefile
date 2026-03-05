@@ -118,7 +118,7 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
 		| sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' \
 		| ./scripts/rewrite_context.py > $(OUT)/$*/fixed/$$(basename $$j) ; \
 	done
-	riot --time --syntax json-ld --output=N-QUADS $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
+	riot --quiet --syntax json-ld --output=nquads $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
 	rm -rf $(OUT)/$*/
 
 index/:
