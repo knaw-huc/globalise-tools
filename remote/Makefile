@@ -114,7 +114,7 @@ install-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	for ep in $(OUT)/$*/entities/*.json ; do \
   		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
 	done
-	gzip $(OUT)/$*.nq
+	sort -u $(OUT)/$*.nq > $(OUT)/$*.nq.gz
 
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
