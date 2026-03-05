@@ -1,7 +1,6 @@
 {
   "@context": {
-      "@version": 1.1,
-
+    "@version": 1.1,
     "iiif_prezi": "http://iiif.io/api/presentation/3#",
     "iiif_image": "http://iiif.io/api/image/3#",
     "exif": "http://www.w3.org/2003/12/exif/ns#",
@@ -16,10 +15,8 @@
     "as": "http://www.w3.org/ns/activitystreams#",
     "ebu": "http://www.ebu.ch/metadata/ontologies/ebucore/ebucore#",
     "schema": "https://schema.org/",
-
     "id": "@id",
     "type": "@type",
-
     "Collection": {
       "@id": "iiif_prezi:Collection",
       "@context": {
@@ -60,11 +57,10 @@
         }
       }
     },
-
     "AnnotationCollection": {
       "@id": "as:OrderedCollection",
       "@context": [
-        "http://www.w3.org/ns/anno.jsonld",
+        "file:///data/globalise-data/annotation-lists/data/contexts/anno.jsonld",
         {
           "partOf": {
             "@id": "dcterms:isPartOf",
@@ -73,45 +69,53 @@
           },
           "label": {
             "@id": "rdfs:label",
-            "@container": ["@language", "@set"],
+            "@container": [
+              "@language",
+              "@set"
+            ],
             "@context": {
               "none": "@none"
             }
-          }          
+          }
         }
       ]
     },
     "AnnotationPage": {
       "@id": "as:OrderedCollectionPage",
       "@context": [
-        "http://www.w3.org/ns/anno.jsonld",
+        "file:///data/globalise-data/annotation-lists/data/contexts/anno.jsonld",
         {
           "label": {
             "@id": "rdfs:label",
-            "@container": ["@language", "@set"],
+            "@container": [
+              "@language",
+              "@set"
+            ],
             "@context": {
               "none": "@none"
             }
-          }          
+          }
         }
       ]
     },
     "Annotation": {
       "@id": "oa:Annotation",
       "@context": [
-        "http://www.w3.org/ns/anno.jsonld",
+        "file:///data/globalise-data/annotation-lists/data/contexts/anno.jsonld",
         {
           "label": {
             "@id": "rdfs:label",
-            "@container": ["@language", "@set"],
+            "@container": [
+              "@language",
+              "@set"
+            ],
             "@context": {
               "none": "@none"
             }
-          }          
+          }
         }
       ]
     },
-
     "Dataset": "dctypes:Dataset",
     "Image": "dctypes:StillImage",
     "Video": "dctypes:MovingImage",
@@ -119,19 +123,24 @@
     "Text": "dctypes:Text",
     "Service": "schema:WebAPI",
     "Agent": "dcterms:Agent",
-
     "label": {
       "@id": "rdfs:label",
-      "@container": ["@language", "@set"],
+      "@container": [
+        "@language",
+        "@set"
+      ],
       "@context": {
-  	    "none": "@none"
+        "none": "@none"
       }
     },
     "value": {
       "@id": "rdf:value",
-      "@container": ["@language", "@set"],
+      "@container": [
+        "@language",
+        "@set"
+      ],
       "@context": {
-  	    "none": "@none"
+        "none": "@none"
       }
     },
     "metadata": {
@@ -141,10 +150,13 @@
     },
     "summary": {
       "@id": "as:summary",
-      "@container": ["@language", "@set"],
+      "@container": [
+        "@language",
+        "@set"
+      ],
       "@context": {
-  	    "none": "@none"
-      }      
+        "none": "@none"
+      }
     },
     "requiredStatement": {
       "@id": "iiif_prezi:requiredStatement",
@@ -173,14 +185,13 @@
       "@id": "iiif_prezi:navigationDate"
     },
     "accompanyingCanvas": {
-    	"@type": "@id",
-    	"@id": "iiif_prezi:accompanyingCanvas"
+      "@type": "@id",
+      "@id": "iiif_prezi:accompanyingCanvas"
     },
     "placeholderCanvas": {
-    	"@type": "@id",
-    	"@id": "iiif_prezi:placeholderCanvas"
+      "@type": "@id",
+      "@id": "iiif_prezi:placeholderCanvas"
     },
-
     "format": {
       "@id": "dc:format"
     },
@@ -207,10 +218,10 @@
       "@id": "iiif_prezi:viewingDirection",
       "@type": "@vocab",
       "@context": {
-	    "left-to-right": "iiif_prezi:leftToRightDirection",
-	    "right-to-left": "iiif_prezi:rightToLeftDirection",
-	    "top-to-bottom": "iiif_prezi:topToBottomDirection",
-	    "bottom-to-top": "iiif_prezi:bottomToTopDirection"
+        "left-to-right": "iiif_prezi:leftToRightDirection",
+        "right-to-left": "iiif_prezi:rightToLeftDirection",
+        "top-to-bottom": "iiif_prezi:topToBottomDirection",
+        "bottom-to-top": "iiif_prezi:bottomToTopDirection"
       }
     },
     "behavior": {
@@ -218,35 +229,33 @@
       "@type": "@vocab",
       "@container": "@set",
       "@context": {
-	    "auto-advance": "iiif_prezi:autoAdvanceHint",
-	    "no-auto-advance": "iiif_prezi:noAutoAdvanceHint",
-	    "repeat": "iiif_prezi:repeatHint",
-	    "no-repeat": "iiif_prezi:noRepeatHint",
-	    "unordered": "iiif_prezi:unordered",
-	    "individuals": "iiif_prezi:individualsHint",
-	    "continuous": "iiif_prezi:continuousHint",
-	    "paged": "iiif_prezi:pagedHint",
-	    "facing-pages": "iiif_prezi:facingPagesHint",
-	    "non-paged": "iiif_prezi:nonPagedHint",
-	    "multi-part": "iiif_prezi:multiPartHint",
-	    "together": "iiif_prezi:togetherHint",
-	    "sequence": "iiif_prezi:sequenceHint",
-	    "thumbnail-nav": "iiif_prezi:thumbnailNavHint",
-	    "no-nav": "iiif_prezi:noNavHint",        
-	    "hidden": "iiif_prezi:noneHint"
+        "auto-advance": "iiif_prezi:autoAdvanceHint",
+        "no-auto-advance": "iiif_prezi:noAutoAdvanceHint",
+        "repeat": "iiif_prezi:repeatHint",
+        "no-repeat": "iiif_prezi:noRepeatHint",
+        "unordered": "iiif_prezi:unordered",
+        "individuals": "iiif_prezi:individualsHint",
+        "continuous": "iiif_prezi:continuousHint",
+        "paged": "iiif_prezi:pagedHint",
+        "facing-pages": "iiif_prezi:facingPagesHint",
+        "non-paged": "iiif_prezi:nonPagedHint",
+        "multi-part": "iiif_prezi:multiPartHint",
+        "together": "iiif_prezi:togetherHint",
+        "sequence": "iiif_prezi:sequenceHint",
+        "thumbnail-nav": "iiif_prezi:thumbnailNavHint",
+        "no-nav": "iiif_prezi:noNavHint",
+        "hidden": "iiif_prezi:noneHint"
       }
     },
-
     "timeMode": {
       "@id": "iiif_prezi:timeMode",
       "@type": "@vocab",
       "@context": {
-	    "trim": "iiif_prezi:trimMode",
-    	"scale": "iiif_prezi:scaleMode",
-    	"loop": "iiif_prezi:loopMode"
+        "trim": "iiif_prezi:trimMode",
+        "scale": "iiif_prezi:scaleMode",
+        "loop": "iiif_prezi:loopMode"
       }
     },
-
     "homepage": {
       "@type": "@id",
       "@id": "foaf:homepage",
@@ -262,99 +271,96 @@
       "@id": "schema:potentialAction",
       "@container": "@set",
       "@context": {
-	    "ImageService1": {
-	      "@id": "http://iiif.io/api/image/1#ImageService",
-	      "@context": [
-	        "http://iiif.io/api/image/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "ImageService2": {
-	      "@id": "http://iiif.io/api/image/2#ImageService",
-	      "@context": [
-	        "http://iiif.io/api/image/2/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "ImageService3": {
-	      "@id": "http://iiif.io/api/image/3#ImageService",
-	      "@context": "http://iiif.io/api/image/3/context.json"
-	    },
-	    "SearchService1": {
-	      "@id": "http://iiif.io/api/search/1#SearchService",
-	      "@context": [
-	        "http://iiif.io/api/search/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "AutoCompleteService1": {
-	      "@id": "http://iiif.io/api/search/1#AutoCompleteService",
-	      "@context": [
-	        "http://iiif.io/api/search/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "AuthCookieService1": {
-	      "@id": "http://iiif.io/api/auth/1#CookieService",
-	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "AuthTokenService1": {
-	      "@id": "http://iiif.io/api/auth/1#TokenService",
-	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    },
-	    "AuthLogoutService1": {
-	      "@id": "http://iiif.io/api/auth/1#LogoutService",
-	      "@context": [
-	        "http://iiif.io/api/auth/1/context.json",
-	        {
-	          "id": null,
-	          "type": null
-	        }
-	      ]
-	    }
+        "ImageService1": {
+          "@id": "http://iiif.io/api/image/1#ImageService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-image-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "ImageService2": {
+          "@id": "http://iiif.io/api/image/2#ImageService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-image-2-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "ImageService3": {
+          "@id": "http://iiif.io/api/image/3#ImageService",
+          "@context": "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-image-3-context.json"
+        },
+        "SearchService1": {
+          "@id": "http://iiif.io/api/search/1#SearchService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-search-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "AutoCompleteService1": {
+          "@id": "http://iiif.io/api/search/1#AutoCompleteService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-search-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "AuthCookieService1": {
+          "@id": "http://iiif.io/api/auth/1#CookieService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "AuthTokenService1": {
+          "@id": "http://iiif.io/api/auth/1#TokenService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        },
+        "AuthLogoutService1": {
+          "@id": "http://iiif.io/api/auth/1#LogoutService",
+          "@context": [
+            "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-auth-1-context.json",
+            {
+              "id": null,
+              "type": null
+            }
+          ]
+        }
       }
     },
-
     "seeAlso": {
       "@type": "@id",
       "@id": "rdfs:seeAlso",
       "@container": "@set"
     },
-
-    "selector":{
-      "@type":"@id",
-      "@id":"oa:selector",
-      "@container" : "@set",
-      "@context":[
-        "https://iiif.io/api/registry/selectors/context.json",
-        "http://www.w3.org/ns/anno.jsonld"
+    "selector": {
+      "@type": "@id",
+      "@id": "oa:selector",
+      "@container": "@set",
+      "@context": [
+        "file:///data/globalise-data/annotation-lists/data/contexts/iiif.io-api-registry-selectors-context.json",
+        "file:///data/globalise-data/annotation-lists/data/contexts/anno.jsonld"
       ]
-   },
-
+    },
     "start": {
       "@type": "@id",
       "@id": "iiif_prezi:start"
@@ -363,7 +369,6 @@
       "@type": "@id",
       "@id": "iiif_prezi:supplementary"
     },
-
     "items": {
       "@type": "@id",
       "@id": "as:items",
@@ -379,7 +384,6 @@
       "@id": "iiif_prezi:annotations",
       "@container": "@list"
     },
-
     "painting": "iiif_prezi:painting",
     "supplementing": "iiif_prezi:supplementing",
     "contentState": "iiif_prezi:contentState",
