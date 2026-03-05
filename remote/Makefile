@@ -112,7 +112,7 @@ $(OUT)/%.nq: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_co
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
 	for ep in $(OUT)/$*/entities/*.json ; do \
-  		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
+		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
 	done && rm -rf $(OUT)/$*/
 
 $(OUT)/%.nq.gz: $(OUT)/%.nq
