@@ -111,13 +111,14 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
 	mkdir -p $(OUT)/$*/ && \
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
+	mkdir -p $(OUT)/$*/fixed
 	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
 	for j in $(OUT)/$*/entities/*.json; do \
 		cat $$j \
 		| sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' \
-		| ./scripts/rewrite_context.py ; \
-	done > $(OUT)/$*.jsonl
-	riot --time --syntax json-ld --output=N-QUADS --compress $(OUT)/$*.jsonl > $(OUT)/$*.nq.gz && \
+		| ./scripts/rewrite_context.py > $(OUT)/$*/fixed/$$(basename $$j) ; \
+	done
+	riot --time --syntax json-ld --output=N-QUADS $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
 	rm -rf $(OUT)/$*/
 
 index/:
