@@ -113,9 +113,8 @@ $(OUT)/%.nq: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_co
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
 	for ep in $(OUT)/$*/entities/*.json ; do \
   		cat $$ep | sed -e 's|"@context":"http://iiif.io/api/presentation/3/context.json",||g' | ./scripts/rewrite_context.py | riot --syntax json-ld --output=N-QUADS - >> $(OUT)/$*.nq ; \
-	done
+	done && rm -rf $(OUT)/$*/
 
-n-quads-%: $(OUT)/%.nq.gz
 $(OUT)/%.nq.gz: $(OUT)/%.nq
 	sort -u $(OUT)/$*.nq | gzip > $(OUT)/$*.nq.gz
 
@@ -159,7 +158,7 @@ help:
 	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the object store"
 	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotationlists to the object store"
 	@echo
-	@echo -e "  $(BLUE)n-quads-<invnr>$(RESET)          - convert all entities annotation pages for the given inventory number to a gzipped list of unique n-quads"
+	@echo -e "  $(BLUE)$(OUT)/<invnr>.nq.gz$(RESET)       - convert all entities annotation pages for the given inventory number to a gzipped list of unique n-quads"
 	@echo -e "  $(BLUE)generate-all-n-quads$(RESET)     - convert all entities annotation pages for all inventory numbers to gzipped lists of unique n-quads"
 	@echo -e "  $(BLUE)qlever-index$(RESET)             - index the quads of all entities annotation pages in qlever"
 
