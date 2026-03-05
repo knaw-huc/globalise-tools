@@ -62,7 +62,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs --keep-going $(for i in "${invnrs[@]}"; do printf "n-quads-$i "; done)
+  make --jobs --keep-going $(for i in "${invnrs[@]}"; do printf "work/$i.nq.gz "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
