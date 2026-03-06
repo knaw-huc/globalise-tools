@@ -10,9 +10,9 @@ MANIFESTSDIR=data/manifests
 ALL_INV=$(shell cat $(OUT)/inventorynumbers.lst)
 COMMIT=2026.02.16
 
-GREEN=\033[0;32m
-RED=\033[0;31m
-BLUE=\033[0;34m
+GREEN=\033[1;32m
+RED=\033[1;31m
+BLUE=\033[1;34m
 RESET=\033[0m
 
 # gate task to limit parallelism
@@ -107,7 +107,7 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
 $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_context.py
-	@echo -e "$(BLUE)---[ Generating $@ ]---$(RESET)"
+	@echo -e "$(BLUE)---[ $(GREEN)Generating: $@$(BLUE) ]---$(RESET)"
 	mkdir -p $(OUT)/$*/ && \
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
@@ -120,7 +120,7 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
 	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
 	riot --quiet --syntax json-ld --output=nquads $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
 	rm -rf $(OUT)/$*/
-	@echo -e "$(BLUE)---[ $@ generated]---$(RESET)"
+	@echo -e "$(BLUE)---[ $(GREEN)Generated: $@$(BLUE) ]---$(RESET)"
 
 index/:
 	mkdir -p index
