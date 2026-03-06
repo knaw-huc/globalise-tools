@@ -62,7 +62,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs --keep-going $(for i in "${invnrs[@]}"; do printf "work/$i.nq.gz "; done)
+  make --jobs 3 --keep-going $(for i in "${invnrs[@]}"; do printf "work/$i.nq.gz "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
@@ -82,6 +82,10 @@ deinit-term() {
   printf '\e[%d;%dH' "$LINES" 0 # move cursor to the bottom line
   printf '\e[0K' # clear the line
   printf '\e8' # reset the cursor location
+}
+
+send-notification() {
+  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/bb-work > /dev/null
 }
 
 main() {
@@ -107,6 +111,7 @@ main() {
   local elapsed_time=$((current_time - start_time))
   local run=$(seconds-to-dhms $elapsed_time)
   echo "done in $run"
+  send-notification "gt-generate-all-n-quads finished in $run"
 }
 
 main "$@"
