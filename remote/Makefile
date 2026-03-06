@@ -107,7 +107,7 @@ annotation-lists-%: $(OUT)/annotation-lists/%.zip | hucdrive-gate
 all-annotation-lists: $(OUT)/inventorynumbers.lst $(addprefix annotation-lists-,$(ALL_INV))
 
 $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite_context.py
-	@echo -e "$(BLUE)---[ $(GREEN)Generating: $@$(BLUE) ]---$(RESET)"
+	@echo -e "$(BLUE)---[ $(shell date +"%Y-%m-%d %H:%M:%S") $(GREEN)Generating: $@$(BLUE) ]---$(RESET)"
 	mkdir -p $(OUT)/$*/ && \
         cd $(OUT)/$*/ && \
         unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
@@ -120,7 +120,7 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
 	export JVM_ARGS="-Xmx4g -Xms4g -XX:+UseG1GC -XX:+UseStringDeduplication" && \
 	riot --quiet --syntax json-ld --output=nquads $(OUT)/$*/fixed/*.json | sort -u | gzip > $(OUT)/$*.nq.gz && \
 	rm -rf $(OUT)/$*/
-	@echo -e "$(BLUE)---[ $(GREEN)Generated: $@$(BLUE) ]---$(RESET)"
+	@echo -e "$(BLUE)---[ $(shell date +"%Y-%m-%d %H:%M:%S") $(GREEN)Generated : $@$(BLUE) ]---$(RESET)"
 
 index/:
 	mkdir -p index

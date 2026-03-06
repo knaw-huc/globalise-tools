@@ -7,6 +7,7 @@ import os
 import re
 import sys
 import time
+import urllib.parse
 import uuid
 from dataclasses import dataclass
 from datetime import datetime
@@ -607,7 +608,7 @@ class XMIProcessor:
             return base | {
                 "value": quant.value,
                 "unit": {
-                    "id": f"{uf.URI_BASE_PATTERN}exchangeunit:{quant.unit_name}",
+                    "id": f"{uf.URI_BASE_PATTERN}exchangeunit:{urllib.parse.quote(quant.unit_name)}",
                     "type": "ExchangeUnit",
                     "_label": quant.unit
                 }
