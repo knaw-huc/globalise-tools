@@ -20,8 +20,8 @@ SETTINGS_JSON   = { "ascii-prefixes-only": false, "num-triples-per-batch": 10000
 PORT               = 7019
 ACCESS_TOKEN       = ${data:NAME}_976E34D9-7EB2-499D-AAA8-F1A5F4934C4A
 MEMORY_FOR_QUERIES = 5G
-CACHE_MAX_SIZE     = 2G
-TIMEOUT            = 30s
+CACHE_MAX_SIZE     = 20G
+TIMEOUT            = 60s
 
 [runtime]
 SYSTEM = native
