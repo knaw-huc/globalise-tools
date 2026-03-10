@@ -6,7 +6,7 @@
 
 [data]
 NAME              = globalise
-BASE_URL          =
+BASE_URL          = http://globalisesearch.globalise-knaw.src.surf-hosted.nl:7019
 GET_DATA_CMD      =
 DESCRIPTION       = globalise ${BASE_URL}
 TEXT_DESCRIPTION  = All literals, search with FILTER CONTAINS(?var, "...")
