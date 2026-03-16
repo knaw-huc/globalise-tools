@@ -345,11 +345,12 @@ class TranscriptionAnnotationPageBuilder:
             return None
         text_equiv = self._find_first(node, "TextEquiv")
         unicode_el = self._find_first(text_equiv, "Unicode")
-        if unicode_el is not None and len(unicode_el) == 0 and unicode_el.text:
-            return unicode_el.text.strip() or None
+        text=None
         if unicode_el is not None and unicode_el.text:
-            return unicode_el.text.strip() or None
-        return None
+            text= unicode_el.text.strip()
+        if text:
+            text =re.sub(r"\s+", " ", text).strip()
+        return text
 
     def _text_quote(self, text: str, text_position: Offset) -> TextQuote:
         start = text_position.begin
