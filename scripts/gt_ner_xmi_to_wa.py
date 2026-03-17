@@ -377,10 +377,10 @@ class XMIProcessor:
 
         return {
             "@context": [
+                "http://www.w3.org/ns/anno.jsonld",
                 "https://linked.art/ns/v1/linked-art.json",
                 "https://ns.huc.knaw.nl/globalise.jsonld",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
-                "http://www.w3.org/ns/anno.jsonld",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
                 {
                     "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
