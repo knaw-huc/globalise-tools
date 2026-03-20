@@ -23,7 +23,9 @@ globalise.settings.json: $(wildcard $(OUT)/*.nq.gz)
 	  --parallel-parsing true \
 	  --format nq \
 	  --overwrite-existing \
-	  --stxxl-memory 10G
+	  --stxxl-memory 10G \
+	&& ../scripts/ntfy -t "qlever index" -e "white_check_mark,partying_face" -m "qlever index complete" \
+	|| ../scripts/ntfy -t "qlever index" -e "x,facepalm" -m "qlever index failed"
 
 .PHONY: test-index
 test-index:
@@ -32,7 +34,9 @@ test-index:
 	  --parallel-parsing true \
 	  --format nq \
 	  --overwrite-existing \
-	  --stxxl-memory 10G
+	  --stxxl-memory 10G \
+	&& ../scripts/ntfy -t "qlever test index" -e "white_check_mark,partying_face" -m "qlever index complete" \
+	|| ../scripts/ntfy -t "qlever test index" -e "x,facepalm" -m "qlever index failed"
 
 .PHONY: start
 start:
