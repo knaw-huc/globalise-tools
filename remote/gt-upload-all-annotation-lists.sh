@@ -85,7 +85,7 @@ deinit-term() {
 }
 
 send-notification() {
-  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/bb-work > /dev/null
+  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/globalise > /dev/null
 }
 
 main() {

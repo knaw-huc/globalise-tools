@@ -85,7 +85,7 @@ deinit-term() {
 }
 
 send-notification() {
-  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/bb-work > /dev/null
+  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/globalise > /dev/null
 }
 
 main() {
@@ -99,7 +99,7 @@ main() {
 
   readarray -t invnrs < work/inv-todo.lst
   local len=${#invnrs[@]}
-  echo "uploading $len inventories"
+  echo "fixing n-quads for $len inventories"
 
   local i
   for ((i = 0; i < len; i += BATCHSIZE)); do
@@ -111,7 +111,7 @@ main() {
   local elapsed_time=$((current_time - start_time))
   local run=$(seconds-to-dhms $elapsed_time)
   echo "done in $run"
-  send-notification "gt-upload-all-annotation-lists finished in $run"
+  send-notification "gt-fix-n-quads finished in $run"
 }
 
 main "$@"

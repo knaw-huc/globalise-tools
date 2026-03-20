@@ -85,7 +85,7 @@ deinit-term() {
 }
 
 send-notification() {
-  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/bb-work > /dev/null
+  curl -H "Tags: globalise" -d "$@" https://ntfy.sh/globalise > /dev/null
 }
 
 main() {
@@ -99,7 +99,7 @@ main() {
 
   readarray -t invnrs < work/inv-todo.lst
   local len=${#invnrs[@]}
-  echo "uploading $len inventories"
+  echo "generating n-quads for $len inventories"
 
   local i
   for ((i = 0; i < len; i += BATCHSIZE)); do

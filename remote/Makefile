@@ -122,32 +122,21 @@ $(OUT)/%.nq.gz: $(OUT)/annotation-lists/%-annotation-lists.zip ./scripts/rewrite
 	rm -rf $(OUT)/$*/
 	@echo -e "$(BLUE)---[ $$(date +"%Y-%m-%d %H:%M:%S") $(GREEN)Generated : $@$(BLUE) ]---$(RESET)"
 
-index/:
-	mkdir -p index
-
-index/globalise.nq.gz: $(wildcard $(OUT)/*.nq.gz) | index/
-	cat $(OUT)/*.nq.gz > index/globalise.nq.gz
-#	zcat $(OUT)/*.nq.gz | sort -u | gzip > index/globalise.nq.gz
-
-.PHONY: qlever-index
-qlever-index: index/globalise.settings.json
-
-index/globalise.settings.json: $(wildcard $(OUT)/*.nq.gz) | index/
-	cd index && qlever index \
-	  --input-files "../$(OUT)/*.nq.gz" \
-	  --cat-input-files zcat \
-	  --parallel-parsing true \
-	  --format nq \
-	  --overwrite-existing \
-	  --stxxl-memory 10G
 
 .PHONY: generate-all-n-quads
 generate-all-n-quads: scripts/gt-generate-all-n-quads.sh
 	./scripts/gt-generate-all-n-quads.sh
 
 .PHONY: fix-all-n-quads
-generate-all-n-quads: scripts/gt-fix-n-quads.sh $(wildcard $(OUT)/*.nq.gz)
+fix-all-n-quads: scripts/gt-fix-n-quads.sh $(wildcard $(OUT)/*.nq.gz)
 	./scripts/gt-fix-n-quads.sh
+
+fix-n-quads-%: $(OUT)/%.nq.gz
+	zcat $(OUT)/$*.nq.gz \
+	| sed -e 's|file:///data/globalise-data/annotation-lists/work/.*/fixed/|http://globalise.nl/ns/|g' \
+	| sed -e 's|http://xmlns.com/foaf/0.1/Person|http://www.cidoc-crm.org/cidoc-crm/E21_Person|g' \
+	| gzip > $(OUT)/$*.fixed.nq.gz \
+	&& mv $(OUT)/$*.fixed.nq.gz $(OUT)/$*.nq.gz
 
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
