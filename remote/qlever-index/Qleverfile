@@ -21,8 +21,7 @@ PORT               = 7019
 ACCESS_TOKEN       = ${data:NAME}_976E34D9-7EB2-499D-AAA8-F1A5F4934C4A
 MEMORY_FOR_QUERIES = 20G
 CACHE_MAX_SIZE     = 10G
-TIMEOUT            = 160s
-MEMORY_LIMIT       = 30G
+TIMEOUT            = 600s
 
 [runtime]
 SYSTEM = native
