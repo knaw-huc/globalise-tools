@@ -19,7 +19,6 @@ qlever-index: globalise.settings.json
 
 globalise.settings.json: $(wildcard $(OUT)/*.nq.gz)
 	qlever index \
-	  --cat-input-files "zcat $(OUT)/*.nq.gz" \
 	  --parallel-parsing true \
 	  --format nq \
 	  --overwrite-existing \
