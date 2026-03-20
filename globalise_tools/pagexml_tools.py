@@ -153,7 +153,9 @@ class TranscriptionAnnotationPageBuilder:
                 "http://iiif.io/api/presentation/3/context.json",
                 "http://www.w3.org/ns/anno.jsonld",
                 "https://linked.art/ns/v1/linked-art.json",
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
                 {
                     "transcription-diplomatic": {
                         "@id": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/transcription/transcription-diplomatic"

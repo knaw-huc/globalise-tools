@@ -134,6 +134,7 @@ fix-all-n-quads: scripts/gt-fix-n-quads.sh $(wildcard $(OUT)/*.nq.gz)
 fix-n-quads-%: $(OUT)/%.nq.gz
 	zcat $(OUT)/$*.nq.gz \
 	| sed -e 's|file:///data/globalise-data/annotation-lists/work/.*/fixed/|http://globalise.nl/ns/|g' \
+	| sed -e 's|http://globalise.nl/ns/ExchangeUnit|https://w3id.org/globalise/ontology/G4_Exchange_Unit|g' \
 	| sed -e 's|http://xmlns.com/foaf/0.1/Person|http://www.cidoc-crm.org/cidoc-crm/E21_Person|g' \
 	| gzip > $(OUT)/$*.fixed.nq.gz \
 	&& mv $(OUT)/$*.fixed.nq.gz $(OUT)/$*.nq.gz

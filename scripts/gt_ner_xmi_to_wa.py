@@ -382,6 +382,7 @@ class XMIProcessor:
                 "https://ns.huc.knaw.nl/globalise.jsonld",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
                 {
                     "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
                     "iiif": "http://iiif.io/api/presentation/3#"
