@@ -10,7 +10,8 @@ MAPPING = {
     "https://linked.art/ns/v1/linked-art.json": f"{FILE_PREFIX}/linked-art.json",
     "https://ns.huc.knaw.nl/globalise.jsonld": f"{FILE_PREFIX}/globalise.jsonld",
     "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json": f"{FILE_PREFIX}/aaao.json",
-    "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json": f"{FILE_PREFIX}/crmdig.json"
+    "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json": f"{FILE_PREFIX}/crmdig.json",
+    "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json": f"{FILE_PREFIX}/glob.json",
 }
 
 
