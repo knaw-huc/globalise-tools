@@ -145,6 +145,10 @@ index/globalise.settings.json: $(wildcard $(OUT)/*.nq.gz) | index/
 generate-all-n-quads: scripts/gt-generate-all-n-quads.sh
 	./scripts/gt-generate-all-n-quads.sh
 
+.PHONY: fix-all-n-quads
+generate-all-n-quads: scripts/gt-fix-n-quads.sh $(wildcard $(OUT)/*.nq.gz)
+	./scripts/gt-fix-n-quads.sh
+
 upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
 	cd $(OUT)/$*/ && \
