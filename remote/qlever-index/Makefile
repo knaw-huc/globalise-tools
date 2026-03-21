@@ -15,9 +15,9 @@ $(OUT)/inventorynumbers.lst: | ../data/xmicas/
 	/bin/ls data/xmicas/ | sed -e 's/.zip//' | sort -n > $@
 
 .PHONY: index
-qlever-index: globalise.settings.json
+index: .index-done
 
-globalise.settings.json: $(wildcard $(OUT)/*.nq.gz)
+.index-done: $(wildcard $(OUT)/*.nq.gz)
 	qlever index \
 	  --parallel-parsing true \
 	  --format nq \
@@ -25,6 +25,7 @@ globalise.settings.json: $(wildcard $(OUT)/*.nq.gz)
 	  --stxxl-memory 10G \
 	&& ../scripts/ntfy -t "qlever index" -e "white_check_mark,partying_face" -m "qlever index complete" \
 	|| ../scripts/ntfy -t "qlever index" -e "x,facepalm" -m "qlever index failed"
+	@touch $@
 
 .PHONY: test-index
 test-index:
