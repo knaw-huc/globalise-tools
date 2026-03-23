@@ -16,6 +16,7 @@ $(OUT)/inventorynumbers.lst: | ../data/xmicas/
 
 .PHONY: index
 index: .index-done
+	qlever start --kill-existing-with-same-port
 
 .index-done: $(wildcard $(OUT)/*.nq.gz)
 	qlever index \
