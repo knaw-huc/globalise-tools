@@ -95,7 +95,7 @@ def main():
 
     toc = time.perf_counter()
     print(
-        f"created {len(apf.transcription_pages) + len(apf.entity_pages)} annotation pages in  {toc - tic:0.4f} seconds")
+        f"created {len(apf.transcription_pages) + len(apf.entity_pages)} annotation pages in {toc - tic:0.4f} seconds")
 
     errors = xpf.errors + apf.errors
     if errors:
