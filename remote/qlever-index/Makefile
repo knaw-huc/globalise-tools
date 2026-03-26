@@ -5,6 +5,7 @@ SHELL=/bin/bash
 
 OUT=../work
 ALL_INV=$(shell cat $(OUT)/inventorynumbers.lst)
+NTFY=../../scripts/ntfy
 
 GREEN=\033[1;32m
 RED=\033[1;31m
@@ -24,8 +25,8 @@ index: .index-done
 	  --format nq \
 	  --overwrite-existing \
 	  --stxxl-memory 10G \
-	&& ../scripts/ntfy -t "qlever index" -e "white_check_mark,partying_face" -m "qlever index complete" \
-	|| ../scripts/ntfy -t "qlever index" -e "x,facepalm" -m "qlever index failed"
+	&& $(NTFY) -t "qlever" -e "white_check_mark,partying_face" -m "index complete" \
+	|| $(NTFY) -t "qlever" -e "x,facepalm" -m "index failed"
 	@touch $@
 
 .PHONY: test-index
@@ -36,8 +37,8 @@ test-index:
 	  --format nq \
 	  --overwrite-existing \
 	  --stxxl-memory 10G \
-	&& ../scripts/ntfy -t "qlever test index" -e "white_check_mark,partying_face" -m "qlever index complete" \
-	|| ../scripts/ntfy -t "qlever test index" -e "x,facepalm" -m "qlever index failed"
+	&& $(NTFY) -t "qlever" -e "white_check_mark,partying_face" -m "test-index complete" \
+	|| $(NTFY) -t "qlever" -e "x,facepalm" -m "test-index failed"
 
 .PHONY: start
 start:

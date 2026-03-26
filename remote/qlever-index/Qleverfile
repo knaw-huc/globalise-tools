@@ -6,7 +6,7 @@
 
 [data]
 NAME              = globalise
-BASE_URL          = http://globalisesearch.globalise-knaw.src.surf-hosted.nl:7019
+BASE_URL          = http://globaliseqlever.globalise-knaw.src.surf-hosted.nl/entities/all # http://145.38.204.164/entities/all
 GET_DATA_CMD      =
 DESCRIPTION       = globalise at ${BASE_URL}
 TEXT_DESCRIPTION  = All literals, search with FILTER CONTAINS(?var, "...")
@@ -14,9 +14,9 @@ TEXT_DESCRIPTION  = All literals, search with FILTER CONTAINS(?var, "...")
 [index]
 INPUT_FILES      = ../work/*.nq.gz
 CAT_INPUT_FILES  = zcat ${INPUT_FILES}
-#MULTI_INPUT_JSON = { "cmd": "zcat {}", "for-each": "../work/*.nq.gz" }
 SETTINGS_JSON    = { "ascii-prefixes-only": false, "num-triples-per-batch": 5000000 }
 STXXL_MEMORY     = 10G
+VOCABULARY_TYPE  = in-memory-compressed
 
 [server]
 PORT                        = 7019
