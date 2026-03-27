@@ -53,7 +53,7 @@ ll-query:
 	qlever query 'PREFIX rdfs: <http://www.w3.org/2000/01/rdf-schema#> SELECT ?class (SAMPLE(?labels) AS ?label) (COUNT(DISTINCT ?instance) AS ?count) WHERE { ?instance a ?class .  FILTER (!isBlank(?class)) OPTIONAL { ?class rdfs:label ?labels } } GROUP BY ?class'
 
 .PHONY: simple-query
-≈simple-query:
+simple-query:
 	qlever query 'select ?sub ?rel ?obj where { ?sub ?rel ?obj } limit 10'
 
 .PHONY: upgrade
