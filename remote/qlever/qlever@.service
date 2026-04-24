@@ -1,4 +1,5 @@
 # /etc/systemd/system/qlever@.service
+# @ = parameter
 
 [Unit]
 Description=QLever SPARQL server (%i)
