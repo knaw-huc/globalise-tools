@@ -9,7 +9,7 @@ After=network.target
 Type=oneshot
 RemainAfterExit=yes
 User=qlever
-WorkingDirectory=/data/globalise_qlever/indexes/%i
+WorkingDirectory=/data/globalise-data/qlever-indexes/%i
 
 ExecStart=/usr/bin/make start
 ExecStop=/usr/bin/make stop
