@@ -4,6 +4,7 @@ import csv
 from argparse import Namespace
 
 import orjson
+from icecream import ic
 from loguru import logger
 
 
@@ -25,6 +26,7 @@ def main():
     annotation_page_paths = args.entity_annotation_page
     headers = ["page", "tag", "start", "end", "label"]
     rows = []
+    annotations_parsed = 0
     for path in annotation_page_paths:
         page_id = path.split("/")[-1].replace(".json", "")
         print(f"<= {path}")
@@ -42,6 +44,7 @@ def main():
                 start = selector["start"]
                 end = selector["end"]
                 rows.append([page_id, tag, start, end, label])
+
             appellative_bodies = [b for b in bodies if b["type"] == "AppellativeStatus"]
             if appellative_bodies:
                 first_body = appellative_bodies[0]
@@ -52,12 +55,28 @@ def main():
                 end = selector["end"]
                 rows.append([page_id, tag, start, end, label])
 
+            dimension_bodies = [b for b in bodies if b["type"] == "Dimension"]
+            if dimension_bodies:
+                tag = "Dimension"
+                selectors = annotation["target"][0]["selector"]
+                label = selectors[0]["exact"]
+                start = selectors[1]["start"]
+                end = selectors[1]["end"]
+                rows.append([page_id, tag, start, end, label])
+
+            if not classificatory_bodies and not appellative_bodies and not dimension_bodies:
+                ic(annotation)
+            annotations_parsed += 1
+
     out_path = f"work/entity-tags.tsv"
     print(f"=> {out_path}")
     with open(out_path, mode='w', newline='') as file:
         writer = csv.writer(file, delimiter='\t')
         writer.writerow(headers)
         writer.writerows(rows)
+
+    logger.info(f"annotations parsed: {annotations_parsed}")
+    logger.info(f"rows extracted: {len(rows)}")
 
 
 if __name__ == '__main__':
