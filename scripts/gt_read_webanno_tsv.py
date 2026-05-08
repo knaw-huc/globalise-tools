@@ -6,6 +6,7 @@ from blessedtable import Blessedtable
 from colorama import Fore
 from loguru import logger
 
+
 # data_dir = "data/inception_output"
 #
 #
@@ -60,7 +61,6 @@ from loguru import logger
 #     return p.split('/')[-1].replace('.tsv', '')
 #
 
-@logger.catch
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Show a webannno-tsv file in a more readable format",
@@ -71,7 +71,6 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
 def display_webanno_tsv(file: str) -> None:
     with open(file) as f:
         lines = f.readlines()
@@ -153,7 +152,12 @@ def colorize(text: str, text_color: str) -> str:
     return f"{text_color}{text}{Fore.RESET}"
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     if args.file:
         display_webanno_tsv(args.file)
+
+
+if __name__ == '__main__':
+    main()

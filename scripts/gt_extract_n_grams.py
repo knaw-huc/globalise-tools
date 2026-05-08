@@ -7,8 +7,9 @@ import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as pxp
 from loguru import logger
 
+word_break_chars = '„¬'
 
-@logger.catch
+
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract paragraph text from a PageXML file, and export the n-grams",
@@ -18,9 +19,6 @@ def get_arguments() -> Namespace:
                         nargs='+',
                         type=str)
     return parser.parse_args()
-
-
-word_break_chars = '„¬'
 
 
 def extract_ngrams(page_xml_paths: list[str]) -> None:
@@ -42,7 +40,12 @@ def extract_ngrams(page_xml_paths: list[str]) -> None:
         print(c)
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     if args.page_xml_path:
         extract_ngrams(args.page_xml_path)
+
+
+if __name__ == '__main__':
+    main()

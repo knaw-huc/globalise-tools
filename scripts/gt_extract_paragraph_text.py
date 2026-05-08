@@ -4,6 +4,7 @@ import glob
 import json
 import os
 from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+from argparse import Namespace
 
 import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as px
@@ -68,10 +69,6 @@ class ParagraphTextExtractor:
             json.dump(list(self.processed_inv_nrs), fp=f)
 
 
-from argparse import Namespace
-
-
-@logger.catch
 def get_arguments() -> Namespace:
     parser = ArgumentParser(
         description="Extract paragraph text from pagexml files",
@@ -89,7 +86,12 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     if args.input_directory:
         ParagraphTextExtractor(args.input_directory, args.output_directory).extract_paragraph_text()
+
+
+if __name__ == '__main__':
+    main()

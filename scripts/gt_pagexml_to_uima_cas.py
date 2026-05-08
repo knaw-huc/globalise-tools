@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 import argparse
 import sys
+from argparse import Namespace
 
 import spacy
 from cassis import *
@@ -21,10 +22,6 @@ logger.info(f"loading {spacy_core}")
 nlp = spacy.load(spacy_core)
 
 
-from argparse import Namespace
-
-
-@logger.catch
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert a PageXML file to UAMI CAS XMI",
@@ -46,7 +43,6 @@ def output_path(page_xml_path: str, output_directory: str) -> str:
     return f"{output_directory}/{base}.xmi"
 
 
-@logger.catch
 def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
     logger.info(f"<= {typesystem_xml}")
     with open(typesystem_xml, 'rb') as f:
@@ -93,7 +89,12 @@ def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
             cas.to_xmi(cas_xmi, pretty_print=True)
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     if args.page_xml_path:
         convert(args.page_xml_path, args.output_directory)
+
+
+if __name__ == '__main__':
+    main()
