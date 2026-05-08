@@ -44,6 +44,7 @@ xlsxwriter = "^3.0.3"
 xmldict = "^0.4.1"
 
 # use `poetry install --with dev-bram` to use these dependencies
+tqdm = "^4.67.3"
 [tool.poetry.group.dev-bram.dependencies]
 circuitbreaker = "^2.0.0"
 dask = { extras = ["distributed"], version = "^2024.12.1" }
@@ -61,13 +62,12 @@ gt-classify-language = "scripts.gt_classify_language:main"
 gt-convert-inception-annotations = "scripts.gt_convert_inception_annotations:main"
 gt-convert-inception-annotations-2024 = "scripts.gt_convert_inception_annotations_2024:main"
 gt-convert-inventory-dates = "scripts.gt_convert_inventory_dates:main"
-gt-convert-webanno-tsv-to-web-annotations = "scripts.gt_convert_webanno_tsv_to_web_annotations:main"
+#gt-convert-webanno-tsv-to-web-annotations = "scripts.gt_convert_webanno_tsv_to_web_annotations:main"
 gt-create-annotation-lists-for-inventory-number = "scripts.gt_create_annotation_lists_for_inventory_number:main"
 gt-create-hyphen-join-csv = "scripts.gt_create_hyphen_join_csv:main"
 gt-create-missive-annotations = "scripts.gt_create_missive_annotations:main"
 gt-create-pagexml-map = "scripts.gt_create_pagexml_map:main"
 gt-download-mets = "scripts.gt_download_mets:main"
-gt-experiment = "scripts.gt-experiment:main"
 gt-export-text-region-data = "scripts.gt_export_text_region_data:main"
 gt-extract-documents = "scripts.gt_extract_documents:main"
 gt-extract-htr-word-offsets = "scripts.gt_extract_htr_word_offsets:main"
