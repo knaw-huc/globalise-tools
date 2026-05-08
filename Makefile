@@ -12,35 +12,38 @@ RESET=\033[0m
 pagexml_directory := ~/c/data/globalise/pagexml
 xmi_directory := ~/c/data/globalise/ner
 
-data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv
-	poetry run gt-map-pagexml-to-iiif-url --data-dir data
+data/document_metadata.csv:
+	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
 
 data/generale_missiven.csv:
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
 
-data/document_metadata.csv:
-	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
+data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst scripts/gt_make_globalise_documents_file.py
+	poetry run gt-make-globalise-documents-file
 
-data/pagexml_map.json: scripts/gt-create-pagexml-map.py data/external_ids.csv
-	poetry run scripts/gt-create-pagexml-map.py
-
-data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
-	poetry run scripts/gt-extract-scan-url-mapping.py
+data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv
+	poetry run gt-map-pagexml-to-iiif-url --data-dir data
 
 data/inventory2dates.json:
-	echo -e "$(RED)Contact Leon van Wissen for $@ ('een mapping tussen inventarisnummer en datum')$(RESET)"
+	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
 
 data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
+data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
+	poetry run gt-create-pagexml-map
+
+data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py
+	poetry run gt-extract-scan-url-mapping
+
 .PHONY: extract-all
 extract-all:
-	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
+	poetry run gt-extract-text --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
 
 .PHONY: sample
 sample:
-	poetry run scripts/gt-select-annotations.py > out/sample.json
+	poetry run gt-select-annotations > out/sample.json
 
 .PHONY: install-spacy-model
 install-spacy-model:
@@ -48,32 +51,32 @@ install-spacy-model:
 
 .PHONY: web-annotations
 web-annotations:
-	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
+	poetry run gt-convert-webanno-tsv-to-web-annotations > out/entity-annotations.json
 
 .PHONY: test-untangle
 test-untangle: data/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
-	poetry run scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
+	poetry run gt-untangle-globalise -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
 
 .PHONY: test-missive-annotations
-test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt-create-missive-annotations.py conf/test.yaml
-	poetry run scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
+test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt_create_missive_annotations.py conf/test.yaml
+	poetry run gt-create-missive-annotations -cd conf -cn test.yaml
 
 .PHONY: test-inception-annotations
-test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations-2024.py conf/test.yaml
-	poetry run scripts/gt-convert-inception-annotations-2024.py -cd conf -cn test.yaml
+test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt_convert_inception_annotations_2024.py conf/test.yaml
+	poetry run gt-convert-inception-annotations-2024 -cd conf -cn test.yaml
 
 .PHONY: test-xmi-generation
-test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/test.yaml
-	poetry run scripts/gt-import-document.py -cd conf -cn test.yaml
+test-xmi-generation: data/2024/document_metadata.csv scripts/gt_import_document.py conf/test.yaml
+	poetry run gt-import-document -cd conf -cn test.yaml
 
 .PHONY: prod-xmi-generation
-prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
-	poetry run scripts/gt-import-document.py -cd conf -cn prod.yaml
+prod-xmi-generation: data/2024/document_metadata.csv scripts/gt_import_document.py conf/prod.yaml
+	poetry run gt-import-document -cd conf -cn prod.yaml
 
 .PHONY: convert-example-xmi
-convert-example-xmi:
+convert-example-xmi: scripts/gt-convert-example-xmi.sh
 	scripts/gt-convert-example-xmi.sh
 
 .PHONY: fix-reading-order
@@ -82,7 +85,7 @@ fix-reading-order:
 
 .PHONY: extract-paragraph-text
 extract-paragraph-text:
-	poetry run scripts/gt-extract-paragraph-text.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local | tee > out-local/extract-paragraph-text.log
+	poetry run gt-extract-paragraph-text -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local | tee > out-local/extract-paragraph-text.log
 
 .PHONY: install
 install:
@@ -95,11 +98,11 @@ watch-mongodb-data-space:
 
 .PHONY: process-manifests
 process-manifests:
-	poetry run scripts/gt-process-manifests.py
+	poetry run gt-process-manifests
 
 .PHONY: test-paragraph-extraction
 test-paragraph-extraction:
-	poetry run scripts/gt-extract-paragraph-text.py
+	poetry run gt-extract-paragraph-text
 
 .PHONY: run-provenance
 run-provenance:

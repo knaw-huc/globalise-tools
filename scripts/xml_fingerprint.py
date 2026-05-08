@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+from argparse import Namespace
 
 import xmltodict
 from loguru import logger
@@ -51,10 +52,6 @@ def xml_fingerprint(xml_dicts: list[dict[str, object]]) -> tuple:
     return new_paths, element_attributes
 
 
-from argparse import Namespace
-
-
-@logger.catch
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Show the (combined) unique element paths and element attributes of the provided xml files",
@@ -64,7 +61,6 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
 def show_xml_fingerprints(paths: list[str]) -> None:
     pages = []
     for path in paths:
@@ -83,6 +79,11 @@ def show_xml_fingerprints(paths: list[str]) -> None:
         print(f"  {e}: {', '.join(attribute_dict[e])}")
 
 
-if __name__ == '__main__':
+@logger.catch
+def main():
     args = get_arguments()
     show_xml_fingerprints(args.xml_path)
+
+
+if __name__ == '__main__':
+    main()

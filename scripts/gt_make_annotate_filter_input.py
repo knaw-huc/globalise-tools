@@ -53,10 +53,9 @@ def main():
         for annotation in items:
             bodies = annotation["body"]
             classificatory_bodies = [b for b in bodies if b["type"] == "ClassificatoryStatus"]
-            if classificatory_bodies:
-                first_body = classificatory_bodies[0]
-                tag = first_body["has_classificatory_subject"]["type"]
-                label = first_body["label"]
+            for body in classificatory_bodies:
+                tag = body["has_classificatory_subject"]["type"]
+                label = body["label"]
                 selector = annotation["target"][0]["selector"][1]
                 start = selector["start"]
                 end = selector["end"]
@@ -64,10 +63,9 @@ def main():
                                          start_in_doc=start + page_offset, end_in_doc=end + page_offset, label=label))
 
             appellative_bodies = [b for b in bodies if b["type"] == "AppellativeStatus"]
-            if appellative_bodies:
-                first_body = appellative_bodies[0]
-                tag = first_body["has_appellative_subject"]["type"]
-                label = first_body["label"]
+            for body in appellative_bodies:
+                tag = body["has_appellative_subject"]["type"]
+                label = body["label"]
                 selector = annotation["target"][0]["selector"][1]
                 start = selector["start"]
                 end = selector["end"]
