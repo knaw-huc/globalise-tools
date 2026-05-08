@@ -89,12 +89,13 @@ def process_page(
             page = rw.read_json(entities_page_path, quiet=True)
             items = page["items"]
             for annotation in items:
-                annotations_parsed = process_annotation(annotation, annotations_parsed, page_id, page_offset, records)
+                process_annotation(annotation, page_id, page_offset, records)
+                annotations_parsed += 1
     return annotations_parsed, inventory_text
 
 
-def process_annotation(annotation: dict[str, Any], annotations_parsed: int, page_id, page_offset: int,
-                       records: list[Any]) -> int:
+def process_annotation(annotation: dict[str, Any], page_id, page_offset: int,
+                       records: list[Any]):
     bodies = annotation["body"]
     classificatory_bodies = [b for b in bodies if b["type"] == "ClassificatoryStatus"]
     for body in classificatory_bodies:
@@ -131,8 +132,6 @@ def process_annotation(annotation: dict[str, Any], annotations_parsed: int, page
 
     if not classificatory_bodies and not appellative_bodies and not dimension_bodies:
         ic(annotation)
-    annotations_parsed += 1
-    return annotations_parsed
 
 
 def export(inventory_number, inventory_text: str, records: list[Any]):
