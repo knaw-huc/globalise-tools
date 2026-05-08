@@ -13,6 +13,7 @@ from loguru import logger
 import globalise_tools.git_tools as git
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from scripts.gt_ner_xmi_to_wa import THIS_SCRIPT_PATH as XMI_TO_WA_SCRIPT_PATH
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -89,14 +90,14 @@ def page_id(annotation: dict[str, object]) -> str:
 
 def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
     manifest_path = f"{manifests_dir}/{inv_nr}.json"
-    logger.info(f"<= {manifest_path}")
+    log_reading_file(manifest_path)
     with open(manifest_path) as f:
         manifest = json.load(f)
     return manifest
 
 
 def group_to_page(annotations_path: str, manifests_dir: str, git_commit: Optional[str] = None) -> None:
-    logger.info(f"<= {annotations_path}")
+    log_reading_file(annotations_path)
     out_dir = "/".join(annotations_path.split("/")[:-1]) + "/entities"
     Path(out_dir).mkdir(parents=True, exist_ok=True)
     inv_nr = annotations_path.split("/")[1]
@@ -117,7 +118,7 @@ def group_to_page(annotations_path: str, manifests_dir: str, git_commit: Optiona
     for pgid, page_annotations in groups:
         annotation_page= make_annotation_page(pgid, [pa for pa in page_annotations], canvas_dimensions, creator)
         out_path = f"{out_dir}/{pgid}.json"
-        logger.info(f"=> {out_path}")
+        log_writing_file(out_path)
         with open(out_path, "w") as f:
             json.dump(annotation_page, f, ensure_ascii=False)
 

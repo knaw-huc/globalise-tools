@@ -32,6 +32,7 @@ import globalise_tools.url_factory as uf
 from globalise_tools.document_metadata import (DocumentMetadata,
                                                read_document_selection)
 from globalise_tools.inception_client import InceptionClient
+from globalise_tools.logger_tools import log_reading_file, log_writing_file
 from globalise_tools.model import (CAS_SENTENCE, CAS_TOKEN, AnnotationEncoder,
                                    ScanCoords)
 from globalise_tools.tools import (is_header, is_marginalia, is_paragraph,
@@ -85,7 +86,7 @@ class DocumentsProcessor:
         self.project_name = project_name
         self.typesystem = typesystem
 
-    def __enter__(self) -> DocumentsProcessor:
+    def __enter__(self) -> "DocumentsProcessor":
         return self
 
     def __exit__(self, *args) -> bool | None:
@@ -230,7 +231,7 @@ class DocumentsProcessor:
         # HeaderAnnotation = cas.typesystem.get_type(CAS_HEADER)
 
         typesystem_path = "out/typesystem.xml"
-        logger.info(f"=> {typesystem_path}")
+        log_writing_file(typesystem_path)
         self.typesystem.to_xml(typesystem_path)
 
         scan_links = {}
@@ -254,7 +255,7 @@ class DocumentsProcessor:
             page_links['iiif_url'] = iiif_url
             scan_links[external_id] = page_links
 
-            logger.info(f"<= {page_xml_path}")
+            log_reading_file(page_xml_path)
             scan_doc: PageXMLScan = parse_pagexml_file(page_xml_path)
             page_marginalia, page_headers, page_paragraphs = extract_text_region_summaries(scan_doc, iiif_url,
                                                                                            canvas_id)
@@ -308,19 +309,19 @@ class DocumentsProcessor:
         links['scan_links'] = scan_links
 
         xmi_path = f"out/{inventory_id}/{document_id}.xmi"
-        logger.info(f"=> {xmi_path}")
+        log_writing_file(xmi_path)
         cas.to_xmi(xmi_path, pretty_print=True)
 
         return xmi_path, provenance, cas.sofa_string
 
     def _store_results(self) -> None:
         path = "out/results.json"
-        logger.info(f"=> {path}")
+        log_writing_file(path)
         with open(path, 'w') as f:
             json.dump(self.results, fp=f, ensure_ascii=False)
 
     def _write_document_data(self) -> None:
-        logger.info(f"=> {document_data_path}")
+        log_writing_file(document_data_path)
         with open(document_data_path, "w") as f:
             json.dump(self.document_data, fp=f, ensure_ascii=False, cls=AnnotationEncoder)
 
@@ -389,7 +390,7 @@ def make_base_provenance(cfg):
 
 
 def init_typesystem():
-    logger.info(f"<= {typesystem_xml}")
+    log_reading_file(typesystem_xml)
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
     MarginaliaAnnotation = typesystem.create_type("pagexml.Marginalia")
@@ -402,7 +403,7 @@ def init_typesystem():
 
 def read_document_data() -> dict[str, dict[str, object]]:
     if os.path.exists(document_data_path):
-        logger.info(f"<= {document_data_path}")
+        log_reading_file(document_data_path)
         with open(document_data_path) as f:
             return json.load(f)
     return {}
@@ -459,7 +460,7 @@ def store_document_text(inventory_id, document_id, marginalia, headers, paragrap
     document_text += "\n".join([p.text for p in paragraphs])
 
     path = f"out/{inventory_id}/{document_id}.txt"
-    logger.info(f"=> {path}")
+    log_writing_file(path)
     with open(path, 'w') as f:
         f.write(document_text)
 
@@ -513,7 +514,7 @@ def get_iiif_url(external_id, textrepo_client) -> str:
 def download_page_xml(inventory_id, external_id, textrepo_client) -> str:
     pagexml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
     page_xml_path = f"out/{inventory_id}/{external_id}.xml"
-    logger.info(f"=> {page_xml_path}")
+    log_writing_file(page_xml_path)
     with open(page_xml_path, "w") as f:
         f.write(pagexml)
     return page_xml_path
@@ -531,7 +532,7 @@ def cut_off(string: str, max_len: int) -> str:
 # def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
 #     metadata = []
 #     for selection_file in selection_files:
-#         logger.info(f"<= {selection_file}")
+#         log_reading_file(selection_file}")
 #         with open(selection_file, encoding='utf8') as f:
 #             f.readline()
 #             reader = csv.DictReader(f, fieldnames=[

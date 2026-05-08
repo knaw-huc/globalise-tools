@@ -7,18 +7,19 @@ import pagexml.parser as px
 from loguru import logger
 
 import globalise_tools.tools as gt
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 
 
 def read_inventories_of_interest() -> list[str]:
     path = "data/inventories-of-interest.json"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as f:
         inventories = json.load(f)
     return inventories
 
 
 def export_page(pagexml_path: str) -> None:
-    logger.info(f"<= {pagexml_path}")
+    log_reading_file(pagexml_path)
     scan_doc = px.parse_pagexml_file(pagexml_path)
     regions = []
 
@@ -35,7 +36,7 @@ def export_page(pagexml_path: str) -> None:
 
     base = "/".join(pagexml_path.split("/")[-2:]).replace(".xml", "")
     output_path = f"out/ioi/{base}.json"
-    logger.info(f"=> {output_path}")
+    log_writing_file(output_path)
     with open(output_path, "w") as f:
         json.dump(regions, fp=f, indent=4, ensure_ascii=False)
 

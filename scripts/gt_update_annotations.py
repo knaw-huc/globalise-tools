@@ -10,6 +10,7 @@ from loguru import logger
 from omegaconf import DictConfig
 
 import globalise_tools.lang_deduction as ld
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 
 page_id_field = "body.metadata.document"
 
@@ -74,7 +75,7 @@ def main(cfg: DictConfig) -> None:
 
 def load_project_results() -> ProjectResults:
     if os.path.exists(result_path):
-        logger.info(f"<= {result_path}")
+        log_reading_file(result_path)
         with open(result_path) as f:
             result_json = f.read()
             return ProjectResults.from_json(result_json)
@@ -84,7 +85,7 @@ def load_project_results() -> ProjectResults:
 
 def store_project_results(project_results) -> None:
     if project_results:
-        logger.info(f"=> {result_path}")
+        log_writing_file(result_path)
         with open(result_path, "w") as f:
             f.write(project_results.to_json())
         # print_missing_lang_detection(cfg, pages_missing_in_lang_detection)
@@ -116,7 +117,7 @@ def main0(cfg: DictConfig) -> None:
                 pages_missing_in_lang_detection.append(page_id)
     if pages_missing_in_lang_detection:
         path = "out/gt-update-annnotations-missing-lang-detection.json"
-        logger.info(f"=> {path}")
+        log_writing_file(path)
         with open(path) as f:
             json.dump(pages_missing_in_lang_detection, fp=f, indent=4)
         # print_missing_lang_detection(cfg, pages_missing_in_lang_detection)

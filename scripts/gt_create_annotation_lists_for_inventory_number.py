@@ -12,6 +12,7 @@ from loguru import logger
 
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
+from globalise_tools.logger_tools import log_writing_file
 from globalise_tools.url_factory import AnnotationPageType
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -109,7 +110,7 @@ def store_annotation_pages(pages_dict: dict[str, dict[str, Any]], output_dir: st
     for (page_id, page) in pages_dict.items():
         os.makedirs(f"{output_dir}/{type.value}", exist_ok=True)
         page_path = f"{output_dir}/{type.value}/{page_id}.json"
-        logger.info(f"=> {page_path}")
+        log_writing_file(page_path)
         with open(page_path, "wb") as f:
             f.write(orjson.dumps(page))
 

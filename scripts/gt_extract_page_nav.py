@@ -45,7 +45,7 @@ def generate_prev_next_map(pagexml_ids: list[str]) -> dict[str, dict[str, str]]:
 
 
 def process_manifest(path) -> None:
-    # logger.info(f"<= {path}")
+    # log_reading_file(path))
     with open(path) as f:
         manifest = json.load(f)
     inv_nr = path.split('/')[-1].replace('.json', '')
@@ -55,7 +55,7 @@ def process_manifest(path) -> None:
     path = index_path_for_inv_nr(inv_nr)
     dir_path = "/".join(path.split('/')[:-1])
     os.makedirs(dir_path, exist_ok=True)
-    # logger.info(f"=> {path}")
+    # log_writing_file(path)
     with open(path, 'w') as f:
         json.dump(nav_idx, fp=f, indent=4)
 

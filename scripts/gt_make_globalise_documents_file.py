@@ -4,17 +4,19 @@ import json
 
 from loguru import logger
 
+from globalise_tools.logger_tools import log_reading_file, log_writing_file
+
 
 @logger.catch
 def main():
     path = "data/inventory2dates.json"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path, "r") as f:
         records = json.load(f)
     dates4inventory = {r["inventory_number"]: r for r in records}
 
     path = "data/all-page-ids.lst"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path, "r") as f:
         page_ids = f.read().splitlines()
         logger.info(f"read {len(page_ids)} page ids")
@@ -31,7 +33,7 @@ def main():
 
     path = "data/globalise-documents.json"
     logger.info(f"writing {len(documents)} document definitions")
-    logger.info(f"=> {path}")
+    log_writing_file(path)
     with open(path, "w") as f:
         json.dump(documents, f)
 

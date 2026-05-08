@@ -5,13 +5,15 @@ import json
 
 from loguru import logger
 
+from globalise_tools.logger_tools import log_reading_file, log_writing_file
+
 external_id_path = "data/external_ids.csv"
 documents_path = "data/pagexml_map.json"
 
 
 @logger.catch
 def main() -> None:
-    logger.info(f"<= {external_id_path}")
+    log_reading_file(external_id_path)
     with open(external_id_path) as f:
         reader = csv.DictReader(f)
         external_ids = [r['external_id'] for r in reader]
@@ -21,7 +23,7 @@ def main() -> None:
     for inventory_number, page_ids in grouped:
         page_ids_per_inv_nr[inventory_number] = [pi for pi in page_ids]
 
-    logger.info(f"=> {documents_path}")
+    log_writing_file(documents_path)
     with open(documents_path, "w") as f:
         json.dump(page_ids_per_inv_nr, f)
 

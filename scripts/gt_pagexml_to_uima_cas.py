@@ -9,6 +9,7 @@ from loguru import logger
 from pagexml.parser import parse_pagexml_file
 
 import globalise_tools.tools as gt
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import (CAS_HEADER, CAS_MARGINALIUM, CAS_PARAGRAPH,
                                    CAS_SENTENCE, CAS_TOKEN)
 
@@ -44,12 +45,12 @@ def output_path(page_xml_path: str, output_directory: str) -> str:
 
 
 def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
-    logger.info(f"<= {typesystem_xml}")
+    log_reading_file(typesystem_xml)
     with open(typesystem_xml, 'rb') as f:
         typesystem = load_typesystem(f)
 
     for page_xml_path in page_xml_paths:
-        logger.info(f"<= {page_xml_path}")
+        log_reading_file(page_xml_path)
         scan_doc = parse_pagexml_file(page_xml_path)
 
         text, marginalia_ranges, header_range, paragraph_ranges, word_interval_tree = gt.extract_paragraph_text(
@@ -85,7 +86,7 @@ def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
             # print_annotations(cas)
 
             cas_xmi = output_path(page_xml_path, output_directory)
-            logger.info(f"=> {cas_xmi}")
+            log_writing_file(cas_xmi)
             cas.to_xmi(cas_xmi, pretty_print=True)
 
 

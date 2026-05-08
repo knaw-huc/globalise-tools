@@ -13,6 +13,7 @@ from pagexml.model.physical_document_model import (Coords, PageXMLScan,
 
 import globalise_tools.url_factory as uf
 from globalise_tools.lang_deduction import LangDeduction
+from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.model import Document, DocumentMetadata, WebAnnotation
 from globalise_tools.nav_provider import NavProvider
 
@@ -163,7 +164,7 @@ class WebAnnotationFactory:
         return canvas_id
 
     def _init_iiif_base_url_idx(self, path: str) -> None:
-        logger.info(f"<= {path}...")
+        log_reading_file(path)
         with open(path) as f:
             reader = csv.DictReader(f)
             for row in reader:
@@ -744,7 +745,7 @@ def seconds_to_hhmmss(seconds) -> str:
 
 
 def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
-    logger.info(f"<= {selection_file}")
+    log_reading_file(selection_file)
     with open(selection_file, encoding='utf8') as f:
         reader = csv.DictReader(f)
         metadata = [to_document_metadata(row) for row in reader]

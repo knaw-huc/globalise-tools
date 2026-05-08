@@ -2,7 +2,7 @@
 import json
 from collections import defaultdict
 
-from loguru import logger
+from globalise_tools.logger_tools import log_reading_file, log_writing_file
 
 static_file_path = '/Users/bram/workspaces/static-file-server'
 
@@ -41,26 +41,26 @@ def annotation_page(canvas_annotations: list[dict[str, object]]) -> dict[str, ob
 
 
 def store_annotation_page(annotation_page_path, cap):
-    logger.info(f"=> {annotation_page_path}")
+    log_writing_file(annotation_page_path)
     with open(annotation_page_path, "w") as f:
         json.dump(cap, fp=f)
 
 
 def store_manifest(manifest, manifest_path):
-    logger.info(f"=> {manifest_path}")
+    log_writing_file(manifest_path)
     with open(manifest_path, 'w') as f:
         json.dump(manifest, fp=f)
 
 
 def load_annotations(path: str) -> list[dict[str, object]]:
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as f:
         annotations = json.load(f)
     return annotations
 
 
 def load_manifest(manifest_path):
-    logger.info(f"<= {manifest_path}")
+    log_reading_file(manifest_path)
     with open(manifest_path) as f:
         manifest = json.load(f)
     return manifest

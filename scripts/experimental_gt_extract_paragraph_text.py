@@ -13,6 +13,7 @@ from intervaltree import IntervalTree
 from loguru import logger
 from pagexml.model.physical_document_model import PageXMLScan
 
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import LogicalAnchorRange
 
 general_text_region_types = ['physical_structure_doc', 'pagexml_doc', 'text_region']
@@ -49,7 +50,7 @@ def print_stats(lines, paragraphs) -> None:
 
 
 def untangle_file(path, line_ids_to_anchors, lines, logical_anchor_range_for_line_anchor, paragraphs) -> None:
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     scan_doc: PageXMLScan = px.parse_pagexml_file(pagexml_file=path)
     for tr in scan_doc.get_text_regions_in_reading_order():
         if tr.lines:
@@ -133,7 +134,7 @@ def store_segmented_text(segments: list[str], store_path: str) -> None:
 
 
 def store_json(data: object, store_path: str) -> None:
-    logger.info(f"=> {store_path}")
+    log_writing_file(store_path)
     with open(store_path, 'w', encoding='UTF8') as filehandle:
         json.dump(data, filehandle, indent=4, ensure_ascii=False)
 

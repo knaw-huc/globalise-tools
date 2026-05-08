@@ -8,6 +8,7 @@ from loguru import logger
 from lxml import etree
 
 import globalise_tools.git_tools as git
+from globalise_tools.logger_tools import log_writing_file
 
 
 class PageXmlFixer:
@@ -123,7 +124,7 @@ class PageXmlFixer:
         xml_str = etree.tostring(doc, pretty_print=True, xml_declaration=True, encoding="UTF-8")
         pretty_xml_lines = parseString(xml_str).toprettyxml(indent="  ").split('\n')
         clean_xml = "\n".join([l for l in pretty_xml_lines if l.strip()])
-        logger.info(f"=> {path}")
+        log_writing_file(path)
         with open(path, 'w') as xml_file:
             xml_file.write(
                 clean_xml.replace('<?xml version="1.0" ?>', '<?xml version="1.0" encoding="UTF-8"?>').replace('\n"',

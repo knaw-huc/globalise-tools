@@ -9,6 +9,7 @@ from pagexml.model.physical_document_model import PageXMLTextRegion
 from pagexml.parser import parse_pagexml_file
 from textrepo.client import TextRepoClient
 
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import CAS_PARAGRAPH, CAS_SENTENCE, CAS_TOKEN
 
 typesystem_xml = 'data/typesystem.xml'
@@ -63,7 +64,7 @@ def output_path(page_xml_path: str) -> str:
 
 @logger.catch
 def convert(page_xml_path: str) -> None:
-    logger.info(f"<= {page_xml_path}")
+    log_reading_file(page_xml_path)
     scan_doc = parse_pagexml_file(page_xml_path)
 
     text, paragraph_ranges = extract_paragraph_text(scan_doc)
@@ -71,7 +72,7 @@ def convert(page_xml_path: str) -> None:
     if not text:
         logger.warning(f"no paragraph text found in {page_xml_path}")
     else:
-        logger.info(f"<= {typesystem_xml}")
+        log_reading_file(typesystem_xml)
         with open(typesystem_xml, 'rb') as f:
             typesystem = load_typesystem(f)
 
@@ -96,7 +97,7 @@ def convert(page_xml_path: str) -> None:
         # print_annotations(cas)
 
         cas_xmi = output_path(page_xml_path)
-        logger.info(f"=> {cas_xmi}")
+        log_writing_file(cas_xmi)
         cas.to_xmi(cas_xmi, pretty_print=True)
 
 
@@ -164,7 +165,7 @@ def import_document(document_id: str, first_page: int, last_page: int, base_uri:
         external_id = f"{document_id}_{p:04d}"
         pagexml = trc.find_latest_file_contents(external_id, "pagexml")
         out_file = f"out/{external_id}.xml"
-        logger.info(f"=> {out_file}")
+        log_writing_file(out_file)
         with open(out_file, "wb") as f:
             f.write(pagexml)
         meta = trc.find_document_metadata(external_id)[1]

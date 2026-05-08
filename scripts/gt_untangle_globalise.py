@@ -26,6 +26,7 @@ import globalise_tools.lang_deduction as ld
 import globalise_tools.tools as gt
 import globalise_tools.url_factory as uf
 from globalise_tools.lang_deduction import LangDeduction
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import (AnnotationEncoder, DocumentMetadata,
                                    DocumentMetadata2, LogicalAnchorRange,
                                    SegmentedTextType, WebAnnotation)
@@ -87,7 +88,7 @@ def main(cfg: DictConfig) -> None:
             if annotations_stored and not results[document_metadata.external_id]['errors']:
                 processed.add(document_metadata.external_id)
                 path = "out/processed.json"
-                logger.info(f"=> {path}")
+                log_writing_file(path)
                 with open(path, "w") as f:
                     json.dump(list(processed), fp=f)
 
@@ -99,7 +100,7 @@ def get_available_inv_nrs() -> set:
 
 def read_all_metadata() -> list:
     path = f"data/pagexml_map.json"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path, encoding='utf8') as f:
         pagexml_per_inv_nr = json.load(f)
     metadata = []
@@ -115,7 +116,7 @@ def read_all_metadata() -> list:
 
 def read_scan_url_mapping() -> dict[str, str]:
     path = "data/scan_url_mapping.json"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as f:
         scan_url_mapping = json.load(f)
     return scan_url_mapping
@@ -124,7 +125,7 @@ def read_scan_url_mapping() -> dict[str, str]:
 def load_processed_files() -> set:
     processed_file = "out/processed.json"
     if os.path.exists(processed_file):
-        logger.info(f"<= {processed_file}")
+        log_reading_file(processed_file)
         with open(processed_file) as f:
             processed = set(json.load(f))
     else:
@@ -532,7 +533,7 @@ def untangle_na_file(
                 page_links['iiif_url'] = iiif_url
                 # page_links['paragraph_iiif_urls'] = []
                 # page_links['sentences'] = []
-                # logger.info(f"<= {page_xml_path}")
+                # log_reading_file(page_xml_path}")
                 scan_doc: PageXMLScan = parse_pagexml_file(pagexml_file=page_xml_path, pagexml_data=page_xml)
                 start_offset = len(document_lines)
                 scan_lines, scan_annotations = untangle_scan_doc(
@@ -592,7 +593,7 @@ def download_page_xml(textrepo_client: TextRepoClient, external_id, output_direc
     page_xml = ""
     try:
         page_xml = textrepo_client.find_latest_file_contents(external_id, "pagexml").decode('utf8')
-        # logger.info(f"=> {page_xml_path}")
+        # log_writing_file(page_xml_path}")
         # with open(page_xml_path, "w") as f:
         #     f.write(pagexml)
     except:
@@ -603,7 +604,7 @@ def download_page_xml(textrepo_client: TextRepoClient, external_id, output_direc
 
 def store_results(results: dict[str, object]) -> None:
     path = "out/results.json"
-    logger.info(f"=> {path}")
+    log_writing_file(path)
     with open(path, 'w') as f:
         json.dump(results, fp=f, cls=AnnotationEncoder, indent=4, ensure_ascii=False)
 

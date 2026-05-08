@@ -11,6 +11,7 @@ import globalise_tools.pagexml_tools as pt
 import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.creator import CreatorFactory
+from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.model import Dimensions
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
 
@@ -77,7 +78,7 @@ class AnnotationPageFactory:
 
     def _load_manifest(self, manifest_path: str) -> None:
         if os.path.exists(manifest_path):
-            logger.info(f"<= {manifest_path}")
+            log_reading_file(manifest_path)
             with open(manifest_path) as f:
                 manifest = orjson.loads(f.read())
             self.manifest_item_idx, self.iiif_base_uri_idx, self.canvas_id_idx = nx.index_manifest_items(manifest)
@@ -121,7 +122,7 @@ class DocumentPageProcessor:
         )
         if xmi_path.exists():
             htr_word_offsets = annotation_page_builder.htr_word_offsets
-            logger.info(f"<= {xmi_path}")
+            log_reading_file(xmi_path)
             plain_text_source = nx.handle_page_xml(
                 xmi_path=str(xmi_path),
                 page_xml_path=str(pagexml_path),
@@ -197,7 +198,7 @@ class DocumentPageProcessor:
     @staticmethod
     def _read_page_xml(pagexml_path: Path) -> str:
         try:
-            logger.info(f"<= {pagexml_path}")
+            log_reading_file(pagexml_path)
             with open(pagexml_path, "r", encoding="utf-8") as f:
                 xml_string = f.read()
         except FileNotFoundError:

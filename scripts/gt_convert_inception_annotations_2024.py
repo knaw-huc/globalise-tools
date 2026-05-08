@@ -10,6 +10,7 @@ from omegaconf import DictConfig
 from globalise_tools.model import AnnotationEncoder, WebAnnotation
 from globalise_tools.tools import WebAnnotationFactory
 
+
 # metadata_path = "data/document_metadata.csv"
 
 

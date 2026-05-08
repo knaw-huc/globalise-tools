@@ -5,6 +5,7 @@ from argparse import Namespace
 
 from loguru import logger
 
+from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.page_xml_fixer import PageXmlFixer
 
 
@@ -42,7 +43,7 @@ def fix_reading_order(input_directory: str, output_directory: str, inventory_num
         pagexml_paths = list_pagexml_files(pagexml_dir)
     total = len(pagexml_paths)
     for i, import_path in enumerate(pagexml_paths):
-        logger.info(f"<= {import_path} ({i + 1}/{total})")
+        log_reading_file(import_path, f" ({i + 1}/{total})")
         if os.path.exists(import_path):
             PageXmlFixer(
                 import_path,

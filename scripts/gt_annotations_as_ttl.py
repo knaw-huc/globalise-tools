@@ -7,6 +7,8 @@ import os
 from loguru import logger
 from pyld.jsonld import requests_document_loader
 
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
+
 CACHE_DIR = "/Users/bram/.context_cache"
 os.makedirs(CACHE_DIR, exist_ok=True)
 
@@ -183,7 +185,7 @@ def export_in_ttl(ner_annotations: list, ttl_out_path: str) -> None:
     g = Graph()
     for json_ld in as_jsonld:
         g.parse(data=json_ld, format="json-ld")
-    logger.info(f"=> {ttl_out_path}")
+    log_writing_file(ttl_out_path)
     g.serialize(ttl_out_path, format="ttl")
 
 
@@ -205,12 +207,12 @@ def get_arguments() -> Namespace:
 @logger.catch
 def main() -> None:
     args = get_arguments()
-    logger.info(f"<= {args.json_path}")
+    log_reading_file(args.json_path)
     # Tell pyld (and thus rdflib-jsonld) to use our caching loader
     with open(args.json_path, "r") as f:
         annotations = json.load(f)
     out_path = args.json_path.replace(".json", ".ttl")
-    logger.info(f"=> {out_path}")
+    log_writing_file(out_path)
     export_in_ttl(annotations, out_path)
 
 

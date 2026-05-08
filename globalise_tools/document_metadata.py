@@ -4,6 +4,8 @@ from dataclasses import dataclass, field
 from dataclasses_json import dataclass_json
 from loguru import logger
 
+from globalise_tools.logger_tools import log_reading_file
+
 
 @dataclass_json
 @dataclass
@@ -83,7 +85,7 @@ def read_document_metadata(selection_file: str) -> list[DocumentMetadata]:
 def read_document_selection(selection_files: list[str]) -> list[DocumentMetadata]:
     metadata = []
     for selection_file in selection_files:
-        logger.info(f"<= {selection_file}")
+        log_reading_file(selection_file)
         with open(selection_file, encoding='utf8') as f:
             # f.readline()
             reader = csv.DictReader(f)

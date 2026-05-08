@@ -3,7 +3,6 @@ import glob
 import json
 import sys
 from collections import defaultdict
-from itertools import groupby
 
 import progressbar
 from loguru import logger
@@ -56,7 +55,7 @@ from itertools import groupby
 
 def group_annotations(json_path) -> groupby:
     # inv_nr = path.split('/')[-1].replace('.json', '')
-    # logger.info(f"<= {path}")
+    # log_reading_file(path}")
     with open(json_path) as f:
         annotations = json.load(f)
     filtered_annotations = [a for a in annotations if a['body']['type'] in RELEVANT_BODY_TYPES]

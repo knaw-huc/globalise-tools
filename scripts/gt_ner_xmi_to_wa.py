@@ -32,6 +32,7 @@ import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
 
@@ -90,7 +91,7 @@ class XMIProcessor:
         self.xmi_path = xmi_path
         self.commit_id = commit_id
         self.presentation_version = presentation_version
-        logger.info(f"<= {xmi_path}")
+        log_reading_file(xmi_path)
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
@@ -209,7 +210,7 @@ class XMIProcessor:
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
     def store_normalized_word_offsets(self, path: str) -> None:
-        logger.info(f"=> {path}")
+        log_writing_file(path)
         with open(path, "wb") as f:
             f.write(orjson.dumps(self.normalized_word_offset))
 
@@ -1003,7 +1004,7 @@ class XMIProcessor:
 
     @staticmethod
     def _load_word_offsets(offsets_path: str) -> dict[str, Offset]:
-        logger.info(f"<= {offsets_path}")
+        log_reading_file(offsets_path)
         with open(offsets_path, 'rb') as f:
             items = orjson.loads(f.read()).items()
         return {k: Offset(v['begin'], v['end']) for k, v in items}
@@ -1013,7 +1014,7 @@ class XMIProcessorFactory:
 
     def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]],
                  git_commit_id: str = None) -> None:
-        logger.info(f"<= {typesystem_path}")
+        log_reading_file(typesystem_path)
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
@@ -1054,7 +1055,7 @@ class XMIProcessorFactory:
     @staticmethod
     def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
-        logger.info(f"<= {path}")
+        log_reading_file(path)
         with open(path) as f:
             return orjson.loads(f.read())
 
@@ -1129,7 +1130,7 @@ def get_arguments() -> Namespace:
 #         xp = xpf.get_xmi_processor(xmi_path)
 #
 #         txt_path = f"{output_dir}/{basename}_plain-text.txt"
-#         logger.info(f"=> {txt_path}")
+#         log_writing_file(txt_path}")
 #         with open(txt_path, 'w') as f:
 #             f.write(xp.text)
 #
@@ -1138,13 +1139,13 @@ def get_arguments() -> Namespace:
 #         eva = xp.get_event_annotations(entity_ids)
 #         json_path = f"{output_dir}/{basename}_web-annotations.json"
 #         all_web_annotations = (nea + eva)
-#         logger.info(f"=> {json_path}")
+#         log_writing_file(json_path}")
 #         with open(json_path, 'w') as f:
 #             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
 def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
-    logger.info(f"=> {out_path}")
+    log_writing_file(out_path)
     # ic(ner_annotations[456])
     with open(out_path, 'wb') as f:
         f.write(orjson.dumps(ner_annotations))
@@ -1166,13 +1167,13 @@ def export_ner_annotations(ner_annotations: list, out_path: str) -> None:
 #     else:
 #         raise Exception(f"presentation_version {presentation_version} unknown")
 #
-#     # logger.info(f"=> {out_path}")
+#     # log_writing_file(out_path}")
 #     with open(out_path, 'w') as f:
 #         json.dump(anno_list, fp=f, indent=4, ensure_ascii=False)
 
 
 def export_text(page_texts: list[str], out_path: str) -> None:
-    logger.info(f"=> {out_path}")
+    log_writing_file(out_path)
     with open(out_path, 'w') as f:
         f.write("\n".join(page_texts))
 
@@ -1201,7 +1202,7 @@ class InventoryProcessingContext:
 # def load_processed_inventories() -> list[str]:
 #     path = "out/processed_ner_inv.json"
 #     if os.path.exists(path):
-#         logger.info(f"<= {path}")
+#         log_reading_file(path}")
 #         with open(path) as f:
 #             return json.load(f)
 #     return []
@@ -1209,7 +1210,7 @@ class InventoryProcessingContext:
 
 # def store_processed_inventories(processed_inventories: list[str]) -> None:
 #     path = "out/processed_ner_inv.json"
-#     logger.info(f"=> {path}")
+#     log_writing_file(path}")
 #     with open(path, "w") as f:
 #         json.dump(processed_inventories, fp=f, ensure_ascii=False)
 
@@ -1240,7 +1241,7 @@ def extract_ner_web_annotations(
 
 def load_timespan_dict() -> dict[str, dict[str, str]]:
     path = "data/inventory2timespan.json"
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as f:
         return orjson.loads(f.read())
 
@@ -1364,7 +1365,7 @@ def index_manifest_items(manifest: dict[str, Any]) -> tuple[dict[str, int], dict
 
 def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
     manifest_path = f"{manifests_dir}/{inv_nr}.json"
-    logger.info(f"<= {manifest_path}")
+    log_reading_file(manifest_path)
     with open(manifest_path) as f:
         manifest = orjson.loads(f.read())
     return manifest
@@ -1372,7 +1373,7 @@ def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
 
 def store_manifest(inv_nr: str, manifest: dict[str, object], out_dir: str) -> None:
     manifest_path = f"{out_dir}/{inv_nr}/{inv_nr}.json"
-    logger.info(f"=> {manifest_path}")
+    log_writing_file(manifest_path)
     with open(manifest_path, 'wb') as f:
         f.write(orjson.dumps(manifest))
 
@@ -1392,7 +1393,7 @@ def handle_xmi(
     basename = get_base_name(xmi_path)
 
     # text_path = f"{out_dir}/{basename}.txt"
-    # # logger.info(f"=> {text_path}")
+    # # log_writing_file(text_path}")
     # with open(text_path, 'w') as f:
     #     f.write(page_text)
 

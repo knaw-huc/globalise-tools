@@ -11,6 +11,7 @@ from loguru import logger
 
 import globalise_tools.pagexml_tools as pt
 import globalise_tools.url_factory as uf
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
@@ -53,7 +54,7 @@ def get_arguments() -> Namespace:
 
 # def load_manifest(manifests_dir: str, inv_nr: str) -> dict[str, object]:
 #     manifest_path = f"{manifests_dir}/{inv_nr}.json"
-#     logger.info(f"<= {manifest_path}")
+#     log_reading_file(manifest_path}")
 #     with open(manifest_path) as f:
 #         manifest = json.load(f)
 #     return manifest
@@ -62,7 +63,7 @@ def get_arguments() -> Namespace:
 def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page_text_path: str,
                                            commit_id: Optional[str] = None) -> None:
     try:
-        logger.info(f"<= {pagexml_path}")
+        log_reading_file(pagexml_path)
         with open(pagexml_path, "r", encoding="utf-8") as f:
             xml_string = f.read()
     except FileNotFoundError:
@@ -70,7 +71,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
         sys.exit(1)
 
     try:
-        logger.info(f"<= {page_text_path}")
+        log_reading_file(page_text_path)
         with open(page_text_path, "r", encoding="utf-8") as f:
             page_text = f.read()
     except FileNotFoundError:
@@ -92,7 +93,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
     ).build()
 
     out_path = f"{out_dir}/{page_id}.json"
-    logger.info(f"=> {out_path}")
+    log_writing_file(out_path)
     with open(out_path, "wb") as f:
         s = orjson.dumps(annotation_page)
         f.write(s)

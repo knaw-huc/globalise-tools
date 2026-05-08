@@ -2,7 +2,7 @@
 import json
 import sys
 
-from loguru import logger
+from globalise_tools.logger_tools import log_reading_file
 
 
 def remove_text(d: dict[str, object]) -> dict[str, object]:
@@ -14,7 +14,7 @@ def remove_text(d: dict[str, object]) -> dict[str, object]:
 
 
 def main(path: str) -> None:
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as f:
         annotations = json.load(f)
     new_annotations = [remove_text(a) for a in annotations]

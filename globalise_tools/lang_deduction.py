@@ -1,7 +1,7 @@
 import csv
 from dataclasses import dataclass
 
-from loguru import logger
+from globalise_tools.logger_tools import log_reading_file
 
 
 @dataclass
@@ -12,7 +12,7 @@ class LangDeduction:
 
 def read_lang_deduction_for_page(path: str) -> dict[str, LangDeduction]:
     langs_for_page = {}
-    logger.info(f"<= {path}")
+    log_reading_file(path)
     with open(path) as file:
         reader = csv.DictReader(file, delimiter='\t')
         for record in reader:

@@ -20,6 +20,7 @@ from loguru import logger
 import globalise_tools.git_tools as git
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base)
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -33,7 +34,7 @@ class XMIProcessor:
         self.document_data = document_data
         self.xmi_path = xmi_path
         self.commit_id = commit_id
-        logger.info(f"<= {xmi_path}")
+        log_reading_file(xmi_path)
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
@@ -528,7 +529,7 @@ class XMIProcessor:
 class XMIProcessorFactory:
 
     def __init__(self, typesystem_path: str) -> None:
-        logger.info(f"<= {typesystem_path}")
+        log_reading_file(typesystem_path)
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
@@ -540,7 +541,7 @@ class XMIProcessorFactory:
     @staticmethod
     def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
-        logger.info(f"<= {path}")
+        log_reading_file(path)
         with open(path) as f:
             return json.load(f)
 
@@ -578,7 +579,7 @@ def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_d
         xp = xpf.get_xmi_processor(xmi_path)
 
         txt_path = f"{output_dir}/{basename}_plain-text.txt"
-        logger.info(f"=> {txt_path}")
+        log_writing_file(txt_path)
         with open(txt_path, 'w') as f:
             f.write(xp.text)
 
@@ -586,7 +587,7 @@ def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_d
         entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
         eva = xp.get_event_annotations(entity_ids)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
-        logger.info(f"=> {json_path}")
+        log_writing_file(json_path)
         all_web_annotations = (nea + eva)
         with open(json_path, 'w') as f:
             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)

@@ -12,6 +12,7 @@ from loguru import logger
 from tqdm import tqdm
 
 import globalise_tools.tools as gt
+from globalise_tools.logger_tools import log_reading_file
 
 
 class ParagraphTextExtractor:
@@ -57,7 +58,7 @@ class ParagraphTextExtractor:
 
     def load_processed_files(self) -> set:
         if os.path.exists(self.processed_file):
-            logger.info(f"<= {self.processed_file}")
+            log_reading_file(self.processed_file)
             with open(self.processed_file) as f:
                 processed = set(json.load(f))
         else:

@@ -3,8 +3,9 @@ import json
 from dataclasses import dataclass
 
 from dataclasses_json import dataclass_json
-from loguru import logger
 from progressbar import ETA, Bar, ProgressBar, SimpleProgress, Timer
+
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 
 
 @dataclass_json
@@ -44,7 +45,7 @@ def convert_inventory2dates() -> None:
     in_path = "data/inventory2dates.json"
     out_path = "data/inventory2timespan.json"
 
-    logger.info(f"<= {in_path}")
+    log_reading_file(in_path)
     with open(in_path, "r", encoding="utf-8") as f:
         data = json.load(f)
 
@@ -63,7 +64,7 @@ def convert_inventory2dates() -> None:
             # print()
             bar.update(i)
 
-    logger.info(f"=> {out_path}")
+    log_writing_file(out_path)
     with open(out_path, "w", encoding="utf-8") as f:
         json.dump(inventory2timespan, fp=f, indent=2)
 

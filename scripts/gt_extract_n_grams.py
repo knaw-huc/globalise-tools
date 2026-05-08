@@ -7,6 +7,8 @@ import pagexml.helper.pagexml_helper as pxh
 import pagexml.parser as pxp
 from loguru import logger
 
+from globalise_tools.logger_tools import log_reading_file
+
 word_break_chars = '„¬'
 
 
@@ -24,7 +26,7 @@ def get_arguments() -> Namespace:
 def extract_ngrams(page_xml_paths: list[str]) -> None:
     word_counter = Counter()
     for page_xml_path in page_xml_paths:
-        logger.info(f"<= {page_xml_path}")
+        log_reading_file(page_xml_path)
         scan_doc = pxp.parse_pagexml_file(page_xml_path)
         for tr in scan_doc.get_text_regions_in_reading_order():
             tr_text, _ = pxh.make_text_region_text(tr.lines,

@@ -14,6 +14,7 @@ from pagexml.model.physical_document_model import PageXMLScan
 from textrepo.client import TextRepoClient
 
 import globalise_tools.tools as gt
+from globalise_tools.logger_tools import log_writing_file
 from globalise_tools.model import AnnotationEncoder, WebAnnotation
 
 
@@ -65,7 +66,7 @@ def download_pagexml(trc: TextRepoClient, base_dir: str, scan_ids: list[str]) ->
         paths.append(page_xml_path)
         if not Path(page_xml_path).is_file():
             pagexml = trc.find_latest_file_contents(p, "pagexml").decode('utf8')
-            logger.info(f"=> {page_xml_path}")
+            log_writing_file(page_xml_path)
             with open(page_xml_path, "w") as f:
                 f.write(pagexml)
     return paths

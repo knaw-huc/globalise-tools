@@ -13,10 +13,10 @@ from loguru import logger
 
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
-        description="Extract ner offsets from a given entity annotation page, and export them as csv",
+        description="Extract ner offsets from a given entity annotation page, and export them as csv and json",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
-    parser.add_argument("entity_annotation_page",
-                        help="The json file containing the entity annotation page",
+    parser.add_argument("inventory_number",
+                        help="The inventory number to process",
                         type=str,
                         nargs='+'
                         )

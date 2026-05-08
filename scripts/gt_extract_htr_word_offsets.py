@@ -5,9 +5,11 @@ import sys
 from argparse import Namespace
 from pathlib import Path
 
+from loguru import logger
+
+from globalise_tools.logger_tools import log_reading_file, log_writing_file
 from globalise_tools.model import AnnotationEncoder
 from globalise_tools.pagexml_tools import TranscriptionAnnotationPageBuilder
-from loguru import logger
 
 
 def get_arguments() -> Namespace:
@@ -36,7 +38,7 @@ def get_arguments() -> Namespace:
 def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
     for pagexml_path in pagexml_paths:
         try:
-            logger.info(f"<= {pagexml_path}")
+            log_reading_file(pagexml_path)
             with open(pagexml_path, "r", encoding="utf-8") as f:
                 xml_string = f.read()
         except FileNotFoundError:
@@ -48,7 +50,7 @@ def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
         htr_word_offsets = TranscriptionAnnotationPageBuilder(xml_string=xml_string).htr_word_offsets
 
         out_path = f"{out_dir}/{page_id}.json"
-        logger.info(f"=> {out_path}")
+        log_writing_file(out_path)
         with open(out_path, "w", encoding="utf-8") as f:
             json.dump(htr_word_offsets, f, ensure_ascii=False, cls=AnnotationEncoder)
 
