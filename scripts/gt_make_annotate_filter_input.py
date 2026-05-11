@@ -42,15 +42,19 @@ def main():
     args = get_arguments()
     inventory_numbers = args.inventory_number
 
-    document_data = rw.read_json("data/globalise-documents.json")
+    globalise_documents_path = "data/globalise-documents.json"
+    document_data = rw.read_json(globalise_documents_path)
     document_idx = {r["inventory_number"]: r for r in document_data}
 
     for inventory_number in inventory_numbers:
-        document = document_idx[inventory_number]
-        process_document(inventory_number, document)
+        if inventory_number in document_idx:
+            document = document_idx[inventory_number]
+            process_document(inventory_number, document)
+        else:
+            logger.warning(f"invalid inventory number: {inventory_number} (not found in {globalise_documents_path})")
 
 
-def process_document(inventory_number, document):
+def process_document(inventory_number: str, document: dict[str, Any]):
     print(f"# inventory number  : {inventory_number}")
 
     inventory_text = ""
@@ -131,24 +135,25 @@ def process_annotation(annotation: dict[str, Any], page_id, page_offset: int,
                                  label=label))
 
     if not classificatory_bodies and not appellative_bodies and not dimension_bodies:
+        logger.warning(f"No suitable body found in annotation")
         ic(annotation)
 
 
-def export(inventory_number, inventory_text: str, records: list[Any]):
+def export(document_id: str, document_text: str, entity_records: list[NerRecord]):
     rw.write_tsv(
-        path=f"work/{inventory_number}/entity-tags.tsv",
-        headers=list(records[0]._asdict().keys()),
-        records=[r._asdict().values() for r in records]
+        path=f"work/{document_id}/entity-tags.tsv",
+        headers=list(entity_records[0]._asdict().keys()),
+        records=[r._asdict().values() for r in entity_records]
     )
 
     rw.write_json(
-        path=f"work/{inventory_number}/entity-tags.json",
-        data=[r._asdict() for r in records]
+        path=f"work/{document_id}/entity-tags.json",
+        data=[r._asdict() for r in entity_records]
     )
 
     rw.write_text(
-        path=f"work/{inventory_number}/document.txt",
-        text=inventory_text
+        path=f"work/{document_id}/document.txt",
+        text=document_text
     )
 
 

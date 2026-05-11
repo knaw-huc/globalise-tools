@@ -12,29 +12,52 @@ RESET=\033[0m
 pagexml_directory := ~/c/data/globalise/pagexml
 xmi_directory := ~/c/data/globalise/ner
 
-data/document_metadata.csv:
+.PHONY: FORCE
+FORCE:
+
+.make/:
+	@mkdir -p $@
+
+.make/1.04.02.etag: FORCE
+	@mkdir -p .make data
+	curl -s \
+		--etag-save .make/1.04.02.etag.tmp \
+		--etag-compare .make/1.04.02.etag \
+		-o data/1.04.02.xml.tmp \
+		https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/download/xml
+	@if [ -f data/1.04.02.xml.tmp ]; then \
+		mv data/1.04.02.xml.tmp data/1.04.02.xml; \
+	fi
+	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
+
+data/:
+	@mkdir -p $@
+
+data/1.04.02.xml: .make/1.04.02.etag | data/
+
+data/document_metadata.csv: | data/
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
 
-data/generale_missiven.csv:
+data/generale_missiven.csv: | data/
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
 
-data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst scripts/gt_make_globalise_documents_file.py
+data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst scripts/gt_make_globalise_documents_file.py | data/
 	poetry run gt-make-globalise-documents-file
 
-data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv
+data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
 	poetry run gt-map-pagexml-to-iiif-url --data-dir data
 
-data/inventory2dates.json:
+data/inventory2dates.json: | data/
 	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
 
-data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
+data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py | data/
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
-data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
+data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv | data/
 	poetry run gt-create-pagexml-map
 
-data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py
+data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
 	poetry run gt-extract-scan-url-mapping
 
 .PHONY: extract-all
@@ -169,6 +192,9 @@ docker:
 docker-run:
 	docker run -t -i -v .:/data knaw-huc/globalise-tools
 
+.PHONY: clean
+clean:
+	rm -rf .make
 
 .PHONY: help
 help:
