@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import itertools
+import re
 import sys
 from typing import Any
 from xml.etree.ElementTree import Element
@@ -30,7 +31,7 @@ class EADParser:
 
     def _parse_series(self, element: Element) -> None:
         for series_element in element.findall("./c[@level='series']", namespaces=ns):
-            series_id = self._series_code(series_element)
+            series_id = self._series_id(series_element)
             hierarchy = [series_id]
             self._parse_subseries(series_element, hierarchy)
             self._parse_filegrps(series_element, hierarchy)
@@ -38,7 +39,7 @@ class EADParser:
 
     def _parse_subseries(self, element: Element, hierarchy: list[str]) -> None:
         for subseries_element in element.findall("./c[@level='subseries']", namespaces=ns):
-            subseries_id = self._series_code(subseries_element)
+            subseries_id = self._series_id(subseries_element)
             new_hierarchy = hierarchy.copy()
             new_hierarchy.append(subseries_id)
             self._parse_subseries(subseries_element, new_hierarchy)
@@ -47,9 +48,9 @@ class EADParser:
 
     def _parse_filegrps(self, element: Element, hierarchy: list[str]) -> None:
         for filegrp in element.findall("./c[@otherlevel='filegrp']", namespaces=ns):
-            filegrp_id = str(filegrp.findall("./did/unittitle", namespaces=ns)[0].text) \
-                .replace("  ", " ").replace("  ", " ").strip()
-            # ic(filegrp_id)
+            unitid = self._normalize(filegrp.findall("./did/unitid", namespaces=ns)[0].text)
+            unittitle = self._normalize(filegrp.findall("./did/unittitle", namespaces=ns)[0].text)
+            filegrp_id = f"{unitid} - {unittitle}"
             new_hierarchy = hierarchy.copy()
             new_hierarchy.append(filegrp_id)
             self._parse_filegrps(filegrp, new_hierarchy)
@@ -60,7 +61,7 @@ class EADParser:
             date = f.findall("./did//unitdate", namespaces=ns)
             date_str: str | None = None
             if date:
-                date_str = str(date[0].text)
+                date_str = date[0].get("normal")
             for i in f.findall("./did/unitid[@identifier]", namespaces=ns):
                 inv_nr = str(i.text)
                 if inv_nr in self.data and self.data[inv_nr]["hierarchy"] != hierarchy:
@@ -70,14 +71,19 @@ class EADParser:
                     data["date"] = date_str
                 self.data[inv_nr] = data
 
-    @staticmethod
-    def _series_code(element: Element) -> str:
-        return str(element.findall("./did/unitid[@type='series_code']", namespaces=ns)[0].text)
+    def _series_id(self, element: Element) -> str:
+        code = str(element.findall("./did/unitid[@type='series_code']", namespaces=ns)[0].text)
+        title = self._normalize(element.findall("./did/unittitle", namespaces=ns)[0].text)
+        return f"{code} - {title}"
 
     @staticmethod
     def _debug(e: Element) -> None:
         xml = etree.tostring(e, pretty_print=True, encoding="unicode")
         print(xml, file=sys.stderr)
+
+    @staticmethod
+    def _normalize(string: Any) -> str:
+        return re.sub(r"\s+", " ", str(string)).strip()
 
 
 @logger.catch
