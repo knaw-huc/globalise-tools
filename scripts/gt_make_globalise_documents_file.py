@@ -47,7 +47,9 @@ class EADParser:
 
     def _parse_filegrps(self, element: Element, hierarchy: list[str]) -> None:
         for filegrp in element.findall("./c[@otherlevel='filegrp']", namespaces=ns):
-            filegrp_id = str(filegrp.findall("./did/unitid", namespaces=ns)[0].text)
+            filegrp_id = str(filegrp.findall("./did/unittitle", namespaces=ns)[0].text) \
+                .replace("  ", " ").replace("  ", " ").strip()
+            # ic(filegrp_id)
             new_hierarchy = hierarchy.copy()
             new_hierarchy.append(filegrp_id)
             self._parse_filegrps(filegrp, new_hierarchy)
@@ -55,11 +57,18 @@ class EADParser:
 
     def _parse_files(self, element: Element, hierarchy: list[str]) -> None:
         for f in element.findall("./c[@level='file']", namespaces=ns):
+            date = f.findall("./did//unitdate", namespaces=ns)
+            date_str: str | None = None
+            if date:
+                date_str = str(date[0].text)
             for i in f.findall("./did/unitid[@identifier]", namespaces=ns):
                 inv_nr = str(i.text)
                 if inv_nr in self.data and self.data[inv_nr]["hierarchy"] != hierarchy:
                     logger.warning(f"overwriting hierarchy for inventory number {inv_nr}")
-                self.data[inv_nr] = {"hierarchy": hierarchy}
+                data = {"hierarchy": hierarchy}
+                if date_str:
+                    data["date"] = date_str
+                self.data[inv_nr] = data
 
     @staticmethod
     def _series_code(element: Element) -> str:
@@ -89,8 +98,9 @@ def main():
         doc = dates4inventory[inventory_number]
         if inventory_number in ead_inv_data:
             ead = ead_inv_data[inventory_number]
-            if "hierarchy" in ead:
-                doc["hierarchy"] = ead["hierarchy"]
+            for key in ["date", "hierarchy"]:
+                if key in ead:
+                    doc[key] = ead[key]
         else:
             logger.warning(f"inventory number {inventory_number} not found in ead xml")
         page_id_list = list(page_ids)
