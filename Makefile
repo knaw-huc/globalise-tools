@@ -18,7 +18,7 @@ FORCE:
 .make/:
 	@mkdir -p $@
 
-.make/1.04.02.etag: FORCE
+.make/1.04.02.etag: FORCE # phony file for EAD XML data/1.04.02.xml
 	@mkdir -p .make data
 	curl -s \
 		--etag-save .make/1.04.02.etag.tmp \
