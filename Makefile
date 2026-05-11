@@ -1,28 +1,72 @@
 all: help
 SHELL=/bin/bash
+.SECONDARY:
+.DELETE_ON_ERROR:
 
-data/iiif-url-mapping.csv: scripts/gt-map-pagexml-to-iiif-url.py data/NL-HaNA_1.04.02_mets.csv
-	poetry run scripts/gt-map-pagexml-to-iiif-url.py --data-dir data
+RED=\033[1;31m
+GREEN=\033[1;32m
+YELLOW=\033[1;33m
+BLUE=\033[1;34m
+RESET=\033[0m
 
-data/generale_missiven.csv:
-	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
+pagexml_directory := ~/c/data/globalise/pagexml
+xmi_directory := ~/c/data/globalise/ner
 
-data/document_metadata.csv:
+.PHONY: FORCE
+FORCE:
+
+.make/:
+	@mkdir -p $@
+
+.make/1.04.02.etag: FORCE # phony file for EAD XML data/1.04.02.xml
+	@mkdir -p .make data
+	curl -s \
+		--etag-save .make/1.04.02.etag.tmp \
+		--etag-compare .make/1.04.02.etag \
+		-o data/1.04.02.xml.tmp \
+		https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/download/xml
+	@if [ -f data/1.04.02.xml.tmp ]; then \
+		mv data/1.04.02.xml.tmp data/1.04.02.xml; \
+	fi
+	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
+
+data/:
+	@mkdir -p $@
+
+data/1.04.02.xml: .make/1.04.02.etag | data/
+
+data/document_metadata.csv: | data/
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
 
-data/pagexml_map.json: scripts/gt-create-pagexml-map.py data/external_ids.csv
-	poetry run scripts/gt-create-pagexml-map.py
+data/generale_missiven.csv: | data/
+	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
 
-data/scan_url_mapping.json: scripts/gt-extract-scan-url-mapping.py
-	poetry run scripts/gt-extract-scan-url-mapping.py
+data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
+	poetry run gt-make-globalise-documents-file
+
+data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
+	poetry run gt-map-pagexml-to-iiif-url --data-dir data
+
+data/inventory2dates.json: | data/
+	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
+
+data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
+	poetry run gt-convert-inventory-dates
+	poetry run gt-validate-inventory-timespan-completeness
+
+data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
+	poetry run gt-create-pagexml-map
+
+data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
+	poetry run gt-extract-scan-url-mapping
 
 .PHONY: extract-all
 extract-all:
-	poetry run scripts/gt-extract-text.py --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
+	poetry run gt-extract-text --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
 
 .PHONY: sample
 sample:
-	poetry run scripts/gt-select-annotations.py > out/sample.json
+	poetry run gt-select-annotations > out/sample.json
 
 .PHONY: install-spacy-model
 install-spacy-model:
@@ -30,42 +74,41 @@ install-spacy-model:
 
 .PHONY: web-annotations
 web-annotations:
-	poetry run scripts/gt-convert-webanno-tsv-to-web-annotations.py > out/entity-annotations.json
+	poetry run gt-convert-webanno-tsv-to-web-annotations > out/entity-annotations.json
 
 .PHONY: test-untangle
 test-untangle: data/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
-	poetry run ./scripts/gt-untangle-globalise.py -cd conf -cn test.yaml
+	poetry run gt-untangle-globalise -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
 
 .PHONY: test-missive-annotations
-test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt-create-missive-annotations.py conf/test.yaml
-	poetry run ./scripts/gt-create-missive-annotations.py -cd conf -cn test.yaml
+test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt_create_missive_annotations.py conf/test.yaml
+	poetry run gt-create-missive-annotations -cd conf -cn test.yaml
 
 .PHONY: test-inception-annotations
-test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt-convert-inception-annotations-2024.py conf/test.yaml
-	poetry run ./scripts/gt-convert-inception-annotations-2024.py -cd conf -cn test.yaml
+test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt_convert_inception_annotations_2024.py conf/test.yaml
+	poetry run gt-convert-inception-annotations-2024 -cd conf -cn test.yaml
 
 .PHONY: test-xmi-generation
-test-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/test.yaml
-	poetry run ./scripts/gt-import-document.py -cd conf -cn test.yaml
+test-xmi-generation: data/2024/document_metadata.csv scripts/gt_import_document.py conf/test.yaml
+	poetry run gt-import-document -cd conf -cn test.yaml
 
 .PHONY: prod-xmi-generation
-prod-xmi-generation: data/2024/document_metadata.csv scripts/gt-import-document.py conf/prod.yaml
-	poetry run ./scripts/gt-import-document.py -cd conf -cn prod.yaml
+prod-xmi-generation: data/2024/document_metadata.csv scripts/gt_import_document.py conf/prod.yaml
+	poetry run gt-import-document -cd conf -cn prod.yaml
 
 .PHONY: convert-example-xmi
-convert-example-xmi:
-	./scripts/gt-convert-example-xmi.sh
+convert-example-xmi: scripts/gt-convert-example-xmi.sh
+	scripts/gt-convert-example-xmi.sh
 
 .PHONY: fix-reading-order
 fix-reading-order:
-#	poetry run scripts/gt-fix-reading-order.py -i ~/c/data/globalise/pagexml -o out-local/fixed-pagexml -m data/document_metadata.csv | tee > out-local/fix-reading-order.log
-	poetry run scripts/gt_fix_reading_order.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
+	poetry run gt-fix-reading-order -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
 
 .PHONY: extract-paragraph-text
 extract-paragraph-text:
-	poetry run scripts/gt-extract-paragraph-text.py -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local | tee > out-local/extract-paragraph-text.log
+	poetry run gt-extract-paragraph-text -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local | tee > out-local/extract-paragraph-text.log
 
 .PHONY: install
 install:
@@ -78,11 +121,11 @@ watch-mongodb-data-space:
 
 .PHONY: process-manifests
 process-manifests:
-	poetry run ./scripts/gt-process-manifests.py
+	poetry run gt-process-manifests
 
 .PHONY: test-paragraph-extraction
 test-paragraph-extraction:
-	poetry run ./scripts/gt-extract-paragraph-text.py
+	poetry run gt-extract-paragraph-text
 
 .PHONY: run-provenance
 run-provenance:
@@ -93,8 +136,29 @@ run-inception:
 	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
 
 .PHONY: process-ner-xmi
-process-ner-xmi:
-	poetry run ./scripts/gt_ner_xmi_to_wa.py --pagexml-dir ~/c/data/globalise/pagexml --xmi-dir ~/c/data/globalise/ner --type-system=data/typesystem.xml --output-dir=out --text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo --api-key=$(TEXTREPO_API_KEY)
+process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
+	poetry run gt-ner-xmi-to-wa \
+		--pagexml-dir ~/c/data/globalise/pagexml \
+		--xmi-dir ~/c/data/globalise/ner \
+		--type-system=data/typesystem.xml \
+		--output-dir=out \
+		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+		--api-key=$(TEXTREPO_API_KEY)
+
+out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
+	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
+	poetry run gt-ner-xmi-to-wa \
+		--pagexml-dir ~/c/data/globalise/pagexml \
+		--xmi-dir .local/new \
+		--type-system=data/typesystem.xml \
+		--output-dir=out \
+		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+		--api-key=$(TEXTREPO_API_KEY) \
+		--inv-nr=3598
+
+.PHONY: process-ner-xmi-3598
+process-ner-xmi-3598: out/3598/ner-annotations.json
 
 .PHONY: stop-inception
 stop-inception:
@@ -128,43 +192,47 @@ docker:
 docker-run:
 	docker run -t -i -v .:/data knaw-huc/globalise-tools
 
+.PHONY: clean
+clean:
+	rm -rf .make
+
 .PHONY: help
 help:
-	@echo "make-tools for globalise-tools"
+	@echo -e "make-tools for $(GREEN)globalise-tools$(RESET)"
 	@echo
-	@echo "Please use \`make <target>', where <target> is one of:"
-	@echo "  install                    - to install the necessary requirements"
-	@echo "  install-spacy-model        - to load the 'nl_core_news_lg' language model used by spacy"
+	@echo -e "Please use \`$(YELLOW)make <target>$(RESET)', where $(YELLOW)<target>$(RESET) is one of:"
+	@echo -e "  $(BLUE)install$(RESET)                    - to install the necessary requirements"
+	@echo -e "  $(BLUE)install-spacy-model$(RESET)        - to load the 'nl_core_news_lg' language model used by spacy"
 	@echo
-	@echo "  docker                     - build a docker container containing everything"
-	@echo "  docker-run                 - run the docker container interactively (build it first)"
-#	@echo "  extract-all            		to extract text and annotations from all document directories"
-#	@echo "  web-annotations            - to generate the web-annotations"
+	@echo -e "  $(BLUE)docker$(RESET)                     - build a docker container containing everything"
+	@echo -e "  $(BLUE)docker-run$(RESET)                 - run the docker container interactively (build it first)"
+#	@echo -e "  $(BLUE)extract-all$(RESET)            		to extract text and annotations from all document directories"
+#	@echo -e "  $(BLUE)web-annotations$(RESET)            - to generate the web-annotations"
 	@echo
-	@echo "  version-update-patch       - to update the project version to the next patch version"
-	@echo "  version-update-minor       - to update the project version to the next minor version"
-	@echo "  version-update-major       - to update the project version to the next major version"
+	@echo -e "  $(BLUE)version-update-patch$(RESET)       - to update the project version to the next patch version"
+	@echo -e "  $(BLUE)version-update-minor$(RESET)       - to update the project version to the next minor version"
+	@echo -e "  $(BLUE)version-update-major$(RESET)       - to update the project version to the next major version"
 	@echo
-	@echo "  run-provenance             - to start a local provenance server"
-	@echo "  run-inception              - to start a local inception"
-	@echo "  stop-inception             - to stop the local inception"
+	@echo -e "  $(BLUE)run-provenance$(RESET)             - to start a local provenance server"
+	@echo -e "  $(BLUE)run-inception$(RESET)              - to start a local inception"
+	@echo -e "  $(BLUE)stop-inception$(RESET)             - to stop the local inception"
 	@echo
-	@echo "  test-untangle              - to generate and upload segmented text and web-annotations using test settings"
-#	@echo "  test-missive-annotations   - to generate general missive web-annotations using test settings"
-#	@echo "  test-inception-annotations - to generate document web-annotations from the inception export using test settings"
-	@echo "  test-xmi-generation        - to generate xmi using test settings"
-	@echo "  prod-xmi-generation        - to generate xmi using prod settings"
+	@echo -e "  $(BLUE)test-untangle$(RESET)              - to generate and upload segmented text and web-annotations using test settings"
+#	@echo -e "  $(BLUE)test-missive-annotations$(RESET)   - to generate general missive web-annotations using test settings"
+#	@echo -e "  $(BLUE)test-inception-annotations$(RESET) - to generate document web-annotations from the inception export using test settings"
+	@echo -e "  $(BLUE)test-xmi-generation$(RESET)        - to generate xmi using test settings"
+	@echo -e "  $(BLUE)prod-xmi-generation$(RESET)        - to generate xmi using prod settings"
 	@echo
-	@echo "  process-ner-xmi            - to generate web annotations from the ner enriched xmi files"
+	@echo -e "  $(BLUE)process-ner-xmi$(RESET)            - to generate web annotations from the ner enriched xmi files"
 	@echo
-	@echo "  convert-example-xmi        - to generate web annotations from the example set of xmi files"
-	@echo "  fix-reading-order          - to generate pagexml with corrected reading order"
+	@echo -e "  $(BLUE)convert-example-xmi$(RESET)        - to generate web annotations from the example set of xmi files"
+	@echo -e "  $(BLUE)fix-reading-order$(RESET)          - to generate pagexml with corrected reading order"
 	@echo
-	@echo "  test-paragraph-extraction  - to generate logical and physical text segment files"
-	@echo "  extract-paragraph-text     - to generate a tsv file with the paragraph text of the pagexml"
+	@echo -e "  $(BLUE)test-paragraph-extraction$(RESET)  - to generate logical and physical text segment files"
+	@echo -e "  $(BLUE)extract-paragraph-text$(RESET)     - to generate a tsv file with the paragraph text of the pagexml"
 	@echo
-	@echo "  sample                     - to extract a sample of web annotations where every type is represented"
-	@echo "  detect-copy-paste          - find code duplication"
+	@echo -e "  $(BLUE)sample$(RESET)                     - to extract a sample of web annotations where every type is represented"
+	@echo -e "  $(BLUE)detect-copy-paste$(RESET)          - find code duplication"
 	@echo
-	@echo "  browse-globalise-inception - to open the globalise inception in a browser"
+	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
 	@echo

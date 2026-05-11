@@ -5,18 +5,22 @@ import json
 import os
 import re
 import uuid
+from argparse import Namespace
 from datetime import datetime
 from itertools import groupby
+from typing import Any
 from typing import Tuple
 
 import cassis as cas
 from cassis.typesystem import FeatureStructure
 from icecream import ic
-from intervaltree import IntervalTree, Interval
+from intervaltree import Interval, IntervalTree
 from loguru import logger
 
 import globalise_tools.git_tools as git
-from globalise_tools.events import NER_DATA_DICT, wiki_base, time_roles, place_roles
+from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
+                                    wiki_base)
+from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData
 
 THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
@@ -25,12 +29,12 @@ THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 class XMIProcessor:
     max_fix_len = 20
 
-    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str):
+    def __init__(self, typesystem, document_data, commit_id: str, xmi_path: str) -> None:
         self.typesystem = typesystem
         self.document_data = document_data
         self.xmi_path = xmi_path
         self.commit_id = commit_id
-        logger.info(f"<= {xmi_path}")
+        log_reading_file(xmi_path)
         with open(xmi_path, 'rb') as f:
             self.cas = cas.load_cas_from_xmi(f, typesystem=self.typesystem)
         self.text = self.cas.get_sofa().sofaString
@@ -50,7 +54,7 @@ class XMIProcessor:
         else:
             # logger.error(f"No document data found for {xmi_path}, using placeholder target source")
             raise Exception(f"No document data found for {xmi_path}")
-            # self.plain_text_source = "urn:placeholder"
+            # self.plain_text_source = "urn:example:placeholder"
             # self.itree = IntervalTree()
 
     def text(self) -> str:
@@ -67,7 +71,7 @@ class XMIProcessor:
             web_annotations.append(self._entity_inference_annotation(web_annotation, entity_type, a.xmiID))
         return web_annotations
 
-    def get_event_annotations(self, entity_ids: list[str]):
+    def get_event_annotations(self, entity_ids: list[str]) -> list:
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
@@ -113,7 +117,7 @@ class XMIProcessor:
 
         return web_annotations
 
-    def get_event_argument_annotations(self):
+    def get_event_argument_annotations(self) -> list:
         return [self._as_web_annotation(a, self._event_argument_body())
                 for a in self.cas.views[0].get_all_annotations()
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
@@ -142,7 +146,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body):
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, str]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -223,7 +227,7 @@ class XMIProcessor:
             "target": targets
         }
 
-    def _generator(self):
+    def _generator(self) -> dict[str, str]:
         return {
             "id": "https://github.com/knaw-huc/globalise-tools/blob/"
                   f"{self.commit_id}"
@@ -233,7 +237,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _named_entity_body(feature_structure: FeatureStructure):
+    def _named_entity_body(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, Any]]]:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
         entity_uri = ner_data['uri']
@@ -250,7 +254,7 @@ class XMIProcessor:
         ]
 
     @staticmethod
-    def _event_predicate_body(feature_structure: FeatureStructure):
+    def _event_predicate_body(feature_structure: FeatureStructure) -> list:
         # ic(feature_structure)
         bodies = []
         raw_category = feature_structure['category']
@@ -273,7 +277,7 @@ class XMIProcessor:
         return bodies
 
     @staticmethod
-    def _event_argument_body():
+    def _event_argument_body() -> dict[str, str]:
         return {
             "purpose": "classifying",
             "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArgument"
@@ -284,7 +288,7 @@ class XMIProcessor:
             argument_identifier: str,
             event_annotation_uri: str,
             argument_annotation_uri: str
-    ):
+    ) -> dict[str, str]:
         body_source = argument_identifier
         target1_num = event_annotation_uri.split(':')[-1]
         target2_num = argument_annotation_uri.split(':')[-1]
@@ -303,7 +307,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _image_targets(iiif_base_uri: str, xywh_list: list[str]):
+    def _image_targets(iiif_base_uri: str, xywh_list: list[str]) -> list:
         return [
             {
                 "type": "Image",
@@ -312,7 +316,7 @@ class XMIProcessor:
             for xywh in xywh_list
         ]
 
-    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]):
+    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]) -> dict[str, str | list]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "Image",
@@ -322,7 +326,7 @@ class XMIProcessor:
 
     def _canvas_target(self, canvas_source: str,
                        xywh_list: list[str],
-                       manifest_uri: str):
+                       manifest_uri: str) -> dict[str, str | dict[str, str | dict[str, str]] | list]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": "SpecificResource",
@@ -339,7 +343,7 @@ class XMIProcessor:
         }
 
     @staticmethod
-    def _fragment_selectors(xywh_list):
+    def _fragment_selectors(xywh_list) -> list:
         selectors = []
         for xywh in xywh_list:
             selectors.append(
@@ -355,7 +359,7 @@ class XMIProcessor:
             return selectors
 
     @staticmethod
-    def _to_xywh(coords: list[Tuple[int, int]]):
+    def _to_xywh(coords: list[Tuple[int, int]]) -> str:
         min_x = min([p[0] for p in coords])
         min_y = min([p[1] for p in coords])
         max_x = max([p[0] for p in coords])
@@ -397,7 +401,8 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: any):
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[
+        str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
@@ -430,7 +435,7 @@ class XMIProcessor:
     def _event_inference_annotation(self, event_annotation: FeatureStructure,
                                     event_predicate_annotation,
                                     event_argument_annotation_ids: list[str] = [],
-                                    event_linking_annotation_ids: list[str] = []):
+                                    event_linking_annotation_ids: list[str] = []) -> dict:
         annotation_id = self._annotation_id(uuid.uuid4())
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
@@ -508,47 +513,41 @@ class XMIProcessor:
             web_anno['body']['hasTime'] = time_args
         return web_anno
 
-    def _annotation_id(self, extra_id: any) -> str:
-        return f"urn:globalise:annotation:{self.document_id}:{extra_id}"
+    def _annotation_id(self, extra_id: object) -> str:
+        return f"urn:example:globalise:annotation:{self.document_id}:{extra_id}"
 
-    def _event_id(self, extra_id: any) -> str:
-        return f"urn:globalise:event:{self.document_id}:{extra_id}"
+    def _event_id(self, extra_id: object) -> str:
+        return f"urn:example:globalise:event:{self.document_id}:{extra_id}"
 
     def _entity_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:entity:{self.document_id}:{start}-{end}:{normalized_label}"
 
     def _event_argument_id(self, start: int, end: int, normalized_label: str) -> str:
-        return f"urn:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
+        return f"urn:example:globalise:event_argument:{self.document_id}:{start}-{end}:{normalized_label}"
 
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str):
-        logger.info(f"<= {typesystem_path}")
+    def __init__(self, typesystem_path: str) -> None:
+        log_reading_file(typesystem_path)
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
         self.document_data = self._read_document_data()
-        self.commit_id = self._read_current_commit_id()
+        self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
 
     def get_xmi_processor(self, xmi_path: str) -> XMIProcessor:
         return XMIProcessor(self.typesystem, self.document_data, self.commit_id, xmi_path)
 
     @staticmethod
-    def _read_document_data() -> dict[str, any]:
+    def _read_document_data() -> dict[str, object]:
         path = "data/document_data.json"
-        logger.info(f"<= {path}")
+        log_reading_file(path)
         with open(path) as f:
             return json.load(f)
 
-    @staticmethod
-    def _read_current_commit_id():
-        if git.there_are_uncommitted_changes():
-            logger.warning("Uncommitted changes! Do a `git commit` first!")
-        return git.read_current_commit_id()
-
 
 @logger.catch
-def get_arguments():
+def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract Web Annotations from XMI files",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
@@ -571,7 +570,7 @@ def get_arguments():
     return parser.parse_args()
 
 
-def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_dir: str):
+def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_dir: str) -> None:
     if not output_dir:
         output_dir = "."
     xpf = XMIProcessorFactory(typesystem_path)
@@ -580,7 +579,7 @@ def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_d
         xp = xpf.get_xmi_processor(xmi_path)
 
         txt_path = f"{output_dir}/{basename}_plain-text.txt"
-        logger.info(f"=> {txt_path}")
+        log_writing_file(txt_path)
         with open(txt_path, 'w') as f:
             f.write(xp.text)
 
@@ -588,14 +587,14 @@ def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_d
         entity_ids = [a['body']['id'] for a in nea if 'id' in a['body']]
         eva = xp.get_event_annotations(entity_ids)
         json_path = f"{output_dir}/{basename}_web-annotations.json"
-        logger.info(f"=> {json_path}")
+        log_writing_file(json_path)
         all_web_annotations = (nea + eva)
         with open(json_path, 'w') as f:
             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
 @logger.catch
-def main():
+def main() -> None:
     args = get_arguments()
     if args.xmi_path:
         extract_web_annotations(args.xmi_path, args.type_system, args.output_dir)

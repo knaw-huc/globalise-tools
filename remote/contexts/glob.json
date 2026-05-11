@@ -1,0 +1,147 @@
+{
+    "@context": {
+        "glob": "https://w3id.org/globalise/ontology/",
+        "id": "@id",
+        "type": "@type",
+        "Attestation": "glob:G9_Attestation",
+        "Commodity": "glob:G3_Commodity",
+        "ExchangeUnit": "glob:G4_Exchange_Unit",
+        "ExchangeValue": "glob:G2_Exchange_Value",
+        "FinancialExchange": "glob:G1_Financial_Exchange",
+        "InternalChange": "glob:G8_Internal_Change",
+        "InternalState": "glob:G7_Internal_State",
+        "Payment": "glob:G5_Payment",
+        "Purchase": "glob:G6_Purchase",
+        "SuccessorStatus": "glob:G10_Successor_Status",
+        "ascribes_exchange_value_equivalent": {
+            "@id": "glob:GR2_ascribes_exchange_value_equivalent",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "ascribes_exchange_value_relation": {
+            "@id": "glob:GR3_ascribes_exchange_value_relation",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "ascribes_succeeded_sovereignty": {
+            "@id": "glob:GR11_ascribes_succeeded_sovereignty",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "ascribes_succession_relation": {
+            "@id": "glob:GR12_ascribes_successon_relation",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "attested_to": {
+            "@id": "glob:GR9_attested_to",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "changed_internal_state": {
+            "@id": "glob:GR7_changed_internal_state",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_commodity_type_dimension": {
+            "@id": "glob:GR4i_has_commodity_type_dimension",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_exchange_value_subject": {
+            "@id": "glob:GR1_has_exchange_exchange_subject",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_internal_state": {
+            "@id": "glob:GR8i_has_internal_state",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "has_successor_status_subject": {
+            "@id": "glob:GR10_has_successor_status_subject",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_dimension_of_commodity_type": {
+            "@id": "glob:GR4_is_dimension_of_commodity_type",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_exchange_value_equivalent_ascribed_by": {
+            "@id": "glob:GR2i_is_exchange_value_equivalent_ascribed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_exchange_value_relation_ascribed_by": {
+            "@id": "glob:GR3i_is_exchange_value_relation_ascribed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_exchange_value_subject_of": {
+            "@id": "glob:GR1i_is_exchange_value_subject_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_internal_state_of": {
+            "@id": "glob:GR8_is_internal_state_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_succeeded_sovereignty_ascribed_by": {
+            "@id": "glob:GR11i_is_succeeded_sovereignty_ascribed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_successor_status_subject_of": {
+            "@id": "glob:GR10i_is_successor_status_subject_of",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_succession_relation_ascribed_by": {
+            "@id": "glob:GR12i_is_succession_relation_ascribed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "is_witnessed_by": {
+            "@id": "glob:GR13_is_witnessed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "paid_amount": {
+            "@id": "glob:GR6_paid_amount",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "paid_amount_to": {
+            "@id": "glob:GR5_paid_amount_to",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "received_amount_from": {
+            "@id": "glob:GR5i_received_amount_from",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_amount_paid": {
+            "@id": "glob:GR6i_was_amount_paid",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_attested_to_by": {
+            "@id": "glob:GR9i_was_attested_to_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "was_internal_state_changed_by": {
+            "@id": "glob:GR7i_was_internal_state_changed_by",
+            "@type": "@id",
+            "@container": "@set"
+        },
+        "witnesses": {
+            "@id": "glob:GR13i_witnesses",
+            "@type": "@id",
+            "@container": "@set"
+        }
+    }
+}

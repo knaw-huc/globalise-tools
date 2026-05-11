@@ -1,16 +1,18 @@
-import globalise_tools.git_tools as git
+from datetime import datetime
+from typing import Optional
+from xml.dom.minidom import Document, parseString
+
 import lxml
 import pagexml.parser as px
-
-from datetime import datetime
 from loguru import logger
 from lxml import etree
-from typing import Optional
-from xml.dom.minidom import parseString, Document
+
+import globalise_tools.git_tools as git
+from globalise_tools.logger_tools import log_writing_file
 
 
 class PageXmlFixer:
-    def __init__(self, import_path: str, output_directory: str, quality_check: str, script: str):
+    def __init__(self, import_path: str, output_directory: str, quality_check: str, script: str) -> None:
         self.import_path = import_path
         self.output_directory = output_directory
         self.quality_check = quality_check
@@ -18,7 +20,7 @@ class PageXmlFixer:
         self.error_codes = set()
         self.script = script
 
-    def fix(self):
+    def fix(self) -> None:
         filename = self.import_path.split("/")[-1]
         export_path = f"{self.output_directory}/{filename}"
         current_reading_order = self.scan_doc.reading_order
@@ -30,7 +32,7 @@ class PageXmlFixer:
                 self.error_codes.add("3.1.2")
         self._modify_page_xml(export_path, new_reading_order)
 
-    def _order_paragraphs_by_y(self):
+    def _order_paragraphs_by_y(self) -> dict:
         current_reading_order = self.scan_doc.reading_order
         paragraphs = [tr for tr in self.scan_doc.get_text_regions_in_reading_order() if
                       'paragraph' in self._defining_types(tr)]
@@ -67,7 +69,7 @@ class PageXmlFixer:
         return (w / h) < 0.9
 
     @staticmethod
-    def _ref_id_replacement_dict(paragraphs):
+    def _ref_id_replacement_dict(paragraphs) -> dict:
         par_y_list = [(tr.id, tr.coords.box['y']) for tr in paragraphs]
         sorted_par_y_list = sorted(par_y_list, key=lambda t: t[1])
         zipped = zip(par_y_list, sorted_par_y_list)
@@ -79,7 +81,7 @@ class PageXmlFixer:
                 local_replacements[original_id] = new_id
         return local_replacements
 
-    def _modify_page_xml(self, out_path: str, new_reading_order: dict[int, str]):
+    def _modify_page_xml(self, out_path: str, new_reading_order: dict[int, str]) -> None:
         tree = etree.parse(self.import_path)
         root = tree.getroot()
         page = self._get_page_element(root)
@@ -87,7 +89,7 @@ class PageXmlFixer:
         metadata = self._get_metadata_element(root)
         self._update_last_change(metadata)
         self._reorder_text_regions(page, new_reading_order)
-        self._add_processing_step(metadata, " + ".join(sorted(self.error_codes)))
+        self._add_processing_step(metadata)
         if self.error_codes:
             self._write_to_xml(tree, out_path)
 
@@ -96,10 +98,8 @@ class PageXmlFixer:
         page = root[page_index]
         return page
 
-    def _add_processing_step(self, metadata, error_codes: str):
-        if git.there_are_uncommitted_changes():
-            logger.warning("Uncommitted changes! Do a `git commit` first!")
-        commit_id = git.read_current_commit_id()
+    def _add_processing_step(self, metadata) -> None:
+        commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         metadata_item = etree.Element(
             "MetadataItem",
             attrib={
@@ -120,11 +120,11 @@ class PageXmlFixer:
         return etree.Element("Label", attrib={"type": label_type, "value": label_value})
 
     @staticmethod
-    def _write_to_xml(doc: Document, path: str):
+    def _write_to_xml(doc: Document, path: str) -> None:
         xml_str = etree.tostring(doc, pretty_print=True, xml_declaration=True, encoding="UTF-8")
         pretty_xml_lines = parseString(xml_str).toprettyxml(indent="  ").split('\n')
         clean_xml = "\n".join([l for l in pretty_xml_lines if l.strip()])
-        logger.info(f"=> {path}")
+        log_writing_file(path)
         with open(path, 'w') as xml_file:
             xml_file.write(
                 clean_xml.replace('<?xml version="1.0" ?>', '<?xml version="1.0" encoding="UTF-8"?>').replace('\n"',
@@ -140,7 +140,7 @@ class PageXmlFixer:
                 return i
         return None
 
-    def _set_new_reading_order(self, page, new_reading_order):
+    def _set_new_reading_order(self, page, new_reading_order) -> None:
         reading_order_index = self._element_index(page, 'ReadingOrder')
         if reading_order_index:
             reading_order = page[reading_order_index]
@@ -153,14 +153,14 @@ class PageXmlFixer:
         metadata = root[metadata_index]
         return metadata
 
-    def _update_last_change(self, metadata):
+    def _update_last_change(self, metadata) -> None:
         last_changed_element_index = self._element_index(metadata, 'LastChange')
         if last_changed_element_index:
             metadata[last_changed_element_index].text = datetime.today().strftime('%Y-%m-%dT%H:%M:%S')
         else:
             logger.warning(f"no LastChange element found in Metadata")
 
-    def _reorder_text_regions(self, page_element: lxml.etree._Element, new_reading_order: dict[int, str]):
+    def _reorder_text_regions(self, page_element: lxml.etree._Element, new_reading_order: dict[int, str]) -> None:
         reading_orders = []
         text_region_dict = {}
         for child in page_element:
@@ -180,7 +180,7 @@ class PageXmlFixer:
             self._reorder_lines(text_region)
             page_element.append(text_region)
 
-    def _reorder_lines(self, text_region_element: lxml.etree._Element):
+    def _reorder_lines(self, text_region_element: lxml.etree._Element) -> None:
         coords = []
         text_line_element_dict = {}
         text_region_id = text_region_element.attrib['id']

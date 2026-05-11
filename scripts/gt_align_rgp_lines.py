@@ -3,8 +3,9 @@
 import os
 import os.path
 import sys
+from argparse import ArgumentDefaultsHelpFormatter, ArgumentParser
+
 import stam
-from argparse import ArgumentParser, ArgumentDefaultsHelpFormatter
 
 LINE_TYPE_DATA = {
     "set": "globalise",
@@ -30,11 +31,12 @@ def pad(s):
     else:
         return s
 
-def main():
+
+def main() -> None:
     parser = ArgumentParser(
         description="Align ",
         formatter_class=ArgumentDefaultsHelpFormatter)
-    parser.add_argument('--coverage', 
+    parser.add_argument('--coverage',
                         help="The percentage of characters that has to be correctly covered for an alignment to be made",
                         default=0.85,
                         type=float)
@@ -45,7 +47,7 @@ def main():
         print("Please first run gt-align-rgp to produce gm-aligned.store.stam.cbor", file=sys.stderr)
         sys.exit(1)
 
-    print("Loading 'paragraph' alignments...",file=sys.stderr)
+    print("Loading 'paragraph' alignments...", file=sys.stderr)
     store = stam.AnnotationStore(file="gm-aligned.store.stam.cbor")
 
     print(f"Computing line->page mapping")
@@ -54,7 +56,7 @@ def main():
         for htr_line_textsel in page.related_text(stam.TextSelectionOperator.embeds(), filter=LINE_TYPE_DATA):
             htr_line = next(htr_line_textsel.annotations(LINE_TYPE_DATA))
             page_id = page.id().split("_")
-            #pad the last two components with leading zeroes so they have length 4, otherwise the URLs aren't valid
+            # pad the last two components with leading zeroes so they have length 4, otherwise the URLs aren't valid
             page_id = "_".join(page_id[:-2]) + f"_{pad(page_id[-2])}_{pad(page_id[-1])}"
             line2page[htr_line.id()] = page_id
 
@@ -66,11 +68,12 @@ def main():
         "key": "Translation",
         "value": None,
     }).annotations():
-        for rgp_paragraph, htr_paragraph in translation.alignments(): #this assumes the only translations in the model are between RGP and HTR paragraphs
-            for htr_line_textsel in htr_paragraph.related_text(stam.TextSelectionOperator.embeds(), filter=LINE_TYPE_DATA):
+        for rgp_paragraph, htr_paragraph in translation.alignments():  # this assumes the only translations in the model are between RGP and HTR paragraphs
+            for htr_line_textsel in htr_paragraph.related_text(stam.TextSelectionOperator.embeds(),
+                                                               filter=LINE_TYPE_DATA):
                 htr_line = next(htr_line_textsel.annotations(LINE_TYPE_DATA))
-                align_pairs.append( (htr_line_textsel, rgp_paragraph)) 
-                metadata.append( htr_line.id() )
+                align_pairs.append((htr_line_textsel, rgp_paragraph))
+                metadata.append(htr_line.id())
 
     print(f"Gathered {len(align_pairs)} lines", file=sys.stderr)
 
@@ -82,7 +85,8 @@ def main():
         for translation in translations:
             for htr_line_textsel, rgp_line_textsel in translation.alignments():
                 htr_page_id = line2page[htr_line_id]
-                print(f"{htr_line_id}\t{htr_line_textsel}\t{rgp_line_textsel}\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:globalise:{htr_page_id}")
+                print(
+                    f"{htr_line_id}\t{htr_line_textsel}\t{rgp_line_textsel}\thttps://transcriptions.globalise.huygens.knaw.nl/detail/urn:example:globalise:{htr_page_id}")
 
     store.set_filename("gm-aligned-lines.store.stam.cbor")
     store.save()

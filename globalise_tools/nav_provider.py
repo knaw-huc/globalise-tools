@@ -6,12 +6,12 @@ from loguru import logger
 
 class NavProvider:
 
-    def __init__(self):
+    def __init__(self) -> None:
         self.inv_nr = None
         self.index_path = None
         self.index = {}
 
-    def load_index(self, inv_nr):
+    def load_index(self, inv_nr) -> None:
         self.inv_nr = inv_nr
         self.index_path = index_path_for_inv_nr(inv_nr)
         if os.path.exists(self.index_path):
@@ -38,11 +38,11 @@ class NavProvider:
                     self.load_index(inv_nr)
         x_nav = {}
         for k, v in nav.items():
-            x_nav[f'{k}PageId'] = f'urn:globalise:{v}'
+            x_nav[f'{k}PageId'] = f'urn:example:globalise:{v}'
         return x_nav
 
     @staticmethod
-    def _deduced_nav(page_id: str):
+    def _deduced_nav(page_id: str) -> dict:
         nav = {}
         parts = page_id.split('_')
         base = '_'.join(parts[:-1])
@@ -53,5 +53,5 @@ class NavProvider:
         return nav
 
 
-def index_path_for_inv_nr(inv_nr):
+def index_path_for_inv_nr(inv_nr) -> str:
     return f'out/NL-HaNA_1.04.02_{inv_nr}/page_nav_idx.json'

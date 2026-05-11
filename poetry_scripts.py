@@ -1,6 +1,8 @@
 import subprocess
 import sys
 
+from scripts.gt_ner_xmi_to_wa import load_timespan_dict
+
 project_init_file = 'globalise_tools/__init__.py'
 
 
@@ -27,3 +29,20 @@ def version(argv=None):
                 f.write(line)
         if not init_has_version:
             f.write(f"__version__ = '{new_version}'\n")
+
+
+def gt_validate_inventory_timespan_completeness():
+    inv_nrs = _load_inv_nrs()
+    timezones = load_timespan_dict()
+    available = timezones.keys()
+    missing = set(inv_nrs) - available
+    if len(missing) > 0:
+        print(f"{len(missing)}/{len(inv_nrs)} Missing timespan:")
+        for n in sorted(missing):
+            print(f" {n}")
+
+
+def _load_inv_nrs():
+    path = "data/inventory-numbers.lst"
+    with open(path) as f:
+        return [l.strip() for l in f.readlines()]

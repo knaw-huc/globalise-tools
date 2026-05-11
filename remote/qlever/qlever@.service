@@ -1,0 +1,28 @@
+# /etc/systemd/system/qlever@.service
+# @ = parameter
+
+[Unit]
+Description=QLever SPARQL server (%i)
+After=network.target
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+User=qlever
+WorkingDirectory=/data/globalise-data/qlever-indexes/%i
+
+ExecStart=/usr/bin/make start
+ExecStop=/usr/bin/make stop
+
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=qlever@%i
+
+[Install]
+WantedBy=multi-user.target
+
+#sudo systemctl enable --now qlever@globalise
+#sudo systemctl enable --now qlever@1119
+#sudo systemctl enable --now qlever@3598
+#
+#journalctl -u qlever@globalise -f

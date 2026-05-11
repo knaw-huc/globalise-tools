@@ -1,5 +1,7 @@
 import subprocess
 
+from loguru import logger
+
 
 def there_are_uncommitted_changes() -> bool:
     git_status = subprocess.check_output(['git', 'status', '--short']).decode('ascii').strip()
@@ -7,5 +9,7 @@ def there_are_uncommitted_changes() -> bool:
     return len(git_committable_changes) > 0
 
 
-def read_current_commit_id():
+def read_current_commit_id(warn_on_uncommitted_changes: bool = False) -> str:
+    if warn_on_uncommitted_changes and there_are_uncommitted_changes():
+        logger.warning("Uncommitted changes! Do a `git commit` first!")
     return subprocess.check_output(['git', 'rev-parse', 'HEAD']).decode('ascii').strip()

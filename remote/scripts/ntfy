@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+
+NFTY_URL="https://ntfy.sh/huc-globalise"
+
+usage(){
+  echo "Usage:"
+  echo "$0 [-h] [-t title] [-e tags] [-p max|high|default|low|min] -m <message>"
+  exit 0
+}
+
+if [[ -z "$*" ]]; then usage; fi
+
+while getopts ":hm:p:t:e:" option; do
+  case "${option}" in
+    e)
+      tags=$OPTARG
+      ;;
+    m)
+      message=$OPTARG
+      ;;
+    p)
+      priority=$OPTARG
+      ;;
+    t)
+      title=$OPTARG
+      ;;
+    h)
+      usage
+      ;;
+  esac
+done
+
+curl --silent -H "Title: $title" -H "Markdown: yes" -H "Priority: $priority" -H "Tags: $tags" -d "$message" $NFTY_URL

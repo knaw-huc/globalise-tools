@@ -46,7 +46,7 @@ class Message:
 @dataclass
 class InceptionAPIResponse:
     response: Response
-    body: any
+    body: object
     messages: list[Message]
 
 
@@ -57,12 +57,12 @@ class InceptionClient:
                  user: str = None,
                  password: str = None,
                  authorization: str = None,
-                 oauth2_proxy: str = None):
+                 oauth2_proxy: str = None) -> None:
         self.base_uri = base_uri.rstrip("/")
         self.user = user
         self._prepare_session(authorization, oauth2_proxy, password, user)
 
-    def _prepare_session(self, authorization: str, oauth2_proxy: str, password: str, user: str):
+    def _prepare_session(self, authorization: str, oauth2_proxy: str, password: str, user: str) -> None:
         self.session = requests.Session()
         self.session.headers = {
             'User-Agent': 'inception-python-client'
@@ -73,14 +73,14 @@ class InceptionClient:
         else:
             self.session.auth = (user, password)
 
-    def __enter__(self):
+    def __enter__(self) -> InceptionClient:
         return self
 
-    def __exit__(self, *args):
+    def __exit__(self, *args) -> bool | None:
         # logger.info(f"closing session with args: {args}")
         self.session.close()
 
-    def close(self):
+    def close(self) -> None:
         self.__exit__()
 
     def get_projects(self) -> list[Project]:
@@ -162,7 +162,7 @@ class InceptionClient:
         return as_inception_api_response(response)
 
 
-def as_inception_api_response(response):
+def as_inception_api_response(response) -> InceptionAPIResponse:
     json = response.json()
     ic(response, json)
     return InceptionAPIResponse(response=response, body=json['body'], messages=json['messages'])
