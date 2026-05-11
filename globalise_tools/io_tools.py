@@ -22,6 +22,14 @@ def write_json(path: str, data: Any, quiet: bool = False) -> None:
         json.dump(data, file, indent=4)
 
 
+def read_text(path: str, quiet: bool = False) -> str:
+    if not quiet:
+        log_reading_file(path)
+    with open(path, 'r', encoding='utf-8') as f:
+        text = f.read()
+    return text
+
+
 def write_text(path: str, text: str, quiet: bool = False) -> None:
     if not quiet:
         log_writing_file(path)

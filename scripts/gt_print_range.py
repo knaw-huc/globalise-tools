@@ -3,6 +3,8 @@ import argparse
 
 from loguru import logger
 
+import globalise_tools.io_tools as rw
+
 
 @logger.catch
 def main() -> None:
@@ -28,8 +30,7 @@ def main() -> None:
 
 
 def text_range(file, offset, length):
-    with open(file, 'r', encoding='utf-8') as f:
-        text = f.read()
+    text = rw.read_text(file)
     end = offset + length
     return text[offset:end]
 

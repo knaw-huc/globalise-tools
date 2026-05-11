@@ -41,7 +41,7 @@ data/document_metadata.csv: | data/
 data/generale_missiven.csv: | data/
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
 
-data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst scripts/gt_make_globalise_documents_file.py | data/
+data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
 	poetry run gt-make-globalise-documents-file
 
 data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
@@ -50,11 +50,11 @@ data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.
 data/inventory2dates.json: | data/
 	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
 
-data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py | data/
+data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
-data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv | data/
+data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
 	poetry run gt-create-pagexml-map
 
 data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
