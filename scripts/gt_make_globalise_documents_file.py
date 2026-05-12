@@ -64,11 +64,13 @@ class EADParser:
                 date_str = date[0].get("normal")
             for i in f.findall("./did/unitid[@identifier]", namespaces=ns):
                 inv_nr = str(i.text)
-                if inv_nr in self.data and self.data[inv_nr]["hierarchy"] != hierarchy:
-                    logger.warning(f"overwriting hierarchy for inventory number {inv_nr}")
-                data = {"hierarchy": hierarchy}
+                if inv_nr in self.data:
+                    data = self.data[inv_nr]
+                else:
+                    data = {"hierarchies": [], "dates": []}
+                data["hierarchies"].append(hierarchy)
                 if date_str:
-                    data["date"] = date_str
+                    data["dates"].append(date_str)
                 self.data[inv_nr] = data
 
     def _series_id(self, element: Element) -> str:
@@ -84,6 +86,10 @@ class EADParser:
     @staticmethod
     def _normalize(string: Any) -> str:
         return re.sub(r"\s+", " ", str(string)).strip()
+
+
+def _spanning_range(dates: list[str]) -> str:
+    return ",".join(list(set(dates)))
 
 
 @logger.catch
@@ -104,9 +110,10 @@ def main():
         doc = dates4inventory[inventory_number]
         if inventory_number in ead_inv_data:
             ead = ead_inv_data[inventory_number]
-            for key in ["date", "hierarchy"]:
-                if key in ead:
-                    doc[key] = ead[key]
+            dates = ead["dates"]
+            if dates:
+                doc["date"] = _spanning_range(dates)
+            doc["hierarchies"] = ead["hierarchies"]
         else:
             logger.warning(f"inventory number {inventory_number} not found in ead xml")
         page_id_list = list(page_ids)
