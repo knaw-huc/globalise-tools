@@ -2,6 +2,7 @@
 import itertools
 import re
 import sys
+import uuid
 from typing import Any
 from xml.etree.ElementTree import Element
 
@@ -68,7 +69,8 @@ class EADParser:
                     data = self.data[inv_nr]
                 else:
                     data = {"hierarchies": [], "dates": []}
-                data["hierarchies"].append(hierarchy)
+                hierarchy_obj = self._hierarchy_obj(hierarchy)
+                data["hierarchies"].append(hierarchy_obj)
                 if date_str:
                     data["dates"].append(date_str)
                 self.data[inv_nr] = data
@@ -86,6 +88,12 @@ class EADParser:
     @staticmethod
     def _normalize(string: Any) -> str:
         return re.sub(r"\s+", " ", str(string)).strip()
+
+    @staticmethod
+    def _hierarchy_obj(hierarchy: list[str]):
+        hierarchy_str = " / ".join(hierarchy)
+        hierarchy_uuid = uuid.uuid5(uuid.NAMESPACE_OID, hierarchy_str)
+        return {"id": str(hierarchy_uuid), "label": hierarchy_str, "paths": hierarchy}
 
 
 def _spanning_range(dates: list[str]) -> str:

@@ -156,6 +156,48 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 upload-all: scripts/gt-upload-all-annotation-lists.sh
 	./scripts/gt-upload-all-annotation-lists.sh
 
+work/%/document.txt.gz: work/%/document.txt
+	gzip --force $<
+
+.make/upload-document-txt-%: work/%/document.txt.gz | .make/
+	s5cmd cp \
+	  --content-type "text/plain;charset=UTF-8" \
+	  --content-encoding "gzip" \
+	  $< \
+	  s3://globalise-data/objects/inventory/$*.txt \
+	  > /dev/null
+	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.txt"
+	@touch $@
+
+work/%/entity-tags.json.gz: work/%/entity-tags.json
+	gzip --force $<
+
+.make/upload-entity-tags-%: work/%/entity-tags.json.gz | .make/
+	s5cmd cp \
+	  --content-type "application/json" \
+	  --content-encoding "gzip" \
+	  $< \
+	  s3://globalise-data/objects/inventory/$*.index.json \
+	  > /dev/null
+	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$inv.index"
+	@touch $@
+
+work/%/entity_linking.csv: scripts/gt_make_entity_linking_csv.py
+	poetry run gt-make-entity-linking-csv $*
+
+work/%/entity_linking.csv.gz: work/%/entity_linking.csv
+	gzip --force $<
+
+.make/upload-csv-%: work/%/entity_linking.csv.gz | .make/
+	s5cmd cp \
+	  --content-type "text/csv;charset=UTF-8" \
+	  --content-encoding "gzip" \
+	  $< \
+	  s3://globalise-data/objects/inventory/$*.csv \
+	  > /dev/null
+	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.csv"
+	@touch $@
+
 .PHONY: help
 help:
 	@echo "available \`make' targets:"
@@ -163,8 +205,8 @@ help:
 	@echo -e "  $(BLUE)annotation-lists-<invnr>$(RESET) - generate entities and transcription annotation pages for the given inventory number"
 	@echo -e "  $(BLUE)all-annotation-lists$(RESET)     - generate all entities and transcription annotation pages"
 	@echo
-	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotationlists of the given inventory number to the object store"
-	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotationlists to the object store"
+	@echo -e "  $(BLUE)upload-<invnr>$(RESET)           - upload the annotation lists of the given inventory number to the object store"
+	@echo -e "  $(BLUE)upload-all$(RESET)               - upload all annotation lists to the object store"
 	@echo
 	@echo -e "  $(BLUE)$(OUT)/<invnr>.nq.gz$(RESET)       - convert all entities annotation pages for the given inventory number to a gzipped list of unique n-quads"
 	@echo -e "  $(BLUE)generate-all-n-quads$(RESET)     - convert all entities annotation pages for all inventory numbers to gzipped lists of unique n-quads"
@@ -173,3 +215,5 @@ help:
 #curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?rel ?target where { "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02__9999_0002#annotation:16" ?rel ?target }'
 #curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?sub ?rel ?obj where { ?sub ?rel ?obj }'
 #curl -s localhost:7019 -H "Accept: text/csv" --data-urlencode query='select ?rel ?obj where { <https://github.com/knaw-huc/globalise-tools/blob/2026.02.13/scripts/gt_create_annotation_lists_for_inventory_number.py> ?rel ?obj }'
+
+

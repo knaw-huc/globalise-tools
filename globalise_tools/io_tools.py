@@ -19,7 +19,7 @@ def write_json(path: str, data: Any, quiet: bool = False) -> None:
     if not quiet:
         log_writing_file(path)
     with open(path, mode='w', newline='') as file:
-        json.dump(data, file, indent=4)
+        json.dump(data, file, indent=4, ensure_ascii=False)
 
 
 def read_text(path: str, quiet: bool = False) -> str:
@@ -42,5 +42,13 @@ def write_tsv(path: str, headers: list[str], records: list[Any], quiet: bool = F
         log_writing_file(path)
     with open(path, mode='w', newline='') as file:
         writer = csv.writer(file, delimiter='\t')
+        writer.writerow(headers)
+        writer.writerows(records)
+
+def write_csv(path: str, headers: list[str], records: list[Any], quiet: bool = False) -> None:
+    if not quiet:
+        log_writing_file(path)
+    with open(path, mode='w', newline='') as file:
+        writer = csv.writer(file)
         writer.writerow(headers)
         writer.writerows(records)

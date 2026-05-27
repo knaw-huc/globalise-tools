@@ -11,9 +11,11 @@ COPY scripts/ /work/scripts/
 COPY remote/ /work/remote/
 COPY poetry_scripts.py pyproject.toml README.md /work/
 COPY remote/Makefile /work/Makefile
+COPY remote/scripts/* /work/scripts/
 COPY data/typesystem.xml /work/typesystem.xml
 COPY data/document_data.json /work/document_data.json
 COPY data/inventory2timespan.json /work/inventory2timespan.json
+COPY data/globalise-documents.json /work/data/globalise-documents.json
 
 RUN cd /work && \
     mkdir ~/.ssh && \
