@@ -41,9 +41,16 @@ class EntityLinkFactory:
         self.annotations_parsed = 0
 
     def make_entity_link_csv(self) -> None:
-        path = f"work/{self.inventory_number}/entity_linking.csv"
+        print(f"# inventory number  : {self.inventory_number}")
+
         for page_id in self.document["page_ids"]:
             self._process_page(page_id)
+
+        print(f"- annotations parsed: {self.annotations_parsed}")
+        print(f"- records extracted : {len(self.records)}")
+        print("")
+
+        path = f"work/{self.inventory_number}/entity_linking.csv"
         rw.write_csv(
             path=path,
             headers=self._headers(),
@@ -65,57 +72,37 @@ class EntityLinkFactory:
 
     def _process_annotation(self, annotation: dict[str, Any]):
         annotation_id = annotation["id"]
-        bodies = annotation["body"]
-        first_target = annotation["target"][0]
-        first_target_selectors = first_target["selector"]
+        first_target_selectors = annotation["target"][0]["selector"]
 
-        classificatory_bodies = [b for b in bodies if b["type"] == "ClassificatoryStatus"]
-        for body in classificatory_bodies:
-            record = self._record_from_classificatory_body(body, annotation_id, first_target_selectors)
-            self.records.append(record)
+        for body in annotation["body"]:
+            if body["type"] == "AppellativeStatus":
+                record = self._record_from_appellative_body(body, annotation_id, first_target_selectors)
+                self.records.append(record)
+            elif body["type"] == "ClassificatoryStatus":
+                record = self._record_from_classificatory_body(body, annotation_id, first_target_selectors)
+                self.records.append(record)
 
-        appellative_bodies = [b for b in bodies if b["type"] == "AppellativeStatus"]
-        for body in appellative_bodies:
-            record = self._record_from_appellative_body(body, annotation_id, first_target_selectors)
-            self.records.append(record)
-
-    @staticmethod
     def _record_from_classificatory_body(
+            self,
             body: dict[str, Any],
             annotation_id: str,
             selectors: list[dict[str, Any]]
     ) -> Record:
-        text_quote_selector = selectors[0]
-        text_position_selector = selectors[1]
-        start = text_position_selector["start"]
-        if "prefix" in text_quote_selector:
-            prefix = text_quote_selector["prefix"]
-        else:
-            prefix = ""
-        if "suffix" in text_quote_selector:
-            suffix = text_quote_selector["suffix"]
-        else:
-            suffix = ""
-        classificatory_subject = body["has_classificatory_subject"]
-        return Record(
-            annotation_id=annotation_id,
-            status_id=body["id"],
-            annotation_entity_type=classificatory_subject["type"],
-            entity_id=classificatory_subject["id"],
-            offset_inventory=start,
-            offset_scan=start,
-            prefix=prefix,
-            exact=text_quote_selector["exact"],
-            suffix=suffix,
-            classified_as=body["classified_as"]["_label"]
-        )
+        subject = body["has_classificatory_subject"]
+        return self._record(annotation_id, body, selectors, subject)
+
+    def _record_from_appellative_body(
+            self,
+            body: dict[str, Any],
+            annotation_id: str,
+            selectors: list[dict[str, Any]]
+    ) -> Record:
+        subject = body["has_appellative_subject"]
+        return self._record(annotation_id, body, selectors, subject)
 
     @staticmethod
-    def _record_from_appellative_body(
-            body: dict[str, Any],
-            annotation_id: str,
-            selectors: list[dict[str, Any]]
-    ) -> Record:
+    def _record(annotation_id: str, body: dict[str, Any], selectors: list[dict[str, Any]],
+                subject: dict[str, Any]) -> Record:
         text_quote_selector = selectors[0]
         text_position_selector = selectors[1]
         start = text_position_selector["start"]
@@ -127,12 +114,11 @@ class EntityLinkFactory:
             suffix = text_quote_selector["suffix"]
         else:
             suffix = ""
-        appellative_subject = body["has_appellative_subject"]
         return Record(
             annotation_id=annotation_id,
             status_id=body["id"],
-            annotation_entity_type=appellative_subject["type"],
-            entity_id=appellative_subject["id"],
+            annotation_entity_type=subject["type"],
+            entity_id=subject["id"],
             offset_inventory=start,
             offset_scan=start,
             prefix=prefix,

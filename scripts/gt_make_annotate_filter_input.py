@@ -47,7 +47,7 @@ class DocumentProcessor:
         self.annotations_parsed = 0
 
     def process(self):
-        print(f"# inventory number  : {self.document_id}")
+        print(f"# document id  : {self.document_id}")
 
         for page_id in self.document["page_ids"]:
             self._process_page(page_id)
