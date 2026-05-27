@@ -133,7 +133,7 @@ fix-all-n-quads: scripts/gt-fix-n-quads.sh $(wildcard $(OUT)/*.nq.gz)
 
 fix-n-quads-%: $(OUT)/%.nq.gz
 	zcat $(OUT)/$*.nq.gz \
-	| sed -e 's|file:///data/globalise-data/annotation-lists/work/.*/fixed/|http://globalise.nl/ns/|g' \
+	| sed -e 's|file:///data/globalise-data/annotation-lists/$(OUT)/.*/fixed/|http://globalise.nl/ns/|g' \
 	| sed -e 's|http://globalise.nl/ns/ExchangeUnit|https://w3id.org/globalise/ontology/G4_Exchange_Unit|g' \
 	| sed -e 's|http://xmlns.com/foaf/0.1/Person|http://www.cidoc-crm.org/cidoc-crm/E21_Person|g' \
 	| gzip > $(OUT)/$*.fixed.nq.gz \
@@ -148,7 +148,7 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	  mv $$j.gz $$j ; \
 	done
 	#@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
-	#s5cmd cp --content-type "application/json" --content-encoding "gzip" "work/$*/*" s3://globalise-data/annotations/ > /dev/null
+	#s5cmd cp --content-type "application/json" --content-encoding "gzip" "$(OUT)/$*/*" s3://globalise-data/annotations/ > /dev/null
 	#@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
 	#rm -rf $(OUT)/$*/
 
@@ -156,10 +156,10 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 upload-all: scripts/gt-upload-all-annotation-lists.sh
 	./scripts/gt-upload-all-annotation-lists.sh
 
-work/%/document.txt.gz: work/%/document.txt
+$(OUT)/%/document.txt.gz: $(OUT)/%/document.txt
 	gzip --force $<
 
-.make/upload-document-txt-%: work/%/document.txt.gz | .make/
+.make/upload-document-txt-%: $(OUT)/%/document.txt.gz | .make/
 	s5cmd cp \
 	  --content-type "text/plain;charset=UTF-8" \
 	  --content-encoding "gzip" \
@@ -169,10 +169,10 @@ work/%/document.txt.gz: work/%/document.txt
 	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.txt"
 	@touch $@
 
-work/%/entity-tags.json.gz: work/%/entity-tags.json
+$(OUT)/%/entity-tags.json.gz: $(OUT)/%/entity-tags.json
 	gzip --force $<
 
-.make/upload-entity-tags-%: work/%/entity-tags.json.gz | .make/
+.make/upload-entity-tags-%: $(OUT)/%/entity-tags.json.gz | .make/
 	s5cmd cp \
 	  --content-type "application/json" \
 	  --content-encoding "gzip" \
@@ -182,13 +182,16 @@ work/%/entity-tags.json.gz: work/%/entity-tags.json
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$inv.index"
 	@touch $@
 
-work/%/entity_linking.csv: scripts/gt_make_entity_linking_csv.py
+$(OUT)/%/index.json: | $(OUT)/%/
+	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > $@
+
+$(OUT)/%/entity_linking.csv: scripts/gt_make_entity_linking_csv.py $(OUT)/%/entities $(OUT)/%/index.json
 	poetry run gt-make-entity-linking-csv $*
 
-work/%/entity_linking.csv.gz: work/%/entity_linking.csv
+$(OUT)/%/entity_linking.csv.gz: $(OUT)/%/entity_linking.csv
 	gzip --force $<
 
-.make/upload-csv-%: work/%/entity_linking.csv.gz | .make/
+.make/upload-csv-%: $(OUT)/%/entity_linking.csv.gz | .make/
 	s5cmd cp \
 	  --content-type "text/csv;charset=UTF-8" \
 	  --content-encoding "gzip" \
