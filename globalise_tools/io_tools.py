@@ -1,5 +1,6 @@
 import csv
 import json
+from json import JSONEncoder
 from typing import Any
 
 import orjson
@@ -15,11 +16,11 @@ def read_json(path: str, quiet: bool = False) -> Any:
     return data
 
 
-def write_json(path: str, data: Any, quiet: bool = False) -> None:
+def write_json(path: str, data: Any, quiet: bool = False, encoder: type[JSONEncoder] = JSONEncoder) -> None:
     if not quiet:
         log_writing_file(path)
     with open(path, mode='w', newline='') as file:
-        json.dump(data, file, indent=4, ensure_ascii=False)
+        json.dump(data, file, indent=4, ensure_ascii=False, cls=encoder)
 
 
 def read_text(path: str, quiet: bool = False) -> str:
@@ -44,6 +45,7 @@ def write_tsv(path: str, headers: list[str], records: list[Any], quiet: bool = F
         writer = csv.writer(file, delimiter='\t')
         writer.writerow(headers)
         writer.writerows(records)
+
 
 def write_csv(path: str, headers: list[str], records: list[Any], quiet: bool = False) -> None:
     if not quiet:

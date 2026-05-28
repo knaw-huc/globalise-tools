@@ -1,9 +1,13 @@
 #!/usr/bin/env python3
 import itertools
+import json
 import re
 import sys
+import urllib
 import uuid
-from typing import Any
+from dataclasses import dataclass
+from typing import Any, NamedTuple
+from uuid import UUID
 from xml.etree.ElementTree import Element
 
 from loguru import logger
@@ -13,6 +17,28 @@ import globalise_tools.io_tools as rw
 from globalise_tools.logger_tools import log_reading_file
 
 ns = {"ead": "https://www.nationaalarchief.nl/collectie/ead/ead.dtd"}
+
+
+class SeriesIdentifier(NamedTuple):
+    id: str
+    title: str
+
+
+@dataclass
+class HierarchyElement:
+    id: str
+    path: str
+    title: str
+    path_uuid: uuid.UUID
+
+
+class MyJsonEncoder(json.JSONEncoder):
+    def default(self, obj):
+        if isinstance(obj, HierarchyElement):
+            return obj.__dict__
+        if isinstance(obj, uuid.UUID):
+            return str(obj)
+        return super().default(obj)
 
 
 class EADParser:
@@ -38,7 +64,7 @@ class EADParser:
             self._parse_filegrps(series_element, hierarchy)
             self._parse_files(series_element, hierarchy)
 
-    def _parse_subseries(self, element: Element, hierarchy: list[str]) -> None:
+    def _parse_subseries(self, element: Element, hierarchy: list[SeriesIdentifier]) -> None:
         for subseries_element in element.findall("./c[@level='subseries']", namespaces=ns):
             subseries_id = self._series_id(subseries_element)
             new_hierarchy = hierarchy.copy()
@@ -47,17 +73,17 @@ class EADParser:
             self._parse_filegrps(subseries_element, new_hierarchy)
             self._parse_files(subseries_element, new_hierarchy)
 
-    def _parse_filegrps(self, element: Element, hierarchy: list[str]) -> None:
+    def _parse_filegrps(self, element: Element, hierarchy: list[SeriesIdentifier]) -> None:
         for filegrp in element.findall("./c[@otherlevel='filegrp']", namespaces=ns):
             unitid = self._normalize(filegrp.findall("./did/unitid", namespaces=ns)[0].text)
             unittitle = self._normalize(filegrp.findall("./did/unittitle", namespaces=ns)[0].text)
-            filegrp_id = f"{unitid} - {unittitle}"
+            filegrp_id = SeriesIdentifier(unitid, unittitle)
             new_hierarchy = hierarchy.copy()
             new_hierarchy.append(filegrp_id)
             self._parse_filegrps(filegrp, new_hierarchy)
             self._parse_files(filegrp, new_hierarchy)
 
-    def _parse_files(self, element: Element, hierarchy: list[str]) -> None:
+    def _parse_files(self, element: Element, hierarchy: list[SeriesIdentifier]) -> None:
         for f in element.findall("./c[@level='file']", namespaces=ns):
             date = f.findall("./did//unitdate", namespaces=ns)
             date_str: str | None = None
@@ -66,19 +92,21 @@ class EADParser:
             for i in f.findall("./did/unitid[@identifier]", namespaces=ns):
                 inv_nr = str(i.text)
                 if inv_nr in self.data:
-                    data = self.data[inv_nr]
+                    inv_data = self.data[inv_nr]
                 else:
-                    data = {"hierarchies": [], "dates": []}
-                hierarchy_obj = self._hierarchy_obj(hierarchy)
-                data["hierarchies"].append(hierarchy_obj)
-                if date_str:
-                    data["dates"].append(date_str)
-                self.data[inv_nr] = data
+                    inv_data = {"series": [], "dates": []}
+                inv_data["mets"] = "https://service.archief.nl/"
 
-    def _series_id(self, element: Element) -> str:
+                hierarchy_obj = self._hierarchy_obj(hierarchy)
+                inv_data["series"].append(hierarchy_obj)
+                if date_str:
+                    inv_data["dates"].append(date_str)
+                self.data[inv_nr] = inv_data
+
+    def _series_id(self, element: Element) -> SeriesIdentifier:
         code = str(element.findall("./did/unitid[@type='series_code']", namespaces=ns)[0].text)
         title = self._normalize(element.findall("./did/unittitle", namespaces=ns)[0].text)
-        return f"{code} - {title}"
+        return SeriesIdentifier(code, title)
 
     @staticmethod
     def _debug(e: Element) -> None:
@@ -89,11 +117,27 @@ class EADParser:
     def _normalize(string: Any) -> str:
         return re.sub(r"\s+", " ", str(string)).strip()
 
+    def _hierarchy_obj(self, hierarchy: list[SeriesIdentifier]) -> list[HierarchyElement]:
+        elements = []
+        for i, e in enumerate(hierarchy):
+            if i == 0:
+                path = e.id
+            else:
+                path = elements[i - 1].path + ":" + e.id
+            path_uuid = self._as_uuid(path)
+            he = HierarchyElement(
+                id=e.id,
+                path=path,
+                title=e.title,
+                path_uuid=path_uuid
+            )
+            elements.append(he)
+        return elements
+
     @staticmethod
-    def _hierarchy_obj(hierarchy: list[str]):
-        hierarchy_str = " / ".join(hierarchy)
-        hierarchy_uuid = uuid.uuid5(uuid.NAMESPACE_OID, hierarchy_str)
-        return {"id": str(hierarchy_uuid), "label": hierarchy_str, "paths": hierarchy}
+    def _as_uuid(path: str) -> UUID:
+        url = f"NL-HaNA_1.04.02:{path}"
+        return uuid.uuid5(uuid.NAMESPACE_URL, urllib.parse.quote(url))
 
 
 def _spanning_range(dates: list[str]) -> str:
@@ -116,12 +160,15 @@ def main():
     for doc_id, page_ids in groups:
         inventory_number = doc_id.split("_")[-1]
         doc = dates4inventory[inventory_number]
+        doc["isil"] = "NL-HaNA"
+        doc["inventory"] = "1.04.02"
         if inventory_number in ead_inv_data:
             ead = ead_inv_data[inventory_number]
-            dates = ead["dates"]
-            if dates:
-                doc["date"] = _spanning_range(dates)
-            doc["hierarchies"] = ead["hierarchies"]
+            # dates = ead["dates"]
+            # if dates:
+            #     doc["date"] = _spanning_range(dates)
+            doc["mets"] = ead_inv_data[inventory_number]["mets"]
+            doc["series"] = ead["series"]
         else:
             logger.warning(f"inventory number {inventory_number} not found in ead xml")
         page_id_list = list(page_ids)
@@ -130,7 +177,7 @@ def main():
         documents.append(doc)
 
     logger.info(f"writing {len(documents)} document definitions")
-    rw.write_json("data/globalise-documents.json", documents)
+    rw.write_json("data/globalise-documents.json", documents, encoder=MyJsonEncoder)
 
 
 if __name__ == '__main__':
