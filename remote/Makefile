@@ -169,17 +169,17 @@ $(OUT)/%/document.txt.gz: $(OUT)/%/document.txt
 	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.txt"
 	@touch $@
 
-$(OUT)/%/entity-tags.json.gz: $(OUT)/%/entity-tags.json
+$(OUT)/%/index.json.gz: $(OUT)/%/index.json
 	gzip --force $<
 
-.make/upload-entity-tags-%: $(OUT)/%/entity-tags.json.gz | .make/
+.make/upload-index-%: $(OUT)/%/index.json.gz | .make/
 	s5cmd cp \
 	  --content-type "application/json" \
 	  --content-encoding "gzip" \
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.index.json \
 	  > /dev/null
-	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$inv.index"
+	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
 
 $(OUT)/%/index.json: | $(OUT)/%/

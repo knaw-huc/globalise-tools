@@ -147,9 +147,13 @@ class DocumentProcessor:
         #     records=[r._asdict().values() for r in entity_records]
         # )
 
+        annotations = [r._asdict() for r in self.entity_records]
+        data= self.document.copy()
+        data["annotations"] = annotations
+        data.pop("page_ids")
         rw.write_json(
-            path=f"work/{self.document_id}/entity-tags.json",
-            data=[r._asdict() for r in self.entity_records]
+            path=f"work/{self.document_id}/index.json",
+            data=data
         )
 
         rw.write_text(
