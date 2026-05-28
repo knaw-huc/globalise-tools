@@ -156,6 +156,11 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 upload-all: scripts/gt-upload-all-annotation-lists.sh
 	./scripts/gt-upload-all-annotation-lists.sh
 
+$(OUT)/%/index.json: scripts/gt_make_inventory_index.py data/globalise-documents.json $(OUT)/%/transcriptions  $(OUT)/%/entities
+	poetry run gt-make-inventory-index $*
+
+$(OUT)/%/document.txt: $(OUT)/%/index.json
+
 $(OUT)/%/document.txt.gz: $(OUT)/%/document.txt
 	gzip --force $<
 
