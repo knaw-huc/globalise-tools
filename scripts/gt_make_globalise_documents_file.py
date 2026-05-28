@@ -47,6 +47,12 @@ class EADParser:
         self.path = path
         self.data = {}
         self.parsed = False
+        # map inv_nr from ead to inv_nr used in globalise
+        self.normalized_inventory_number = {
+            "4085A": "4085",
+            "9524A": "9524I",
+            "9524B": "9524II"
+        }
 
     def parse(self) -> dict[str, dict[str, Any]]:
         log_reading_file(self.path)
@@ -91,7 +97,7 @@ class EADParser:
             if date:
                 date_str = date[0].get("normal")
             for i in f.findall("./did/unitid[@identifier]", namespaces=ns):
-                inv_nr = str(i.text)
+                inv_nr = self._normalize_inventory_number(i)
                 if inv_nr in self.data:
                     inv_data = self.data[inv_nr]
                 else:
@@ -106,8 +112,14 @@ class EADParser:
                     inv_data["dates"].append(date_str)
                 self.data[inv_nr] = inv_data
 
+    def _normalize_inventory_number(self, e: Element) -> str:
+        tentative_inv_nr = str(e.text)
+        if tentative_inv_nr in self.normalized_inventory_number:
+            return self.normalized_inventory_number[tentative_inv_nr]
+        return tentative_inv_nr
+
     def _series_id(self, element: Element) -> SeriesIdentifier:
-        code = str(element.findall("./did/unitid[@type='series_code']", namespaces=ns)[0].text)
+        code = self._normalize_inventory_number(element.findall("./did/unitid[@type='series_code']", namespaces=ns)[0])
         title = self._normalize(element.findall("./did/unittitle", namespaces=ns)[0].text)
         return SeriesIdentifier(code, title)
 
