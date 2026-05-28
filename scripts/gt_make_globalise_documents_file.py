@@ -6,6 +6,7 @@ import sys
 import urllib
 import uuid
 from dataclasses import dataclass
+from functools import lru_cache
 from typing import Any, NamedTuple
 from uuid import UUID
 from xml.etree.ElementTree import Element
@@ -95,7 +96,9 @@ class EADParser:
                     inv_data = self.data[inv_nr]
                 else:
                     inv_data = {"series": [], "dates": []}
-                inv_data["mets"] = "https://service.archief.nl/"
+                mets_dao = f.find("./did/dao[@role='METS']", namespaces=ns)
+                if mets_dao is not None:
+                    inv_data["mets"] = mets_dao.get("href")
 
                 hierarchy_obj = self._hierarchy_obj(hierarchy)
                 inv_data["series"].append(hierarchy_obj)
@@ -135,6 +138,7 @@ class EADParser:
         return elements
 
     @staticmethod
+    @lru_cache(maxsize=None)
     def _as_uuid(path: str) -> UUID:
         url = f"NL-HaNA_1.04.02:{path}"
         return uuid.uuid5(uuid.NAMESPACE_URL, urllib.parse.quote(url))
