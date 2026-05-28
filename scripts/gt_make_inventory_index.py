@@ -141,14 +141,8 @@ class DocumentProcessor:
             ic(annotation)
 
     def _export(self):
-        # rw.write_tsv(
-        #     path=f"work/{document_id}/entity-tags.tsv",
-        #     headers=list(entity_records[0]._asdict().keys()),
-        #     records=[r._asdict().values() for r in entity_records]
-        # )
-
         annotations = [r._asdict() for r in self.entity_records]
-        data= self.document.copy()
+        data = self.document.copy()
         data["annotations"] = annotations
         data.pop("page_ids")
         rw.write_json(
