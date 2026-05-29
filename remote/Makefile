@@ -156,8 +156,15 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 upload-all: scripts/gt-upload-all-annotation-lists.sh
 	./scripts/gt-upload-all-annotation-lists.sh
 
-$(OUT)/%/index.json: scripts/gt_make_inventory_index.py data/globalise-documents.json $(OUT)/%/transcriptions  $(OUT)/%/entities
+$(OUT)/%/index.json: scripts/gt_make_inventory_index.py data/globalise-documents.json work/annotation-lists/%-annotation-lists.zip
+	mkdir -p $(OUT)/$*/ && \
+	cd $(OUT)/$*/ && \
+	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
 	poetry run gt-make-inventory-index $*
+	rm -rf $(OUT)/$*/{entities,transcriptions}
+
+#$(OUT)/%/index.json: | $(OUT)/%/
+#	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > $@
 
 $(OUT)/%/document.txt: $(OUT)/%/index.json
 
@@ -187,8 +194,16 @@ $(OUT)/%/index.json.gz: $(OUT)/%/index.json
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
 
-$(OUT)/%/index.json: | $(OUT)/%/
-	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > $@
+## entity-linking-csv
+.make/entity-linking-%:
+	mkdir -p $(OUT)/$*/ && \
+	cd $(OUT)/$*/ && \
+	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
+	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > work/$*/index.json
+	poetry run gt-make-entity-linking-csv $*
+	rm -rf $(OUT)/$*/{entities,transcriptions}
+	@touch $@
+
 
 $(OUT)/%/entity_linking.csv: scripts/gt_make_entity_linking_csv.py $(OUT)/%/entities $(OUT)/%/index.json
 	poetry run gt-make-entity-linking-csv $*

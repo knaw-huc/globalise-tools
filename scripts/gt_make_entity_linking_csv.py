@@ -60,8 +60,9 @@ class EntityLinkFactory:
 
     def _read_document_offset_mapping(self) -> dict[str, int]:
         inv_index = rw.read_json(f"work/{self.inventory_number}/index.json")
+        annotations = inv_index["annotations"]
         mapping = {}
-        for r in inv_index:
+        for r in annotations:
             key = f"{r['page_id']}:{str(r['start_in_page'])}"
             mapping[key] = r["start_in_doc"]
         return mapping
