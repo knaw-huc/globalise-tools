@@ -30,6 +30,9 @@ class Record(NamedTuple):
     concept_label: str = ""
     begin_of_the_begin: str = ""
     end_of_the_end: str = ""
+    linking_method: str = ""
+    comments: str = ""
+    datetime: str = ""
 
 
 class EntityLinkFactory:
