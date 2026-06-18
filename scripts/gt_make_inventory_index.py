@@ -10,6 +10,8 @@ from loguru import logger
 
 import globalise_tools.io_tools as rw
 
+# globalise issue:
+# https://github.com/globalise-huygens/glob-portal-infomodel/issues/58
 
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
@@ -26,7 +28,7 @@ def get_arguments() -> Namespace:
 class NerRecord(NamedTuple):
     page_id: str
     tag: str
-    label: str
+    text: str
     start_in_page: int
     end_in_page: int
     start_in_doc: int
@@ -94,7 +96,7 @@ class DocumentProcessor:
                     end_in_page=end,
                     start_in_doc=start + page_offset,
                     end_in_doc=end + page_offset,
-                    label=label
+                    text=label
                 )
             )
 
@@ -113,7 +115,7 @@ class DocumentProcessor:
                     end_in_page=end,
                     start_in_doc=start + page_offset,
                     end_in_doc=end + page_offset,
-                    label=label
+                    text=label
                 )
             )
 
@@ -132,7 +134,7 @@ class DocumentProcessor:
                     end_in_page=end,
                     start_in_doc=start + page_offset,
                     end_in_doc=end + page_offset,
-                    label=label
+                    text=label
                 )
             )
 
