@@ -16,11 +16,18 @@ def read_json(path: str, quiet: bool = False) -> Any:
     return data
 
 
-def write_json(path: str, data: Any, quiet: bool = False, encoder: type[JSONEncoder] = JSONEncoder) -> None:
+def write_json(path: str, data: Any, clean_nones: bool = True, quiet: bool = False,
+               encoder: type[JSONEncoder] = JSONEncoder) -> None:
     if not quiet:
         log_writing_file(path)
-    with open(path, mode='w', newline='') as file:
-        json.dump(data, file, indent=4, ensure_ascii=False, cls=encoder)
+    if clean_nones:
+        data = _clean_nones(data)
+    if encoder != JSONEncoder:
+        with open(path, mode='w', newline='') as file:
+            json.dump(data, file, indent=4, ensure_ascii=False, cls=encoder)
+    else:
+        with open(path, "wb") as f:
+            f.write(orjson.dumps(data))
 
 
 def read_text(path: str, quiet: bool = False) -> str:
@@ -54,3 +61,21 @@ def write_csv(path: str, headers: list[str], records: list[Any], quiet: bool = F
         writer = csv.writer(file)
         writer.writerow(headers)
         writer.writerows(records)
+
+
+def _clean_nones(value: Any) -> Any:
+    """
+    Recursively remove all None values from dictionaries and lists, and returns
+    the result as a new dictionary or list.
+    source: https://stackoverflow.com/questions/4255400/exclude-empty-null-values-from-json-serialization
+    """
+    if isinstance(value, list):
+        return [_clean_nones(x) for x in value if x is not None]
+    elif isinstance(value, dict):
+        return {
+            key: _clean_nones(val)
+            for key, val in value.items()
+            if val is not None
+        }
+    else:
+        return value
