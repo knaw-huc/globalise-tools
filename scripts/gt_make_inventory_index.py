@@ -56,36 +56,47 @@ items_expr = parse("items")
 body_expr = parse("body")
 
 
-class InventoryProcessor:
+class DocumentProcessor:
 
-    def __init__(self, inventory_number: str, inventory: dict[str, Any], preferred_placenames):
+    def __init__(self, inventory_number: str, document_id: str, document: dict[str, Any], preferred_placenames):
+        self.inventory_number = inventory_number
+        self.document_id = document_id
+        self.document = document
+        self.document_text = ""
+        self.preferred_placenames = preferred_placenames
         self.place_annotation_count = 0
         self.places_identified = 0
-        self.inventory_number = inventory_number
-        self.inventory = inventory
-        self.document_text = ""
-        self.entity_records = {}
+        self.entity_records = []
         self.annotations_parsed = 0
-        self.preferred_placenames = preferred_placenames
 
     def process(self):
-        print(f"# inventory number  : {self.inventory_number}")
-
-        total_documents = len(self.inventory["documents"])
-        for i, document in enumerate(self.inventory["documents"]):
-            doc_id = document['id']
-            print(f"## {i + 1}/{total_documents} : {doc_id}")
-
-            for page_id in document["page_ids"]:
-                self._process_page(page_id)
-
-            self._enrich_place_annotations()
-        print(f"- annotations parsed          : {self.annotations_parsed}")
-        print(f"- records extracted           : {len(self.entity_records)}")
-        print(f"- place annotations extracted : {self.place_annotation_count}")
-        print(f"- places identified           : {self.places_identified}")
-        print("")
-        self._export()
+        first_page = int(self.document["startScan"].split("_")[-1])
+        last_page = int(self.document["endScan"].split("_")[-1])
+        page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
+        for page_id in page_ids:
+            self._process_page(page_id)
+        self._enrich_place_annotations()
+        return {
+            "id": self.document["id"],
+            "name": self.document["name"],
+            "title": self.document["title"],
+            "settlement": self.document["settlement"],
+            "normalized_text": {
+                "value": self.document_text,
+                "DataPositionSelector": {
+                    "source": "",
+                    "start": 0,
+                    "end": 0
+                }
+            },
+            "method": self.document["method"],
+            "start_page": self.document["startScan"],
+            "end_page": self.document["endScan"],
+            "start_date": self.document["dateStart"],
+            "end_date": self.document["dateEnd"],
+            "number_of_pages": self.document["numberOfScans"],
+            "annotations": [r._asdict() for r in self.entity_records],
+        }
 
     def _process_page(self, page_id: str) -> None:
         transcription_page = self._read_transcription_page(page_id)
@@ -103,6 +114,8 @@ class InventoryProcessor:
                 for annotation in items:
                     self._process_annotation(annotation, page_id, page_offset)
                     self.annotations_parsed += 1
+        # else:
+        #     logger.warning(f"expected body in annotation {normalized_page_annotation}")
 
     def _read_transcription_page(self, page_id: str) -> Any:
         transcription_page_path = f"work/{self.inventory_number}/transcriptions/{page_id}.json"
@@ -178,23 +191,6 @@ class InventoryProcessor:
             logger.warning(f"No suitable body found in annotation")
             ic(annotation)
 
-    def _export(self):
-        data = self.inventory.copy()
-        data["documents"] = []
-        for d in data["documents"]:
-            new_doc = {k: v for k, v in d.items() if k != "page_ids"}
-            new_doc["annotations"] = [r._asdict() for r in self.entity_records[d["id"]]]
-            data["documents"].append(new_doc)
-        rw.write_json(
-            path=f"work/{self.inventory_number}/index.json",
-            data=data
-        )
-
-        rw.write_text(
-            path=f"work/{self.inventory_number}/document.txt",
-            text=self.document_text
-        )
-
     def _enrich_place_annotations(self):
         self.entity_records = [self._enrich_place_annotation(a) for a in self.entity_records]
 
@@ -238,6 +234,68 @@ class InventoryProcessor:
         return best_match
 
 
+class InventoryProcessor:
+
+    def __init__(self, inventory_number: str, inventory: dict[str, Any], document_definitions, preferred_placenames):
+        self.inventory_number = inventory_number
+        self.inventory = inventory
+        self.document_definitions = document_definitions
+        self.preferred_placenames = preferred_placenames
+        self.records_extracted = 0
+        self.place_annotation_count = 0
+        self.places_identified = 0
+        self.inventory_text = ""
+        self.annotations_parsed = 0
+        self.documents = []
+
+    def process(self):
+        print(f"# inventory number  : {self.inventory_number}")
+
+        total_documents = len(self.document_definitions)
+        for i, document in enumerate(self.document_definitions):
+            # ic(document)
+            doc_id = document['name']
+            print(f"## {i + 1}/{total_documents} : {doc_id}")
+            dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames)
+            doc = dp.process()
+            self.documents.append(doc)
+            self.annotations_parsed += dp.annotations_parsed
+            self.places_identified += dp.places_identified
+            self.place_annotation_count += dp.place_annotation_count
+            self.records_extracted += len(dp.entity_records)
+
+        print(f"- documents processed         : {len(self.documents)}")
+        print(f"- annotations parsed          : {self.annotations_parsed}")
+        print(f"- records extracted           : {self.records_extracted}")
+        print(f"- place annotations extracted : {self.place_annotation_count}")
+        print(f"- places identified           : {self.places_identified}")
+        print("")
+        self._export()
+
+    def _export(self):
+        data = self.inventory.copy()
+        default_start_date = self.inventory["date_start"]
+        default_end_date = self.inventory["date_end"]
+        data["documents"] = [self._add_default_dates(d, default_start_date, default_end_date) for d in self.documents]
+        rw.write_json(
+            path=f"work/{self.inventory_number}/index.json",
+            data=data
+        )
+
+        # rw.write_text(
+        #     path=f"work/{self.inventory_number}/document.txt",
+        #     text=self.document_text
+        # )
+
+    @staticmethod
+    def _add_default_dates(d: dict[str, Any], default_start_date: str, default_end_date: str) -> dict[str, Any]:
+        if d["start_date"] == "":
+            d["start_date"] = default_start_date
+        if d["end_date"] == "":
+            d["end_date"] = default_end_date
+        return d
+
+
 @logger.catch
 def main():
     args = get_arguments()
@@ -246,6 +304,12 @@ def main():
         preferred_placenames = rw.read_json(args.placename_alternatives_file)
     else:
         preferred_placenames = {}
+
+    if args.document_definitions_file is not None:
+        document_definitions_per_inventory = rw.read_json(args.document_definitions_file)
+    else:
+        document_definitions_per_inventory = {}
+
     inventory_numbers = args.inventory_number
 
     globalise_inventories_path = "data/globalise-inventories.json"  # TODO: move to args
@@ -254,7 +318,8 @@ def main():
     for inventory_number in inventory_numbers:
         if inventory_number in inventory_idx:
             inventory = inventory_idx[inventory_number]
-            InventoryProcessor(inventory_number, inventory, preferred_placenames).process()
+            document_definitions = document_definitions_per_inventory[inventory_number]
+            InventoryProcessor(inventory_number, inventory, document_definitions, preferred_placenames).process()
         else:
             logger.warning(f"invalid inventory number: {inventory_number} (not found in {globalise_inventories_path})")
 
