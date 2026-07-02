@@ -4,11 +4,14 @@ import os
 from argparse import Namespace
 from typing import NamedTuple, Any
 
+from Levenshtein import distance
 from icecream import ic
 from jsonpath_ng import parse
 from loguru import logger
 
 import globalise_tools.io_tools as rw
+import globalise_tools.url_factory as uf
+from globalise_tools.url_factory import AnnotationPageType
 
 
 # globalise issue:
@@ -18,9 +21,15 @@ def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract ner offsets from entity annotation page of the given inventory number, and export them as json, as well as the normalized text of the given inventory number",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    parser.add_argument("-d", "--document-definitions-file",
+                        help="The csv file containing the document definitions",
+                        type=str,
+                        required=True,
+                        )
     parser.add_argument("-p", "--placename-alternatives-file",
                         help="The json file containing the placename alternatives",
                         type=str,
+                        required=True,
                         )
     parser.add_argument("inventory_number",
                         help="The inventory number to process",
@@ -47,36 +56,40 @@ items_expr = parse("items")
 body_expr = parse("body")
 
 
-class DocumentProcessor:
+class InventoryProcessor:
 
-    def __init__(self, inventory_number: str, document: dict[str, Any], preferred_placenames):
+    def __init__(self, inventory_number: str, inventory: dict[str, Any], preferred_placenames):
         self.place_annotation_count = 0
         self.places_identified = 0
-        self.document_id = inventory_number
-        self.document = document
+        self.inventory_number = inventory_number
+        self.inventory = inventory
         self.document_text = ""
-        self.entity_records = []
+        self.entity_records = {}
         self.annotations_parsed = 0
         self.preferred_placenames = preferred_placenames
 
     def process(self):
-        print(f"# document id  : {self.document_id}")
+        print(f"# inventory number  : {self.inventory_number}")
 
-        for page_id in self.document["page_ids"]:
-            self._process_page(page_id)
+        total_documents = len(self.inventory["documents"])
+        for i, document in enumerate(self.inventory["documents"]):
+            doc_id = document['id']
+            print(f"## {i + 1}/{total_documents} : {doc_id}")
 
-        self._enrich_place_annotations()
+            for page_id in document["page_ids"]:
+                self._process_page(page_id)
+
+            self._enrich_place_annotations()
         print(f"- annotations parsed          : {self.annotations_parsed}")
         print(f"- records extracted           : {len(self.entity_records)}")
         print(f"- place annotations extracted : {self.place_annotation_count}")
         print(f"- places identified           : {self.places_identified}")
         print("")
-
         self._export()
 
     def _process_page(self, page_id: str) -> None:
-        transcription_page_path = f"work/{self.document_id}/transcriptions/{page_id}.json"
-        transcription_page = rw.read_json(transcription_page_path, quiet=True)
+        transcription_page = self._read_transcription_page(page_id)
+
         items = transcription_page["items"]
         normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
         if "body" in normalized_page_annotation:
@@ -84,14 +97,30 @@ class DocumentProcessor:
             page_offset = len(self.document_text)
             self.document_text += page_text
 
-            possible_entities_page_path = f"work/{self.document_id}/entities/{page_id}.json"
-            if os.path.exists(possible_entities_page_path):
-                entities_page_path = possible_entities_page_path
-                page = rw.read_json(entities_page_path, quiet=True)
-                items = page["items"]
+            entities_page = self._read_entities_page(page_id)
+            if entities_page is not None:
+                items = entities_page["items"]
                 for annotation in items:
                     self._process_annotation(annotation, page_id, page_offset)
                     self.annotations_parsed += 1
+
+    def _read_transcription_page(self, page_id: str) -> Any:
+        transcription_page_path = f"work/{self.inventory_number}/transcriptions/{page_id}.json"
+        if os.path.exists(transcription_page_path):
+            transcription_page = rw.read_json(transcription_page_path, quiet=True)
+        else:
+            transcription_page_url = uf.annotation_page_url(AnnotationPageType.TRANSCRIPTIONS, page_id)
+            transcription_page = rw.get_json(transcription_page_url, quiet=True)
+        return transcription_page
+
+    def _read_entities_page(self, page_id: str) -> Any:
+        entities_page_path = f"work/{self.inventory_number}/entities/{page_id}.json"
+        if os.path.exists(entities_page_path):
+            entities_page = rw.read_json(entities_page_path, quiet=True)
+        else:
+            entities_page_url = uf.annotation_page_url(AnnotationPageType.ENTITIES, page_id)
+            entities_page = rw.get_json(entities_page_url, quiet=True)
+        return entities_page
 
     def _process_annotation(self, annotation: dict[str, Any], page_id, page_offset: int):
         bodies = annotation["body"]
@@ -150,17 +179,19 @@ class DocumentProcessor:
             ic(annotation)
 
     def _export(self):
-        annotations = [r._asdict() for r in self.entity_records]
-        data = self.document.copy()
-        data["annotations"] = annotations
-        data.pop("page_ids")
+        data = self.inventory.copy()
+        data["documents"] = []
+        for d in data["documents"]:
+            new_doc = {k: v for k, v in d.items() if k != "page_ids"}
+            new_doc["annotations"] = [r._asdict() for r in self.entity_records[d["id"]]]
+            data["documents"].append(new_doc)
         rw.write_json(
-            path=f"work/{self.document_id}/index.json",
+            path=f"work/{self.inventory_number}/index.json",
             data=data
         )
 
         rw.write_text(
-            path=f"work/{self.document_id}/document.txt",
+            path=f"work/{self.inventory_number}/document.txt",
             text=self.document_text
         )
 
@@ -170,7 +201,7 @@ class DocumentProcessor:
     def _enrich_place_annotation(self, record: NerRecord) -> NerRecord:
         if record.tag == "Place":
             self.place_annotation_count += 1
-            key = record.text.lower()
+            key = self._matching_preferred_placename(record)
             if key in self.preferred_placenames:
                 first_preference = self.preferred_placenames[key][0]
                 new_record = NerRecord(
@@ -189,6 +220,23 @@ class DocumentProcessor:
                 return new_record
         return record
 
+    def _matching_preferred_placename(self, record: NerRecord) -> str | None:
+        key = record.text.lower()
+        if key in self.preferred_placenames:
+            return key
+
+        original_length = len(key)
+        best_match = None
+        best_distance = 5
+        for k in self.preferred_placenames:
+            other_length = len(k)
+            d = distance(key, k, score_cutoff=best_distance - 1)
+            if d < best_distance and d < min(original_length, other_length):
+                best_match = k
+                best_distance = d
+
+        return best_match
+
 
 @logger.catch
 def main():
@@ -200,18 +248,18 @@ def main():
         preferred_placenames = {}
     inventory_numbers = args.inventory_number
 
-    globalise_documents_path = "data/globalise-documents.json"
-    document_idx = _load_document_idx(globalise_documents_path)
+    globalise_inventories_path = "data/globalise-inventories.json"  # TODO: move to args
+    inventory_idx = _load_inventory_idx(globalise_inventories_path)
 
     for inventory_number in inventory_numbers:
-        if inventory_number in document_idx:
-            document = document_idx[inventory_number]
-            DocumentProcessor(inventory_number, document, preferred_placenames).process()
+        if inventory_number in inventory_idx:
+            inventory = inventory_idx[inventory_number]
+            InventoryProcessor(inventory_number, inventory, preferred_placenames).process()
         else:
-            logger.warning(f"invalid inventory number: {inventory_number} (not found in {globalise_documents_path})")
+            logger.warning(f"invalid inventory number: {inventory_number} (not found in {globalise_inventories_path})")
 
 
-def _load_document_idx(globalise_documents_path: str) -> dict[Any, Any]:
+def _load_inventory_idx(globalise_documents_path: str) -> dict[Any, Any]:
     document_data = rw.read_json(globalise_documents_path)
     document_idx = {r["inventory_number"]: r for r in document_data}
     return document_idx

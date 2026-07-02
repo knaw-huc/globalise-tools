@@ -33,7 +33,7 @@ FORCE:
 data/:
 	@mkdir -p $@
 
-data/1.04.02.xml: .make/1.04.02.etag | data/
+#data/1.04.02.xml: .make/1.04.02.etag | data/
 
 data/document_metadata.csv: | data/
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
@@ -41,7 +41,7 @@ data/document_metadata.csv: | data/
 data/generale_missiven.csv: | data/
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
 
-data/globalise-documents.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
+data/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
 	poetry run gt-make-globalise-documents-file
 
 data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
@@ -59,6 +59,13 @@ data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
 
 data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
 	poetry run gt-extract-scan-url-mapping
+
+work/%/transcriptions:
+	scp globalise-vm:/data/globalise-data/annotation-lists/work/annotation-lists/$*-annotation-lists.zip .
+	cd work && mkdir -p $* && cd $* && unzip -q ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
+
+work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json scripts/gt_make_inventory_index.py | work/%/transcriptions
+	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
 
 .PHONY: extract-all
 extract-all:

@@ -172,28 +172,39 @@ def main():
     logger.info(f"read {len(page_ids)} page ids")
 
     groups = itertools.groupby(page_ids, lambda p: "_".join(p.split("_")[:3]))
-    documents = []
-    for doc_id, page_ids in groups:
-        inventory_number = doc_id.split("_")[-1]
-        doc = dates4inventory[inventory_number]
-        doc["isil"] = "NL-HaNA"
-        doc["inventory"] = "1.04.02"
+    inventories = []
+    for inventory_id, page_ids in groups:
+        inventory_number = inventory_id.split("_")[-1]
+
+        page_id_list = list(page_ids)
+        start_page=page_id_list[0].split("_")[-1]
+        end_page=page_id_list[-1].split("_")[-1]
+        documents_for_inventory = [{
+            "id": f"{inventory_id}_{start_page}-{end_page}",
+            "start_page": page_id_list[0],
+            "end_page": page_id_list[-1],
+            "number_of_pages": len(page_id_list),
+            "page_ids": page_id_list
+        }]
+
+        inv = dates4inventory[inventory_number]
+        inv["isil"] = "NL-HaNA"
+        inv["inventory"] = "1.04.02"
         if inventory_number in ead_inv_data:
             ead = ead_inv_data[inventory_number]
             # dates = ead["dates"]
             # if dates:
             #     doc["date"] = _spanning_range(dates)
-            doc["mets"] = ead_inv_data[inventory_number]["mets"]
-            doc["series"] = ead["series"]
+            inv["mets"] = ead_inv_data[inventory_number]["mets"]
+            inv["hierarchies"] = [{"name": "EAD", "paths": ead["series"]}]
         else:
             logger.warning(f"inventory number {inventory_number} not found in ead xml")
-        page_id_list = list(page_ids)
-        doc["number_of_pages"] = len(page_id_list)
-        doc["page_ids"] = page_id_list
-        documents.append(doc)
+        documents = documents_for_inventory
+        inv["documents"] = documents
+        inventories.append(inv)
 
-    logger.info(f"writing {len(documents)} document definitions")
-    rw.write_json("data/globalise-documents.json", documents, encoder=MyJsonEncoder)
+    logger.info(f"writing {len(inventories)} inventory definitions")
+    rw.write_json("data/globalise-inventories.json", inventories, encoder=MyJsonEncoder)
 
 
 if __name__ == '__main__':

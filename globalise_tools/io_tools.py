@@ -4,6 +4,7 @@ from json import JSONEncoder
 from typing import Any
 
 import orjson
+import requests
 
 from globalise_tools.logger_tools import log_reading_file, log_writing_file
 
@@ -13,6 +14,19 @@ def read_json(path: str, quiet: bool = False) -> Any:
         log_reading_file(path)
     with open(path, 'rb') as f:
         data = orjson.loads(f.read())
+    return data
+
+
+def get_json(url: str, quiet: bool = False) -> Any:
+    if not quiet:
+        log_reading_file(url)
+    s = requests.Session()
+    s.trust_env = False
+    result = s.get(url)
+    if result.status_code != 200:
+        return None
+    json_data = result.text
+    data = orjson.loads(json_data)
     return data
 
 
