@@ -168,10 +168,7 @@ $(OUT)/%/index.json: scripts/gt_make_inventory_index.py data/globalise-documents
 
 $(OUT)/%/document.txt: $(OUT)/%/index.json
 
-$(OUT)/%/document.txt.gz: $(OUT)/%/document.txt
-	gzip --force $<
-
-.make/upload-document-txt-%: $(OUT)/%/document.txt.gz | .make/
+.make/upload-document-txt-%: $(OUT)/%/document.txt | .make/
 	s5cmd cp \
 	  --content-type "text/plain;charset=UTF-8" \
 	  --content-encoding "gzip" \
@@ -203,7 +200,6 @@ $(OUT)/%/index.json.gz: $(OUT)/%/index.json
 	poetry run gt-make-entity-linking-csv $*
 	rm -rf $(OUT)/$*/{entities,transcriptions}
 	@touch $@
-
 
 $(OUT)/%/entity_linking.csv: scripts/gt_make_entity_linking_csv.py $(OUT)/%/entities $(OUT)/%/index.json
 	poetry run gt-make-entity-linking-csv $*
