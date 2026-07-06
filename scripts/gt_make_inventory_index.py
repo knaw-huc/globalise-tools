@@ -58,7 +58,8 @@ body_expr = parse("body")
 
 class DocumentProcessor:
 
-    def __init__(self, inventory_number: str, document_id: str, document: dict[str, Any], preferred_placenames):
+    def __init__(self, inventory_number: str, document_id: str, document: dict[str, Any], preferred_placenames,
+                 start_data_position: dict[str, int], end_data_position: dict[str, int]):
         self.inventory_number = inventory_number
         self.document_id = document_id
         self.document = document
@@ -68,10 +69,12 @@ class DocumentProcessor:
         self.places_identified = 0
         self.entity_records = []
         self.annotations_parsed = 0
+        self.start_data_position = start_data_position
+        self.end_data_position = end_data_position
 
     def process(self):
-        first_page = int(self.document["startScan"].split("_")[-1])
-        last_page = int(self.document["endScan"].split("_")[-1])
+        first_page = int(self.document["start_scan"].split("_")[-1])
+        last_page = int(self.document["end_scan"].split("_")[-1])
         page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
         for page_id in page_ids:
             self._process_page(page_id)
@@ -84,17 +87,17 @@ class DocumentProcessor:
             "normalized_text": {
                 "value": self.document_text,
                 "DataPositionSelector": {
-                    "source": "",
-                    "start": 0,
-                    "end": 0
+                    "source": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+                    "start": self.start_data_position[page_ids[0]],
+                    "end": self.end_data_position[page_ids[-1]],
                 }
             },
             "method": self.document["method"],
-            "start_page": self.document["startScan"],
-            "end_page": self.document["endScan"],
-            "start_date": self.document["dateStart"],
-            "end_date": self.document["dateEnd"],
-            "number_of_pages": self.document["numberOfScans"],
+            "start_page": self.document["start_scan"],
+            "end_page": self.document["end_scan"],
+            "start_date": self.document["date_start"],
+            "end_date": self.document["date_end"],
+            "number_of_pages": self.document["number_of_scans"],
             "annotations": [r._asdict() for r in self.entity_records],
         }
 
@@ -244,9 +247,9 @@ class InventoryProcessor:
         self.records_extracted = 0
         self.place_annotation_count = 0
         self.places_identified = 0
-        self.inventory_text = ""
         self.annotations_parsed = 0
         self.documents = []
+        self.inventory_text, self.start_data_position, self.end_data_position = self._process_all_pages()
 
     def process(self):
         print(f"# inventory number  : {self.inventory_number}")
@@ -256,7 +259,8 @@ class InventoryProcessor:
             # ic(document)
             doc_id = document['name']
             print(f"## {i + 1}/{total_documents} : {doc_id}")
-            dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames)
+            dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
+                                   self.start_data_position, self.end_data_position)
             doc = dp.process()
             self.documents.append(doc)
             self.annotations_parsed += dp.annotations_parsed
@@ -272,6 +276,46 @@ class InventoryProcessor:
         print("")
         self._export()
 
+    def _process_all_pages(self) -> tuple[str, dict[str, int], dict[str, int]]:
+        page_ids = self.inventory["documents"][0]["page_ids"]
+        logger.info(f"calculating offsets for {len(page_ids)} pages ...")
+        start_data_position = {}
+        end_data_position = {}
+        inventory_text = ""
+        inventory_text_data_size = 0
+        for i in page_ids:
+            transcription_page = self._read_transcription_page(i)
+            items = transcription_page["items"]
+            normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
+            if "body" in normalized_page_annotation:
+                normalized_page_text = normalized_page_annotation["body"][0]["value"]
+            else:
+                normalized_page_text = ""
+            normalized_page_text_bytesize = self._utf8len(normalized_page_text)
+            start_data_position[i] = inventory_text_data_size
+            end_data_position[i] = inventory_text_data_size + normalized_page_text_bytesize
+            inventory_text_data_size += normalized_page_text_bytesize
+            inventory_text += normalized_page_text
+
+        return inventory_text, start_data_position, end_data_position
+
+    # Source - https://stackoverflow.com/a/30686735
+    # Posted by Kris, modified by community. See post 'Timeline' for change history
+    # Retrieved 2026-07-06, License - CC BY-SA 4.0
+
+    @staticmethod
+    def _utf8len(s: str) -> int:
+        return len(s.encode('utf-8'))
+
+    def _read_transcription_page(self, page_id: str) -> Any:
+        transcription_page_path = f"work/{self.inventory_number}/transcriptions/{page_id}.json"
+        if os.path.exists(transcription_page_path):
+            transcription_page = rw.read_json(transcription_page_path, quiet=True)
+        else:
+            transcription_page_url = uf.annotation_page_url(AnnotationPageType.TRANSCRIPTIONS, page_id)
+            transcription_page = rw.get_json(transcription_page_url, quiet=True)
+        return transcription_page
+
     def _export(self):
         data = self.inventory.copy()
         default_start_date = self.inventory["date_start"]
@@ -282,10 +326,10 @@ class InventoryProcessor:
             data=data
         )
 
-        # rw.write_text(
-        #     path=f"work/{self.inventory_number}/document.txt",
-        #     text=self.document_text
-        # )
+        rw.write_text(
+            path=f"work/{self.inventory_number}/document.txt",
+            text=self.inventory_text
+        )
 
     @staticmethod
     def _add_default_dates(d: dict[str, Any], default_start_date: str, default_end_date: str) -> dict[str, Any]:

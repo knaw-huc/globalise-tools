@@ -64,7 +64,7 @@ work/%/transcriptions:
 	scp globalise-vm:/data/globalise-data/annotation-lists/work/annotation-lists/$*-annotation-lists.zip .
 	cd work && mkdir -p $* && cd $* && unzip -q ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
 
-work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json scripts/gt_make_inventory_index.py | work/%/transcriptions
+work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json scripts/gt_make_inventory_index.py | work/%/transcriptions
 	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
 
 .PHONY: extract-all
