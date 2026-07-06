@@ -262,11 +262,12 @@ class InventoryProcessor:
             dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
                                    self.start_data_position, self.end_data_position)
             doc = dp.process()
-            self.documents.append(doc)
-            self.annotations_parsed += dp.annotations_parsed
-            self.places_identified += dp.places_identified
-            self.place_annotation_count += dp.place_annotation_count
-            self.records_extracted += len(dp.entity_records)
+            if doc["normalized_text"]["value"] != "":
+                self.documents.append(doc)
+                self.annotations_parsed += dp.annotations_parsed
+                self.places_identified += dp.places_identified
+                self.place_annotation_count += dp.place_annotation_count
+                self.records_extracted += len(dp.entity_records)
 
         print(f"- documents processed         : {len(self.documents)}")
         print(f"- annotations parsed          : {self.annotations_parsed}")
