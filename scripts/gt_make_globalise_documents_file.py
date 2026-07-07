@@ -30,7 +30,7 @@ class HierarchyElement:
     id: str
     path: str
     title: str
-    path_uuid: uuid.UUID
+    identifier: uuid.UUID
 
 
 class MyJsonEncoder(json.JSONEncoder):
@@ -139,12 +139,12 @@ class EADParser:
                 path = e.id
             else:
                 path = elements[i - 1].path + ":" + e.id
-            path_uuid = self._as_uuid(path)
+            identifier = self._as_uuid(path)
             he = HierarchyElement(
                 id=e.id,
                 path=path,
                 title=e.title,
-                path_uuid=path_uuid
+                identifier=identifier
             )
             elements.append(he)
         return elements
