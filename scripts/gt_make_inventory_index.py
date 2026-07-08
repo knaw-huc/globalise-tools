@@ -75,31 +75,41 @@ class DocumentProcessor:
     def process(self):
         first_page = int(self.document["start_scan"].split("_")[-1])
         last_page = int(self.document["end_scan"].split("_")[-1])
-        page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
-        for page_id in page_ids:
-            self._process_page(page_id)
-        self._enrich_place_annotations()
-        return {
-            "id": self.document["id"],
-            "name": self.document["name"],
-            "title": self.document["title"],
-            "settlement": self.document["settlement"],
-            "normalized_text": {
-                "value": self.document_text,
-                "DataPositionSelector": {
-                    "source": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
-                    "start": self.start_data_position[page_ids[0]],
-                    "end": self.end_data_position[page_ids[-1]],
-                }
-            },
-            "method": self.document["method"],
-            "start_page": self.document["start_scan"],
-            "end_page": self.document["end_scan"],
-            "start_date": self.document["date_start"],
-            "end_date": self.document["date_end"],
-            "number_of_pages": self.document["number_of_scans"],
-            "annotations": [r._asdict() for r in self.entity_records],
-        }
+        if last_page < first_page:
+            logger.error(f"Last page {last_page} is smaller than first page {first_page}")
+            return None
+        else:
+            page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
+            for page_id in page_ids:
+                self._process_page(page_id)
+            self._enrich_place_annotations()
+            doc = {
+                "id": self.document["id"],
+                "name": self.document["name"],
+                "title": self.document["title"],
+                "settlement": self.document["settlement"],
+                "normalized_text": {
+                    "value": self.document_text,
+                    "DataPositionSelector": {
+                        "source": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+                        "start": self.start_data_position[page_ids[0]],
+                        "end": self.end_data_position[page_ids[-1]],
+                    }
+                },
+                "method": self.document["method"],
+                "start_page": self.document["start_scan"],
+                "end_page": self.document["end_scan"],
+                "start_date": self.document["date_start"],
+                "end_date": self.document["date_end"],
+                "number_of_pages": self.document["number_of_scans"],
+                "annotations": [r._asdict() for r in self.entity_records],
+            }
+            if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
+                doc["hierarchies"] = [{
+                    "name": "DocumentType",
+                    "paths": self.document["type_hierarchies"],
+                }]
+            return doc
 
     def _process_page(self, page_id: str) -> None:
         transcription_page = self._read_transcription_page(page_id)
@@ -262,7 +272,7 @@ class InventoryProcessor:
             dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
                                    self.start_data_position, self.end_data_position)
             doc = dp.process()
-            if doc["normalized_text"]["value"] != "":
+            if doc and doc["normalized_text"]["value"] != "":
                 self.documents.append(doc)
                 self.annotations_parsed += dp.annotations_parsed
                 self.places_identified += dp.places_identified
@@ -321,7 +331,9 @@ class InventoryProcessor:
         data = self.inventory.copy()
         default_start_date = self.inventory["date_start"]
         default_end_date = self.inventory["date_end"]
-        data["documents"] = [self._add_default_dates(d, default_start_date, default_end_date) for d in self.documents]
+        inventory_hierarchy = data.pop("hierarchies")[0]
+        data["documents"] = [self._add_default_dates(d, default_start_date, default_end_date, inventory_hierarchy) for d
+                             in self.documents]
         rw.write_json(
             path=f"work/{self.inventory_number}/index.json",
             data=data
@@ -333,12 +345,17 @@ class InventoryProcessor:
         )
 
     @staticmethod
-    def _add_default_dates(d: dict[str, Any], default_start_date: str, default_end_date: str) -> dict[str, Any]:
-        if d["start_date"] == "":
-            d["start_date"] = default_start_date
-        if d["end_date"] == "":
-            d["end_date"] = default_end_date
-        return d
+    def _add_default_dates(document: dict[str, Any], default_start_date: str, default_end_date: str, hierarchy) -> dict[
+        str, Any]:
+        if document["start_date"] == "":
+            document["start_date"] = default_start_date
+        if document["end_date"] == "":
+            document["end_date"] = default_end_date
+        if "hierarchies" in document:
+            document["hierarchies"].append(hierarchy)
+        else:
+            document["hierarchies"] = [hierarchy]
+        return document
 
 
 @logger.catch
