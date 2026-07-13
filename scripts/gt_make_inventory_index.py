@@ -44,6 +44,7 @@ def get_arguments() -> Namespace:
 
 
 class NerRecord(NamedTuple):
+    annotation_id: str
     page_id: str
     tag: str
     identifier: str = None
@@ -90,18 +91,28 @@ body_expr = parse("body")
 
 class DocumentProcessor:
 
-    def __init__(self, inventory_number: str, document_id: str, document: dict[str, Any], preferred_placenames,
-                 start_data_position: dict[str, int], end_data_position: dict[str, int],
-                 concepts_per_page: dict[str, dict[str, Any]]) -> None:
+    def __init__(self,
+                 inventory_number: str,
+                 document_id: str,
+                 document: dict[str, Any],
+                 preferred_placenames,
+                 start_data_position: dict[str, int],
+                 end_data_position: dict[str, int],
+                 concepts_per_page: dict[str, dict[str, Any]],
+                 annotation_enhancements: dict[str, dict[str, str]]
+                 ) -> None:
         self.inventory_number = inventory_number
         self.document_id = document_id
         self.document = document
         self.document_text = ""
         self.concepts_per_page = concepts_per_page
         self.document_concepts = set()
+        self.annotation_enhancements = annotation_enhancements
         self.preferred_placenames = preferred_placenames
         self.place_annotation_count = 0
         self.places_identified = 0
+        self.profession_annotation_count = 0
+        self.professions_identified = 0
         self.entity_records = []
         self.annotations_parsed = 0
         self.start_data_position = start_data_position
@@ -117,7 +128,7 @@ class DocumentProcessor:
             page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
             for page_id in page_ids:
                 self._process_page(page_id)
-            self._enrich_place_annotations()
+            self._enrich_place_and_profession_annotations()
             doc = {
                 "id": self.document["id"],
                 "name": self.document["name"],
@@ -201,6 +212,7 @@ class DocumentProcessor:
         return entities_page
 
     def _process_annotation(self, annotation: dict[str, Any], page_id, page_offset: int):
+        annotation_id = annotation["id"]
         bodies = annotation["body"]
         classificatory_bodies = [b for b in bodies if b["type"] == "ClassificatoryStatus"]
         for body in classificatory_bodies:
@@ -210,8 +222,16 @@ class DocumentProcessor:
             start = selector["start"]
             end = selector["end"]
             self.entity_records.append(
-                NerRecord(page_id=page_id, tag=tag, start_in_page=start, end_in_page=end,
-                          start_in_doc=start + page_offset, end_in_doc=end + page_offset, text=label)
+                NerRecord(
+                    annotation_id=annotation_id,
+                    page_id=page_id,
+                    tag=tag,
+                    start_in_page=start,
+                    end_in_page=end,
+                    start_in_doc=start + page_offset,
+                    end_in_doc=end + page_offset,
+                    text=label
+                )
             )
 
         appellative_bodies = [b for b in bodies if b["type"] == "AppellativeStatus"]
@@ -223,6 +243,7 @@ class DocumentProcessor:
             end = selector["end"]
             self.entity_records.append(
                 NerRecord(
+                    annotation_id=annotation_id,
                     page_id=page_id,
                     tag=tag,
                     start_in_page=start,
@@ -242,6 +263,7 @@ class DocumentProcessor:
             end = selectors[1]["end"]
             self.entity_records.append(
                 NerRecord(
+                    annotation_id=annotation_id,
                     page_id=page_id,
                     tag=tag,
                     start_in_page=start,
@@ -256,8 +278,9 @@ class DocumentProcessor:
             logger.warning(f"No suitable body found in annotation")
             ic(annotation)
 
-    def _enrich_place_annotations(self):
+    def _enrich_place_and_profession_annotations(self):
         self.entity_records = [self._enrich_place_annotation(a) for a in self.entity_records]
+        self.entity_records = [self._enrich_profession_annotation(a) for a in self.entity_records]
 
     def _enrich_place_annotation(self, record: NerRecord) -> NerRecord:
         if record.tag == "Place":
@@ -266,6 +289,7 @@ class DocumentProcessor:
             if key in self.preferred_placenames:
                 first_preference = self.preferred_placenames[key][0]
                 new_record = NerRecord(
+                    annotation_id=record.annotation_id,
                     page_id=record.page_id,
                     tag=record.tag,
                     start_in_page=record.start_in_page,
@@ -298,6 +322,25 @@ class DocumentProcessor:
 
         return best_match
 
+    def _enrich_profession_annotation(self, record: NerRecord) -> NerRecord:
+        if record.tag == "Person":
+            self.profession_annotation_count += 1
+            if record.annotation_id in self.annotation_enhancements:
+                new_record = NerRecord(
+                    annotation_id=record.annotation_id,
+                    page_id=record.page_id,
+                    tag=record.tag,
+                    start_in_page=record.start_in_page,
+                    end_in_page=record.end_in_page,
+                    start_in_doc=record.start_in_doc,
+                    end_in_doc=record.end_in_doc,
+                    text=record.text,
+                    identifier=self.annotation_enhancements[record.annotation_id]["identifier"].split(":")[-1],
+                )
+                self.professions_identified += 1
+                return new_record
+        return record
+
 
 class InventoryProcessor:
 
@@ -309,10 +352,13 @@ class InventoryProcessor:
         self.records_extracted = 0
         self.place_annotation_count = 0
         self.places_identified = 0
+        self.profession_annotation_count = 0
+        self.professions_identified = 0
         self.annotations_parsed = 0
         self.documents = []
         self.inventory_text, self.start_data_position, self.end_data_position = self._process_all_pages()
-        self.concept_hierarchies_per_page = rw.read_json(f"work/{inventory_number}/entity_hierarchy.json", quiet=True)
+        self.concept_hierarchies_per_page = rw.read_json(f"work/{inventory_number}/entity_hierarchy.json")
+        self.annotation_enhancements = rw.read_json(f"work/{inventory_number}/annotation_enhancements.json")
 
     def process(self):
         print(f"# inventory number  : {self.inventory_number}")
@@ -323,20 +369,25 @@ class InventoryProcessor:
             doc_id = document['name']
             print(f"## {i + 1}/{total_documents} : {doc_id}")
             dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
-                                   self.start_data_position, self.end_data_position, self.concept_hierarchies_per_page)
+                                   self.start_data_position, self.end_data_position, self.concept_hierarchies_per_page,
+                                   self.annotation_enhancements)
             doc = dp.process()
             if doc and doc["normalized_text"]["value"] != "":
                 self.documents.append(doc)
                 self.annotations_parsed += dp.annotations_parsed
                 self.places_identified += dp.places_identified
                 self.place_annotation_count += dp.place_annotation_count
+                self.professions_identified += dp.professions_identified
+                self.profession_annotation_count += dp.profession_annotation_count
                 self.records_extracted += len(dp.entity_records)
 
-        print(f"- documents processed         : {len(self.documents)}")
-        print(f"- annotations parsed          : {self.annotations_parsed}")
-        print(f"- records extracted           : {self.records_extracted}")
-        print(f"- place annotations extracted : {self.place_annotation_count}")
-        print(f"- places identified           : {self.places_identified}")
+        print(f"- documents processed              : {len(self.documents)}")
+        print(f"- annotations parsed               : {self.annotations_parsed}")
+        print(f"- records extracted                : {self.records_extracted}")
+        print(f"- place annotations extracted      : {self.place_annotation_count}")
+        print(f"- places identified                : {self.places_identified}")
+        print(f"- profession annotations extracted : {self.profession_annotation_count}")
+        print(f"- professions identified           : {self.professions_identified}")
         print("")
         self._export()
 
@@ -409,6 +460,9 @@ class InventoryProcessor:
         else:
             document["hierarchies"] = [hierarchy]
         return document
+
+    def _index_profession_identifiers_per_annotation(self):
+        self.concept_hierarchies_per_page
 
 
 @logger.catch
