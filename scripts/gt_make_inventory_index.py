@@ -1,11 +1,15 @@
 #!/usr/bin/env python3
 import argparse
+import itertools
 import os
 from argparse import Namespace
-from typing import NamedTuple, Any
+from dataclasses import dataclass
+from typing import NamedTuple, Any, List
 
 from Levenshtein import distance
+from dataclasses_json import dataclass_json
 from icecream import ic
+from jsondataclass import from_dict
 from jsonpath_ng import parse
 from loguru import logger
 
@@ -52,6 +56,34 @@ class NerRecord(NamedTuple):
     end_in_doc: int = 0
 
 
+@dataclass_json
+@dataclass(frozen=True, eq=True)
+class Element:
+    identifier: str
+    label: str
+
+
+@dataclass_json
+@dataclass(frozen=True, eq=True)
+class Hierarchy:
+    scheme: str
+    elements: List[Element]
+
+    def __hash__(self):
+        return hash((self.scheme, tuple(self.elements)))
+
+
+@dataclass_json
+@dataclass(frozen=True, eq=True)
+class Concept:
+    uri: str
+    label: str
+    hierarchies: List[Hierarchy]
+
+    def __hash__(self):
+        return hash((self.uri, self.label, tuple(self.hierarchies)))
+
+
 items_expr = parse("items")
 body_expr = parse("body")
 
@@ -59,11 +91,14 @@ body_expr = parse("body")
 class DocumentProcessor:
 
     def __init__(self, inventory_number: str, document_id: str, document: dict[str, Any], preferred_placenames,
-                 start_data_position: dict[str, int], end_data_position: dict[str, int]):
+                 start_data_position: dict[str, int], end_data_position: dict[str, int],
+                 concepts_per_page: dict[str, dict[str, Any]]) -> None:
         self.inventory_number = inventory_number
         self.document_id = document_id
         self.document = document
         self.document_text = ""
+        self.concepts_per_page = concepts_per_page
+        self.document_concepts = set()
         self.preferred_placenames = preferred_placenames
         self.place_annotation_count = 0
         self.places_identified = 0
@@ -104,15 +139,32 @@ class DocumentProcessor:
                 "number_of_pages": self.document["number_of_scans"],
                 "annotations": [r._asdict() for r in self.entity_records],
             }
+            if "hierarchies" not in doc:
+                doc["hierarchies"] = []
             if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
-                doc["hierarchies"] = [{
+                doc["hierarchies"].append({
                     "name": "DocumentType",
                     "paths": self.document["type_hierarchies"],
-                }]
+                })
+            if self.document_concepts:
+                document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
+                document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
+                sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
+                grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
+                                                                         key=lambda h: h.scheme)
+                concept_hierarchies = []
+                for scheme, in_hierarchies in grouped_document_concept_hierarchies:
+                    paths = [[{"identifier": e.identifier, "title": e.label} for e in h.elements] for h in
+                             in_hierarchies]
+                    concept_hierarchies.append({"name": scheme, "paths": paths})
+                doc["hierarchies"].extend(concept_hierarchies)
             return doc
 
     def _process_page(self, page_id: str) -> None:
         transcription_page = self._read_transcription_page(page_id)
+        if page_id in self.concepts_per_page:
+            page_concepts = [from_dict(c, Concept) for c in self.concepts_per_page[page_id]]
+            self.document_concepts.update(page_concepts)
 
         items = transcription_page["items"]
         normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
@@ -260,6 +312,7 @@ class InventoryProcessor:
         self.annotations_parsed = 0
         self.documents = []
         self.inventory_text, self.start_data_position, self.end_data_position = self._process_all_pages()
+        self.concept_hierarchies_per_page = rw.read_json(f"work/{inventory_number}/entity_hierarchy.json", quiet=True)
 
     def process(self):
         print(f"# inventory number  : {self.inventory_number}")
@@ -270,7 +323,7 @@ class InventoryProcessor:
             doc_id = document['name']
             print(f"## {i + 1}/{total_documents} : {doc_id}")
             dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
-                                   self.start_data_position, self.end_data_position)
+                                   self.start_data_position, self.end_data_position, self.concept_hierarchies_per_page)
             doc = dp.process()
             if doc and doc["normalized_text"]["value"] != "":
                 self.documents.append(doc)
