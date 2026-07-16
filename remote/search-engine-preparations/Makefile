@@ -25,15 +25,20 @@ data/documents-per-inventory.json: data/documents.csv $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) generate-document-definitions --in-file $< --out-file $@
 
 #work/%/entity_links.csv work/%/entity_annotations.csv: prepare-work
+#	@:
 
 work/%/entity_annotations.csv:
 	mkdir -p work/$*
-	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/$*.csv > $@
+	s5cmd cp "s3://globalise-data/objects/inventory/$*.csv" $@.gz
+	gunzip --force $@.gz
+#	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/$*.csv > $@
 
 work/%/entity_links.csv:
 	mkdir -p work/$*
-	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/links/$*.csv > $@
-	grep -l AccessDenied $@ && rm $@
+	s5cmd cp "s3://globalise-data/objects/inventory/links/$*.csv" $@.gz
+	gunzip --force $@.gz
+#	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/links/$*.csv > $@
+#	grep -l AccessDenied $@ && rm $@ || echo -n # remove if it's not a csv, continue otherwise
 
 prepare-work: data/concept-uuids.lst data/documents.csv
 	mkdir -p work && \
@@ -89,10 +94,10 @@ work/%/index.json: work/%/entity_hierarchy.json work/%/annotation_enhancements.j
 work/%/index.json.gz: work/%/index.json
 	gzip --force $<
 
-.make/:
+.make:
 	mkdir -p $@
 
-.make/upload-index-%: work/%/index.json.gz | .make/
+.make/upload-index-%: work/%/index.json.gz | .make
 	s5cmd cp \
 	  --content-type "application/json" \
 	  --content-encoding "gzip" \
