@@ -75,3 +75,29 @@ prepare-all-inventories: data/inventorynumbers.lst
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
 
+.PHONY: all-inventory-index-metadata
+all-inventory-index-metadata: data/inventorynumbers.lst
+	cd work && \
+	cat ../data/inventorynumbers.lst | while read i; do echo "work/$$i/index.json" ; done | split -l 50 && \
+	for x in x??; do echo -n "cd globalise-tools && make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
+	chmod a+x *.sh
+	for j in work/x*.sh; do ./$$j; done
+
+work/%/index.json: work/%/entity_hierarchy.json work/%/annotation_enhancements.json
+	cd globalise-tools && $(MAKE) --jobs work/$*/index.json
+
+work/%/index.json.gz: work/%/index.json
+	gzip --force $<
+
+.make/:
+	mkdir -p $@
+
+.make/upload-index-%: work/%/index.json.gz | .make/
+	s5cmd cp \
+	  --content-type "application/json" \
+	  --content-encoding "gzip" \
+	  $< \
+	  s3://globalise-data/objects/inventory/$*.index.json \
+	  > /dev/null
+	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
+	@touch $@
