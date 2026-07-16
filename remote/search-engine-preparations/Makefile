@@ -24,7 +24,16 @@ data/documents.csv: | data
 data/documents-per-inventory.json: data/documents.csv $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) generate-document-definitions --in-file $< --out-file $@
 
-work/%/entity_links.csv work/%/entity_annotations.csv: prepare-work
+#work/%/entity_links.csv work/%/entity_annotations.csv: prepare-work
+
+work/%/entity_annotations.csv:
+	mkdir -p work/$*
+	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/$*.csv > $@
+
+work/%/entity_links.csv:
+	mkdir -p work/$*
+	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/links/$*.csv > $@
+	grep -l AccessDenied $@ && rm $@
 
 prepare-work: data/concept-uuids.lst data/documents.csv
 	mkdir -p work && \
@@ -62,7 +71,7 @@ prepare-inventory-%: work/%/entity_hierarchy.json work/%/annotation_enhancements
 prepare-all-inventories: data/inventorynumbers.lst
 	cd work && \
 	cat ../data/inventorynumbers.lst | sed -e "s/^/prepare-inventory-/" | split -l 50 && \
-	for x in x??; do echo -n "make --jobs " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
+	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
 
