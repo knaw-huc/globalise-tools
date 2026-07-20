@@ -113,7 +113,7 @@ class DocumentProcessor:
         self.places_identified = 0
         self.profession_annotation_count = 0
         self.professions_identified = 0
-        self.entity_records = []
+        self.entity_records: list[NerRecord] = []
         self.annotations_parsed = 0
         self.start_data_position = start_data_position
         self.end_data_position = end_data_position
@@ -129,47 +129,130 @@ class DocumentProcessor:
             for page_id in page_ids:
                 self._process_page(page_id)
             self._enrich_place_and_profession_annotations()
-            doc = {
-                "id": self.document["id"],
-                "name": self.document["name"],
-                "title": self.document["title"],
-                "settlement": self.document["settlement"],
-                "normalized_text": {
-                    "value": self.document_text,
-                    "DataPositionSelector": {
-                        "source": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
-                        "start": self.start_data_position[page_ids[0]],
-                        "end": self.end_data_position[page_ids[-1]],
-                    }
-                },
-                "method": self.document["method"],
-                "start_page": self.document["start_scan"],
-                "end_page": self.document["end_scan"],
-                "start_date": self.document["date_start"],
-                "end_date": self.document["date_end"],
-                "number_of_pages": self.document["number_of_scans"],
-                "annotations": [r._asdict() for r in self.entity_records],
+            return self._make_doc(page_ids)
+
+    def _make_doc(self, page_ids: list[str]) -> dict[str, Any] | None:
+        if self.document_text == "":
+            logger.warning("document text is empty, skipping")
+            return None
+
+        fields = [
+            self._string_field("identifier", self.document["id"]),
+            self._string_field("name", self.document["name"]),
+            self._string_field("title", self.document["title"]),
+            self._string_field("settlement", self.document["settlement"]),
+            self._int_field("pages", self.document["number_of_scans"]),
+            self._string_field("start_page", self.document["start_scan"]),
+            self._string_field("end_page", self.document["end_scan"]),
+            self._string_field("inventorynumber", self.inventory_number),
+            self._annotatedtext_field(page_ids),
+            self._daterange_field(self.document["date_start"], self.document["date_end"])
+        ]
+
+        if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
+            type_hierarchies = list(itertools.chain.from_iterable(self.document["type_hierarchies"]))
+            grouped = itertools.groupby(type_hierarchies, lambda h: h["scheme"])
+            for scheme, hierarchies in grouped:
+                identifier_lists = [self._identifiers(th) for th in hierarchies]
+                fields.append(self._facet_field(scheme, identifier_lists))
+
+        return {
+            "fields": fields
+        }
+
+    @staticmethod
+    def _identifiers(hierarchy: dict[str, Any]) -> list[str]:
+        return [e["identifier"] for e in hierarchy["elements"]]
+
+    @staticmethod
+    def _facet_field(name: str, identifier_lists: list[list[str]]) -> dict[str, Any]:
+        return dict(
+            name=name,
+            type="facet",
+            value=identifier_lists
+        )
+
+    def _annotatedtext_field(self, page_ids: list[str]) -> dict[str, Any]:
+        return dict(
+            name="content",
+            type="annotatedtext",
+            store=True,
+            value=self.document_text,
+            DataPositionSelector=dict(
+                source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+                start=self.start_data_position[page_ids[0]],
+                end=self.end_data_position[page_ids[-1]]),
+            annotations=self._simplified_annotations())
+
+    @staticmethod
+    def _daterange_field(start_date, end_date) -> dict[str, Any]:
+        return dict(
+            name="date",
+            type="daterange",
+            value={
+                "from": start_date,
+                "to": end_date
             }
-            if "hierarchies" not in doc:
-                doc["hierarchies"] = []
-            if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
-                doc["hierarchies"].append({
-                    "name": "DocumentType",
-                    "paths": self.document["type_hierarchies"],
-                })
-            if self.document_concepts:
-                document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
-                document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
-                sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
-                grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
-                                                                         key=lambda h: h.scheme)
-                concept_hierarchies = []
-                for scheme, in_hierarchies in grouped_document_concept_hierarchies:
-                    paths = [[{"identifier": e.identifier, "title": e.label} for e in h.elements] for h in
-                             in_hierarchies]
-                    concept_hierarchies.append({"name": scheme, "paths": paths})
-                doc["hierarchies"].extend(concept_hierarchies)
-            return doc
+        )
+
+    @staticmethod
+    def _string_field(name: str, value: str) -> dict[str, Any]:
+        return dict(
+            name=name,
+            type="string",
+            store=True,
+            value=value
+        )
+
+    @staticmethod
+    def _int_field(name: str, value: int) -> dict[str, Any]:
+        return dict(
+            name=name,
+            type="integer",
+            store=True,
+            value=value
+        )
+
+    def _make_doc0(self, page_ids: list[str]) -> dict[str, Any]:
+        doc = dict(
+            id=self.document["id"],
+            name=self.document["name"],
+            title=self.document["title"],
+            settlement=self.document["settlement"],
+            normalized_text=dict(
+                value=self.document_text,
+                DataPositionSelector=dict(
+                    source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+                    start=self.start_data_position[page_ids[0]],
+                    end=self.end_data_position[page_ids[-1]])),
+            method=self.document["method"],
+            start_page=self.document["start_scan"],
+            end_page=self.document["end_scan"],
+            start_date=self.document["date_start"],
+            end_date=self.document["date_end"],
+            number_of_pages=self.document["number_of_scans"],
+            annotations=[r._asdict() for r in self.entity_records]
+        )
+        if "hierarchies" not in doc:
+            doc["hierarchies"] = []
+        if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
+            doc["hierarchies"].append({
+                "name": "DocumentType",
+                "paths": self.document["type_hierarchies"],
+            })
+        if self.document_concepts:
+            document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
+            document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
+            sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
+            grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
+                                                                     key=lambda h: h.scheme)
+            concept_hierarchies = []
+            for scheme, in_hierarchies in grouped_document_concept_hierarchies:
+                paths = [[{"identifier": e.identifier, "title": e.label} for e in h.elements] for h in
+                         in_hierarchies]
+                concept_hierarchies.append({"name": scheme, "paths": paths})
+            doc["hierarchies"].extend(concept_hierarchies)
+        return doc
 
     def _process_page(self, page_id: str) -> None:
         transcription_page = self._read_transcription_page(page_id)
@@ -198,6 +281,7 @@ class DocumentProcessor:
         if os.path.exists(transcription_page_path):
             transcription_page = rw.read_json(transcription_page_path, quiet=True)
         else:
+            logger.warning(f"Transcription page not found: {page_id}, reading from url")
             transcription_page_url = uf.annotation_page_url(AnnotationPageType.TRANSCRIPTIONS, page_id)
             transcription_page = rw.get_json(transcription_page_url, quiet=True)
         return transcription_page
@@ -341,6 +425,25 @@ class DocumentProcessor:
                 return new_record
         return record
 
+    def _simplified_annotations(self) -> list[dict[str, Any]]:
+        simplified_annotations = []
+        for r in self.entity_records:
+            simplified_annotations.append({
+                "tag": r.tag,
+                "from": r.start_in_doc,
+                "to": r.end_in_doc,
+                "text": r.text
+            })
+            if r.tag in ["Place", "Person"] and r.identifier is not None and r.identifier != "":
+                simplified_annotations.append({
+                    "tag": r.identifier,
+                    "from": r.start_in_doc,
+                    "to": r.end_in_doc,
+                    "text": r.text
+                })
+
+        return simplified_annotations
+
 
 class InventoryProcessor:
 
@@ -364,22 +467,38 @@ class InventoryProcessor:
         print(f"# inventory number  : {self.inventory_number}")
 
         total_documents = len(self.document_definitions)
+        document_ids_done = []
         for i, document in enumerate(self.document_definitions):
             # ic(document)
             doc_id = document['name']
-            print(f"## {i + 1}/{total_documents} : {doc_id}")
-            dp = DocumentProcessor(self.inventory_number, doc_id, document, self.preferred_placenames,
-                                   self.start_data_position, self.end_data_position, self.concept_hierarchies_per_page,
-                                   self.annotation_enhancements)
-            doc = dp.process()
-            if doc and doc["normalized_text"]["value"] != "":
-                self.documents.append(doc)
-                self.annotations_parsed += dp.annotations_parsed
-                self.places_identified += dp.places_identified
-                self.place_annotation_count += dp.place_annotation_count
-                self.professions_identified += dp.professions_identified
-                self.profession_annotation_count += dp.profession_annotation_count
-                self.records_extracted += len(dp.entity_records)
+            if document['date_start'] == "":
+                document['date_start'] = self.inventory["date_start"]
+            if document['date_end'] == "":
+                document['date_end'] = self.inventory["date_end"]
+            if doc_id in document_ids_done:
+                print(f"## {i + 1}/{total_documents} : {doc_id} (same page range, skipping)")
+            else:
+                print(f"## {i + 1}/{total_documents} : {doc_id}")
+                dp = DocumentProcessor(
+                    self.inventory_number,
+                    doc_id,
+                    document,
+                    self.preferred_placenames,
+                    self.start_data_position,
+                    self.end_data_position,
+                    self.concept_hierarchies_per_page,
+                    self.annotation_enhancements
+                )
+                doc = dp.process()
+                if doc:
+                    self.documents.append(doc)
+                    self.annotations_parsed += dp.annotations_parsed
+                    self.places_identified += dp.places_identified
+                    self.place_annotation_count += dp.place_annotation_count
+                    self.professions_identified += dp.professions_identified
+                    self.profession_annotation_count += dp.profession_annotation_count
+                    self.records_extracted += len(dp.entity_records)
+                document_ids_done.append(doc_id)
 
         print(f"- documents processed              : {len(self.documents)}")
         print(f"- annotations parsed               : {self.annotations_parsed}")
@@ -436,8 +555,9 @@ class InventoryProcessor:
         default_start_date = self.inventory["date_start"]
         default_end_date = self.inventory["date_end"]
         inventory_hierarchy = data.pop("hierarchies")[0]
-        data["documents"] = [self._add_default_dates(d, default_start_date, default_end_date, inventory_hierarchy) for d
-                             in self.documents]
+        # data["documents"] = [self._add_default_dates(d, default_start_date, default_end_date, inventory_hierarchy) for d
+        #                      in self.documents]
+        data["documents"] = self.documents
         rw.write_json(
             path=f"work/{self.inventory_number}/index.json",
             data=data
@@ -448,21 +568,21 @@ class InventoryProcessor:
             text=self.inventory_text
         )
 
-    @staticmethod
-    def _add_default_dates(document: dict[str, Any], default_start_date: str, default_end_date: str, hierarchy) -> dict[
-        str, Any]:
-        if document["start_date"] == "":
-            document["start_date"] = default_start_date
-        if document["end_date"] == "":
-            document["end_date"] = default_end_date
-        if "hierarchies" in document:
-            document["hierarchies"].append(hierarchy)
-        else:
-            document["hierarchies"] = [hierarchy]
-        return document
+    # @staticmethod
+    # def _add_default_dates(document: dict[str, Any], default_start_date: str, default_end_date: str, hierarchy) -> dict[
+    #     str, Any]:
+    #     if document["start_date"] == "":
+    #         document["start_date"] = default_start_date
+    #     if document["end_date"] == "":
+    #         document["end_date"] = default_end_date
+    #     if "hierarchies" in document:
+    #         document["hierarchies"].append(hierarchy)
+    #     else:
+    #         document["hierarchies"] = [hierarchy]
+    #     return document
 
-    def _index_profession_identifiers_per_annotation(self):
-        self.concept_hierarchies_per_page
+    # def _index_profession_identifiers_per_annotation(self):
+    #     self.concept_hierarchies_per_page
 
 
 @logger.catch
