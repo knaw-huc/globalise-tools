@@ -139,7 +139,7 @@ class EADParser:
                 path = e.id
             else:
                 path = elements[i - 1].path + ":" + e.id
-            identifier = self._as_uuid(path)
+            identifier = self._as_uuid(path + e.title)
             he = HierarchyElement(
                 id=e.id,
                 path=path,
@@ -177,8 +177,8 @@ def main():
         inventory_number = inventory_id.split("_")[-1]
 
         page_id_list = list(page_ids)
-        start_page=page_id_list[0].split("_")[-1]
-        end_page=page_id_list[-1].split("_")[-1]
+        start_page = page_id_list[0].split("_")[-1]
+        end_page = page_id_list[-1].split("_")[-1]
         documents_for_inventory = [{
             "id": f"{inventory_id}_{start_page}-{end_page}",
             "start_page": page_id_list[0],
