@@ -9,7 +9,7 @@ JAR = globalise-ktools.jar
 all: prepare-work data/concept-index.json data/documents-per-inventory.json
 
 globalise-tools/data/globalise-inventories.json:
-	cd globalise-tools && $(MAKE) data/globalise-inventories.json
+	cd globalise-tools && $(MAKE) --jobs data/globalise-inventories.json
 
 data:
 	@mkdir -p data
@@ -18,7 +18,7 @@ data/concept-uuids.lst: | data
 	s5cmd ls "s3://globalise-data/objects/thesaurus/*-*-*.json" | awk '{sub(/\.json$$/,"",$$NF); print $$NF}' > $@
 
 data/facets.json data/concept-index.json: data/concept-uuids.lst globalise-tools/data/globalise-inventories.json $(JAR)
-	java $(JAVA_OPTS) -jar $(JAR) generate-concept-index --concept-uuids-file $< --inventories-file globalise-tools/data/globalise-inventories.json --out-file $@
+	java $(JAVA_OPTS) -jar $(JAR) generate-concept-index --concept-uuids-file $< --inventories-file globalise-tools/data/globalise-inventories.json --out-file data/concept-index.json
 
 data/documents.csv: | data
 	s5cmd cp s3://globalise-data/objects/document/documents.csv data/documents.csv.gz
