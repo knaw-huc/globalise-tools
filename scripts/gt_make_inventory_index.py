@@ -155,14 +155,26 @@ class DocumentProcessor:
             for scheme, hierarchies in grouped:
                 identifier_lists = [self._identifiers(th) for th in hierarchies]
                 fields.append(self._facet_field(scheme, identifier_lists))
+        if self.document_concepts:
+            document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
+            document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
+            sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
+            grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
+                                                                     key=lambda h: h.scheme)
+            for scheme, in_hierarchies in grouped_document_concept_hierarchies:
+                identifier_lists = [self._identifiers(th) for th in in_hierarchies]
+                fields.append(self._facet_field(scheme, identifier_lists))
 
         return {
             "fields": fields
         }
 
     @staticmethod
-    def _identifiers(hierarchy: dict[str, Any]) -> list[str]:
-        return [e["identifier"] for e in hierarchy["elements"]]
+    def _identifiers(hierarchy: dict[str, Any] | Hierarchy) -> list[str]:
+        if isinstance(hierarchy, Hierarchy):
+            return [e.identifier for e in hierarchy.elements]
+        else:
+            return [e["identifier"] for e in hierarchy["elements"]]
 
     @staticmethod
     def _facet_field(name: str, identifier_lists: list[list[str]]) -> dict[str, Any]:
