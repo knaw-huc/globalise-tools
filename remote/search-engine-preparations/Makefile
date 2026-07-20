@@ -83,11 +83,11 @@ prepare-all-inventories: data/inventorynumbers.lst
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
 
-.PHONY: all-inventory-index-metadata
-all-inventory-index-metadata: data/inventorynumbers.lst
+.PHONY: upload-all-inventory-index-metadata
+upload-all-inventory-index-metadata: data/inventorynumbers.lst
 	cd work && \
-	cat ../data/inventorynumbers.lst | while read i; do echo "work/$$i/index.json" ; done | split -l 50 && \
-	for x in x??; do echo -n "cd globalise-tools && make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
+	cat ../data/inventorynumbers.lst | while read i; do echo ".make/upload-index-$$i" ; done | split -l 50 && \
+	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
 
