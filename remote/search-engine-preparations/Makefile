@@ -8,14 +8,17 @@ JAR = globalise-ktools.jar
 
 all: prepare-work data/concept-index.json data/documents-per-inventory.json
 
+globalise-tools/data/globalise-inventories.json:
+	cd globalise-tools && $(MAKE) data/globalise-inventories.json
+
 data:
 	@mkdir -p data
 
 data/concept-uuids.lst: | data
 	s5cmd ls "s3://globalise-data/objects/thesaurus/*-*-*.json" | awk '{sub(/\.json$$/,"",$$NF); print $$NF}' > $@
 
-data/concept-index.json: data/concept-uuids.lst $(JAR)
-	java $(JAVA_OPTS) -jar $(JAR) generate-concept-index --in-file $< --out-file $@
+data/facets.json data/concept-index.json: data/concept-uuids.lst globalise-tools/data/globalise-inventories.json $(JAR)
+	java $(JAVA_OPTS) -jar $(JAR) generate-concept-index --concept-uuids-file $< --inventories-file globalise-tools/data/globalise-inventories.json --out-file $@
 
 data/documents.csv: | data
 	s5cmd cp s3://globalise-data/objects/document/documents.csv data/documents.csv.gz
@@ -105,4 +108,20 @@ work/%/index.json.gz: work/%/index.json
 	  s3://globalise-data/objects/inventory/$*.index.json \
 	  > /dev/null
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
+	@touch $@
+
+work/facets.json: data/facets.json
+	cp $< $@
+
+work/facets.json.gz: work/facets.json
+	gzip --force $<
+
+.make/upload-facets: work/facets.json.gz | .make
+	s5cmd cp \
+	  --content-type "application/json" \
+	  --content-encoding "gzip" \
+	  $< \
+	  s3://globalise-data/objects/inventory/facets.json \
+	  > /dev/null
+	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
 	@touch $@

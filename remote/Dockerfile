@@ -30,7 +30,6 @@ RUN cd /work && \
     echo "alias h='history|grep'" >> ~/.bashrc && \
     echo "echo \"Hello, globalise\"" >> ~/.bash_profile
 
-
 VOLUME /data
 
 ENTRYPOINT ["/bin/bash"]
