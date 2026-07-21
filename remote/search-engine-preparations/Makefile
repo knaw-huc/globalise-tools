@@ -5,10 +5,17 @@ JAR = globalise-ktools.jar
 INVNUM_PATH=/data/globalise_qlever/search-engine-preparations/data/inventorynumbers.lst
 #INVNUM_PATH=~/workspaces/globalise/globalise-ktools/data/inventorynumbers.lst
 
+RED=\033[1;31m
+GREEN=\033[1;32m
+YELLOW=\033[1;33m
+BLUE=\033[1;34m
+RESET=\033[0m
+
 .SECONDARY:
 .DELETE_ON_ERROR:
 
-all: prepare-work data/concept-index.json data/documents-per-inventory.json
+all: help
+#all: prepare-work data/concept-index.json data/documents-per-inventory.json
 
 globalise-tools/data/globalise-inventories.json:
 	cd globalise-tools && $(MAKE) --jobs data/globalise-inventories.json
@@ -21,6 +28,10 @@ data/concept-uuids.lst: | data
 
 data/facets.json data/concept-index.json: data/concept-uuids.lst globalise-tools/data/globalise-inventories.json $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) generate-concept-index --concept-uuids-file $< --inventories-file globalise-tools/data/globalise-inventories.json --out-file data/concept-index.json
+
+.PHONY: update-documents-csv
+update-documents-csv: data/documents.csv
+	@:
 
 data/documents.csv: | data
 	s5cmd cp s3://globalise-data/objects/document/documents.csv data/documents.csv.gz
@@ -121,6 +132,10 @@ work/facets.json: data/facets.json
 work/facets.json.gz: work/facets.json
 	gzip --force $<
 
+.PHONY: upload-facets
+upload-facets: .make/upload-facets
+	@:
+
 .make/upload-facets: work/facets.json.gz | .make
 	s5cmd cp \
 	  --content-type "application/json" \
@@ -130,3 +145,14 @@ work/facets.json.gz: work/facets.json
 	  > /dev/null
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
 	@touch $@
+
+.PHONY: help
+help:
+	@echo -e "make-tools for $(GREEN)globalise search engine preparations$(RESET)"
+	@echo
+	@echo -e "Please use \`$(YELLOW)make <target>$(RESET)', where $(YELLOW)<target>$(RESET) is one of:"
+	@echo -e "  $(BLUE)upload-facets$(RESET)                       - to generate $(GREEN)facets.json$(RESET) and upload it to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
+	@echo -e "  $(BLUE)upload-all-inventory-index-metadata$(RESET) - to generate $(GREEN)index.json$(RESET) for all inventory numbers and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:<invnum>.index"
+	@echo -e "  $(BLUE)update-documents-csv$(RESET)                - to download the latest version of $(GREEN)documents.csv$(RESET) from the object store"
+	@echo
+	@echo -e "  $(BLUE)ui-<invnum>$(RESET) - to generate $(GREEN)index.json$(RESET) for the given inventory number and upload it to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:<invnum>.index"
