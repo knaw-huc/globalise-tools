@@ -86,7 +86,7 @@ prepare-all-inventories: data/inventorynumbers.lst
 .PHONY: upload-all-inventory-index-metadata
 upload-all-inventory-index-metadata: data/inventorynumbers.lst
 	cd work && \
-	cat ../data/inventorynumbers.lst | while read i; do echo "upload-index-$$i" ; done | split -l 100 && \
+	cat ../data/inventorynumbers.lst | while read i; do echo "upload-index-$$i" ; done | split -l 150 && \ # command line must be <= 4095 chars
 	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done

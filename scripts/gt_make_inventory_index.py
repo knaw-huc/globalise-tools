@@ -479,7 +479,7 @@ class InventoryProcessor:
         print(f"# inventory number  : {self.inventory_number}")
 
         total_documents = len(self.document_definitions)
-        document_ids_done = []
+        documents_with_multiple_pages_done = []
         for i, document in enumerate(self.document_definitions):
             # ic(document)
             doc_id = document['name']
@@ -487,10 +487,10 @@ class InventoryProcessor:
                 document['date_start'] = self.inventory["date_start"]
             if document['date_end'] == "":
                 document['date_end'] = self.inventory["date_end"]
-            if doc_id in document_ids_done:
-                print(f"## {i + 1}/{total_documents} : {doc_id} (same page range, skipping)")
+            if doc_id in documents_with_multiple_pages_done:
+                print(f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} (same page range, skipping)")
             else:
-                print(f"## {i + 1}/{total_documents} : {doc_id}")
+                print(f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']}")
                 dp = DocumentProcessor(
                     self.inventory_number,
                     doc_id,
@@ -510,7 +510,8 @@ class InventoryProcessor:
                     self.professions_identified += dp.professions_identified
                     self.profession_annotation_count += dp.profession_annotation_count
                     self.records_extracted += len(dp.entity_records)
-                document_ids_done.append(doc_id)
+                if document["number_of_scans"] > 1:
+                    documents_with_multiple_pages_done.append(doc_id)
 
         print(f"- documents processed              : {len(self.documents)}")
         print(f"- annotations parsed               : {self.annotations_parsed}")
