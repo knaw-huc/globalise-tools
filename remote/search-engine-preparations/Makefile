@@ -2,6 +2,8 @@ SHELL=/bin/bash
 
 JAVA_OPTS = --enable-native-access=ALL-UNNAMED
 JAR = globalise-ktools.jar
+INVNUM_PATH=/data/globalise_qlever/search-engine-preparations/data/inventorynumbers.lst
+#INVNUM_PATH=~/workspaces/globalise/globalise-ktools/data/inventorynumbers.lst
 
 .SECONDARY:
 .DELETE_ON_ERROR:
@@ -76,17 +78,9 @@ prepare-inventory-%: work/%/entity_hierarchy.json work/%/annotation_enhancements
 	@:
 
 .PHONY: prepare-all-inventories
-prepare-all-inventories: data/inventorynumbers.lst
+prepare-all-inventories: $(INVNUM_PATH)
 	cd work && \
-	cat ../data/inventorynumbers.lst | sed -e "s/^/prepare-inventory-/" | split -l 50 && \
-	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
-	chmod a+x *.sh
-	for j in work/x*.sh; do ./$$j; done
-
-.PHONY: upload-all-inventory-index-metadata
-upload-all-inventory-index-metadata: data/inventorynumbers.lst
-	cd work && \
-	cat ../data/inventorynumbers.lst | while read i; do echo "upload-index-$$i" ; done | split -l 150 && \ # command line must be <= 4095 chars
+	cat $(INVNUM_PATH) | sed -e "s/^/prepare-inventory-/" | split -l 50 && \
 	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
@@ -100,7 +94,7 @@ work/%/index.json.gz: work/%/index.json
 .make:
 	mkdir -p $@
 
-upload-index-%: .make/upload-index-%
+ui-%: .make/upload-index-%
 	rm -rf work/$*/entities work/$*/transcriptions work/$*/*.csv
 
 .make/upload-index-%: work/%/index.json.gz | .make
@@ -112,6 +106,14 @@ upload-index-%: .make/upload-index-%
 	  > /dev/null
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
+
+.PHONY: upload-all-inventory-index-metadata
+# command line in work/x??.sh must be <= 4095 chars
+upload-all-inventory-index-metadata: $(INVNUM_PATH)
+	cd work && \
+	cat $(INVNUM_PATH) | while read i; do echo "ui-$$i" ; done | split -l 400 && \
+	for x in x??; do echo -n "make -kj " > $$x.sh; cat $$x | tr '\n' ' ' >> $$x.sh; rm $$x; chmod a+x $$x.sh; done && \
+	for j in work/x*.sh; do ./$$j && rm $$j; done
 
 work/facets.json: data/facets.json
 	cp $< $@
