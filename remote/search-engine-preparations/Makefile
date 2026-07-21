@@ -86,7 +86,7 @@ prepare-all-inventories: data/inventorynumbers.lst
 .PHONY: upload-all-inventory-index-metadata
 upload-all-inventory-index-metadata: data/inventorynumbers.lst
 	cd work && \
-	cat ../data/inventorynumbers.lst | while read i; do echo ".make/upload-index-$$i" ; done | split -l 50 && \
+	cat ../data/inventorynumbers.lst | while read i; do echo "upload-index-$$i" ; done | split -l 100 && \
 	for x in x??; do echo -n "make --jobs --keep-going " > $$x.sh; cat $$x | tr '\n' ' ' >>$$x.sh; done && \
 	chmod a+x *.sh
 	for j in work/x*.sh; do ./$$j; done
@@ -99,6 +99,8 @@ work/%/index.json.gz: work/%/index.json
 
 .make:
 	mkdir -p $@
+
+upload-index-%: .make/upload-index-%
 
 .make/upload-index-%: work/%/index.json.gz | .make
 	s5cmd cp \
