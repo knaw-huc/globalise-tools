@@ -101,6 +101,7 @@ work/%/index.json.gz: work/%/index.json
 	mkdir -p $@
 
 upload-index-%: .make/upload-index-%
+	rm -rf work/$*/entities work/$*/transcriptions work/$*/*.csv
 
 .make/upload-index-%: work/%/index.json.gz | .make
 	s5cmd cp \
