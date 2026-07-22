@@ -119,8 +119,8 @@ class DocumentProcessor:
         self.end_data_position = end_data_position
 
     def process(self):
-        first_page = int(self.document["start_scan"].split("_")[-1])
-        last_page = int(self.document["end_scan"].split("_")[-1])
+        first_page = int(self.document["start_scan"].split("_")[-1].replace("P",""))
+        last_page = int(self.document["end_scan"].split("_")[-1].replace("P",""))
         if last_page < first_page:
             logger.error(f"Last page {last_page} is smaller than first page {first_page}")
             return None
