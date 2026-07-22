@@ -37,8 +37,8 @@ data/documents.csv: | data
 	s5cmd cp s3://globalise-data/objects/document/documents.csv data/documents.csv.gz
 	gunzip data/documents.csv.gz
 
-data/documents-per-inventory.json: data/documents.csv $(JAR)
-	java $(JAVA_OPTS) -jar $(JAR) generate-document-definitions --in-file $< --out-file $@
+data/documents-per-inventory.json: data/documents.csv data/all-page-ids.lst $(JAR)
+	java $(JAVA_OPTS) -jar $(JAR) generate-document-definitions --in-file $< --page-ids-file data/all-page-ids.lst --out-file $@
 
 #work/%/entity_links.csv work/%/entity_annotations.csv: prepare-work
 #	@:
