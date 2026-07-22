@@ -532,17 +532,18 @@ class InventoryProcessor:
         inventory_text_data_size = 0
         for i in page_ids:
             transcription_page = self._read_transcription_page(i)
-            items = transcription_page["items"]
-            normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
-            if "body" in normalized_page_annotation:
-                normalized_page_text = normalized_page_annotation["body"][0]["value"]
-            else:
-                normalized_page_text = ""
-            normalized_page_text_bytesize = self._utf8len(normalized_page_text)
-            start_data_position[i] = inventory_text_data_size
-            end_data_position[i] = inventory_text_data_size + normalized_page_text_bytesize
-            inventory_text_data_size += normalized_page_text_bytesize
-            inventory_text += normalized_page_text
+            if "items" in transcription_page:
+                items = transcription_page["items"]
+                normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
+                if "body" in normalized_page_annotation:
+                    normalized_page_text = normalized_page_annotation["body"][0]["value"]
+                else:
+                    normalized_page_text = ""
+                normalized_page_text_bytesize = self._utf8len(normalized_page_text)
+                start_data_position[i] = inventory_text_data_size
+                end_data_position[i] = inventory_text_data_size + normalized_page_text_bytesize
+                inventory_text_data_size += normalized_page_text_bytesize
+                inventory_text += normalized_page_text
 
         return inventory_text, start_data_position, end_data_position
 
