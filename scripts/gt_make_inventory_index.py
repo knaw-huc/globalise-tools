@@ -272,21 +272,22 @@ class DocumentProcessor:
             page_concepts = [from_dict(c, Concept) for c in self.concepts_per_page[page_id]]
             self.document_concepts.update(page_concepts)
 
-        items = transcription_page["items"]
-        normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
-        if "body" in normalized_page_annotation:
-            page_text = normalized_page_annotation["body"][0]["value"]
-            page_offset = len(self.document_text)
-            self.document_text += page_text
+        if transcription_page and "items" in transcription_page:
+            items = transcription_page["items"]
+            normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
+            if "body" in normalized_page_annotation:
+                page_text = normalized_page_annotation["body"][0]["value"]
+                page_offset = len(self.document_text)
+                self.document_text += page_text
 
-            entities_page = self._read_entities_page(page_id)
-            if entities_page is not None:
-                items = entities_page["items"]
-                for annotation in items:
-                    self._process_annotation(annotation, page_id, page_offset)
-                    self.annotations_parsed += 1
-        # else:
-        #     logger.warning(f"expected body in annotation {normalized_page_annotation}")
+                entities_page = self._read_entities_page(page_id)
+                if entities_page is not None:
+                    items = entities_page["items"]
+                    for annotation in items:
+                        self._process_annotation(annotation, page_id, page_offset)
+                        self.annotations_parsed += 1
+            # else:
+            #     logger.warning(f"expected body in annotation {normalized_page_annotation}")
 
     def _read_transcription_page(self, page_id: str) -> Any:
         transcription_page_path = f"work/{self.inventory_number}/transcriptions/{page_id}.json"
@@ -532,7 +533,7 @@ class InventoryProcessor:
         inventory_text_data_size = 0
         for i in page_ids:
             transcription_page = self._read_transcription_page(i)
-            if "items" in transcription_page:
+            if transcription_page and "items" in transcription_page:
                 items = transcription_page["items"]
                 normalized_page_annotation = [i for i in items if i["id"].endswith("#page-normalized")][0]
                 if "body" in normalized_page_annotation:
