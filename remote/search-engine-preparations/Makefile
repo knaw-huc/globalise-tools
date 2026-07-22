@@ -123,7 +123,7 @@ ui-%: .make/upload-index-%
 upload-all-inventory-index-metadata: $(INVNUM_PATH)
 	cd work && \
 	cat $(INVNUM_PATH) | while read i; do echo "ui-$$i" ; done | split -l 400 && \
-	for x in x??; do echo -n "make -kj " > $$x.sh; cat $$x | tr '\n' ' ' >> $$x.sh; rm $$x; chmod a+x $$x.sh; done && \
+	for x in x??; do echo -n "make -k -j 12 " > $$x.sh; cat $$x | tr '\n' ' ' >> $$x.sh; rm $$x; chmod a+x $$x.sh; done && \
 	for j in work/x*.sh; do ./$$j && rm $$j; done
 
 work/facets.json: data/facets.json
