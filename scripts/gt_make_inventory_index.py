@@ -489,6 +489,7 @@ class InventoryProcessor:
         self.inventory_text, self.start_data_position, self.end_data_position = self._process_all_pages()
         self.concept_hierarchies_per_page = rw.read_json(f"work/{inventory_number}/entity_hierarchy.json")
         self.annotation_enhancements = rw.read_json(f"work/{inventory_number}/annotation_enhancements.json")
+        self.ead_identifier_lists = self._ead_identifiers_lists()
 
     def process(self):
         print(f"# inventory number  : {self.inventory_number}")
@@ -504,18 +505,9 @@ class InventoryProcessor:
                 document['date_end'] = self.inventory["date_end"]
             if doc_id in documents_with_multiple_pages_done:
                 print(
-                    f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} (same page range, skipping)")
+                    f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} | (same page range, skipping)")
             else:
                 print(f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']}")
-                ead_hierarchies = self.inventory["hierarchies"]
-                ead_identifier_lists = []
-                for h in ead_hierarchies:
-                    if h["name"] != "EAD":
-                        logger.error(f"unexpected hierarchy name: {h["name"]}")
-                    else:
-                        for p in h["paths"]:
-                            identifiers = [e["identifier"] for e in p]
-                            ead_identifier_lists.append(identifiers)
                 dp = DocumentProcessor(
                     self.inventory_number,
                     doc_id,
@@ -525,7 +517,7 @@ class InventoryProcessor:
                     self.end_data_position,
                     self.concept_hierarchies_per_page,
                     self.annotation_enhancements,
-                    ead_identifier_lists
+                    self.ead_identifier_lists
                 )
                 doc = dp.process()
                 if doc:
@@ -548,6 +540,18 @@ class InventoryProcessor:
         print(f"- professions identified           : {self.professions_identified}")
         print("")
         self._export()
+
+    def _ead_identifiers_lists(self) -> list[Any]:
+        ead_identifier_lists = []
+        ead_hierarchies = self.inventory["hierarchies"]
+        for h in ead_hierarchies:
+            if h["name"] != "EAD":
+                logger.error(f"unexpected hierarchy name: {h["name"]}")
+            else:
+                for p in h["paths"]:
+                    identifiers = [e["identifier"] for e in p]
+                    ead_identifier_lists.append(identifiers)
+        return ead_identifier_lists
 
     def _process_all_pages(self) -> tuple[str, dict[str, int], dict[str, int]]:
         page_ids = self.inventory["documents"][0]["page_ids"]
