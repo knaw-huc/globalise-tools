@@ -17,9 +17,15 @@ import globalise_tools.io_tools as rw
 import globalise_tools.url_factory as uf
 from globalise_tools.url_factory import AnnotationPageType
 
-
 # globalise issue:
 # https://github.com/globalise-huygens/glob-portal-infomodel/issues/58
+
+scheme2facet_name = {
+    "Beroepen": "professions",
+    "EAD": "ead",
+    "GLOBALISE documenttypen": "documenttypes",
+}
+
 
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
@@ -99,7 +105,8 @@ class DocumentProcessor:
                  start_data_position: dict[str, int],
                  end_data_position: dict[str, int],
                  concepts_per_page: dict[str, dict[str, Any]],
-                 annotation_enhancements: dict[str, dict[str, str]]
+                 annotation_enhancements: dict[str, dict[str, str]],
+                 ead_identifier_lists: list[list[str]]
                  ) -> None:
         self.inventory_number = inventory_number
         self.document_id = document_id
@@ -117,10 +124,11 @@ class DocumentProcessor:
         self.annotations_parsed = 0
         self.start_data_position = start_data_position
         self.end_data_position = end_data_position
+        self.ead_identifier_lists = ead_identifier_lists
 
     def process(self):
-        first_page = int(self.document["start_scan"].split("_")[-1].replace("P",""))
-        last_page = int(self.document["end_scan"].split("_")[-1].replace("P",""))
+        first_page = int(self.document["start_scan"].split("_")[-1].replace("P", ""))
+        last_page = int(self.document["end_scan"].split("_")[-1].replace("P", ""))
         if last_page < first_page:
             logger.error(f"Last page {last_page} is smaller than first page {first_page}")
             return None
@@ -147,15 +155,18 @@ class DocumentProcessor:
             self._string_field("end_page", self.document["end_scan"]),
             self._string_field("inventorynumber", self.inventory_number),
             self._annotatedtext_field(page_ids),
-            self._daterange_field(self.document["date_start"], self.document["date_end"])
+            self._daterange_field(self.document["date_start"], self.document["date_end"]),
+            self._facet_field("ead", self.ead_identifier_lists)
         ]
 
         if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
             type_hierarchies = list(itertools.chain.from_iterable(self.document["type_hierarchies"]))
             grouped = itertools.groupby(type_hierarchies, lambda h: h["scheme"])
             for scheme, hierarchies in grouped:
-                identifier_lists = [self._identifiers(th) for th in hierarchies]
-                fields.append(self._facet_field(scheme, identifier_lists))
+                if scheme in scheme2facet_name:
+                    facet_name = scheme2facet_name[scheme]
+                    identifier_lists = [self._identifiers(th) for th in hierarchies]
+                    fields.append(self._facet_field(facet_name, identifier_lists))
         if self.document_concepts:
             document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
             document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
@@ -163,8 +174,10 @@ class DocumentProcessor:
             grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
                                                                      key=lambda h: h.scheme)
             for scheme, in_hierarchies in grouped_document_concept_hierarchies:
-                identifier_lists = [self._identifiers(th) for th in in_hierarchies]
-                fields.append(self._facet_field(scheme, identifier_lists))
+                if scheme in scheme2facet_name:
+                    facet_name = scheme2facet_name[scheme]
+                    identifier_lists = [self._identifiers(th) for th in in_hierarchies]
+                    fields.append(self._facet_field(facet_name, identifier_lists))
 
         return {
             "fields": fields
@@ -490,9 +503,19 @@ class InventoryProcessor:
             if document['date_end'] == "":
                 document['date_end'] = self.inventory["date_end"]
             if doc_id in documents_with_multiple_pages_done:
-                print(f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} (same page range, skipping)")
+                print(
+                    f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} (same page range, skipping)")
             else:
                 print(f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']}")
+                ead_hierarchies = self.inventory["hierarchies"]
+                ead_identifier_lists = []
+                for h in ead_hierarchies:
+                    if h["name"] != "EAD":
+                        logger.error(f"unexpected hierarchy name: {h["name"]}")
+                    else:
+                        for p in h["paths"]:
+                            identifiers = [e["identifier"] for e in p]
+                            ead_identifier_lists.append(identifiers)
                 dp = DocumentProcessor(
                     self.inventory_number,
                     doc_id,
@@ -501,7 +524,8 @@ class InventoryProcessor:
                     self.start_data_position,
                     self.end_data_position,
                     self.concept_hierarchies_per_page,
-                    self.annotation_enhancements
+                    self.annotation_enhancements,
+                    ead_identifier_lists
                 )
                 doc = dp.process()
                 if doc:
