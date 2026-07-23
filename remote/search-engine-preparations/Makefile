@@ -78,6 +78,9 @@ work/facets.json.gz: work/facets.json
 
 .make:
 	mkdir -p $@
+	chgrp fuse $@
+	chmod g+s $@
+	chmod g+wx $@
 
 .make/upload-index-%: work/%/index.json.gz | .make
 	s5cmd cp \
