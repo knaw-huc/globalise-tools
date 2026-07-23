@@ -125,6 +125,7 @@ class DocumentProcessor:
             logger.error(f"Last page {last_page} is smaller than first page {first_page}")
             return None
         else:
+            # TODO: handle divergent page numbering in 9817 and 10090
             page_ids = [f"NL-HaNA_1.04.02_{self.inventory_number}_{i:04d}" for i in range(first_page, last_page + 1)]
             for page_id in page_ids:
                 self._process_page(page_id)

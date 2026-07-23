@@ -146,11 +146,16 @@ upload-facets: .make/upload-facets
 	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
 	@touch $@
 
+.PHONY: clean
+clean:
+	rm -rf .make work/*
+
 .PHONY: help
 help:
 	@echo -e "make-tools for $(GREEN)globalise search engine preparations$(RESET)"
 	@echo
 	@echo -e "Please use \`$(YELLOW)make <target>$(RESET)', where $(YELLOW)<target>$(RESET) is one of:"
+	@echo -e "  $(BLUE)clean$(RESET)                               - clean up the generated files"
 	@echo -e "  $(BLUE)upload-facets$(RESET)                       - to generate $(GREEN)facets.json$(RESET) and upload it to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
 	@echo -e "  $(BLUE)upload-all-inventory-index-metadata$(RESET) - to generate $(GREEN)index.json$(RESET) for all inventory numbers and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:<invnum>.index"
 	@echo -e "  $(BLUE)update-documents-csv$(RESET)                - to download the latest version of $(GREEN)documents.csv$(RESET) from the object store"
