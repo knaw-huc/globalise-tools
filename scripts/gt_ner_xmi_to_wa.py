@@ -141,24 +141,24 @@ class XMIProcessor:
             # web_annotations.append(inference_annotation)
         return web_annotations
 
-    def get_iiif_annotations(self) -> list:
-        entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
-                              a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
-        iiif_annotations = []
-        for a in entity_annotations:
-            entity_type = NER_DATA_DICT[a['value']]['entity_type']
-            annotation = self._as_iiif_annotation(a, entity_type, self.presentation_version)
-            iiif_annotations.append(annotation)
+    # def get_iiif_annotations(self) -> list:
+    #     entity_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+    #                           a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
+    #     iiif_annotations = []
+    #     for a in entity_annotations:
+    #         entity_type = NER_DATA_DICT[a['value']]['entity_type']
+    #         annotation = self._as_iiif_annotation(a, entity_type, self.presentation_version)
+    #         iiif_annotations.append(annotation)
+    #
+    #     event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
+    #                          a.type.name == "webanno.custom.SemPredGLOB"]
+    #     for a in event_annotations:
+    #         annotation = self._as_iiif_annotation(a, f"{a['relationtype']}:{a['category']}", self.presentation_version)
+    #         iiif_annotations.append(annotation)
+    #
+    #     return iiif_annotations
 
-        event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
-                             a.type.name == "webanno.custom.SemPredGLOB"]
-        for a in event_annotations:
-            annotation = self._as_iiif_annotation(a, f"{a['relationtype']}:{a['category']}", self.presentation_version)
-            iiif_annotations.append(annotation)
-
-        return iiif_annotations
-
-    def get_event_annotations(self, entity_ids: list[str]) -> list:
+    def get_event_annotations(self) -> list:
         event_annotations = [a for a in self.cas.views[0].get_all_annotations() if
                              a.type.name == "webanno.custom.SemPredGLOB"]
         web_annotations = []
@@ -734,6 +734,29 @@ class XMIProcessor:
         return bodies
 
     @staticmethod
+    def _event_predicate_body0(feature_structure: FeatureStructure) -> list:
+        # ic(feature_structure)
+        bodies = []
+        raw_category = feature_structure['category']
+        if not raw_category:
+            logger.warning(f"no category for {feature_structure}")
+        else:
+            category = raw_category.replace("+", "Plus").replace("-", "Min")
+            category_source = f"{wiki_base}{category}"
+            bodies.append(
+                {
+                    "purpose": "classifying",
+                    "source": category_source
+                }
+            )
+            relation_type = f"{wiki_base}{feature_structure['relationtype']}"
+            bodies.append({
+                "purpose": "classifying",
+                "source": relation_type
+            })
+        return bodies
+
+    @staticmethod
     def _event_argument_body() -> dict[str, str]:
         return {
             "purpose": "classifying",
@@ -745,7 +768,7 @@ class XMIProcessor:
             argument_identifier: str,
             event_annotation_uri: str,
             argument_annotation_uri: str
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         body_source = argument_identifier
         target1_num = event_annotation_uri.split(':')[-1]
         target2_num = argument_annotation_uri.split(':')[-1]
@@ -1027,7 +1050,7 @@ class XMIProcessorFactory:
 
     def get_xmi_processor(self, xmi_path: str, htr_offset: dict[str, Offset],
                           presentation_version: int = 2) -> XMIProcessor:
-        inv_nr = xmi_path.split('/')[-2]
+        inv_nr = xmi_path.split('/')[1]
         timespan = self._time_span(inv_nr)
         return XMIProcessor(
             self.typesystem,
@@ -1381,13 +1404,14 @@ def store_manifest(inv_nr: str, manifest: dict[str, object], out_dir: str) -> No
 def handle_xmi(
         xmi_path: str,
         ner_annotations: list,
+        event_annotations: list,
         xpf: XMIProcessorFactory,
         plain_text_source: str,
         manifest: dict[str, object],
         manifest_item_idx: dict[str, int],
         htr_offset: dict[str, Offset],
         presentation_version: int = 2,
-) -> tuple[list, str, dict[str, Any]]:
+) -> tuple[list[Any], list[Any], str, dict[Any, Any]]:
     xp = xpf.get_xmi_processor(xmi_path=xmi_path, presentation_version=presentation_version, htr_offset=htr_offset)
     page_text = xp.text
     basename = get_base_name(xmi_path)
@@ -1402,6 +1426,8 @@ def handle_xmi(
     xp.document_id = basename
     nea = xp.get_named_entity_annotations()
     ner_annotations.extend(nea)
+    ea = xp.get_event_annotations()
+    event_annotations.extend(ea)
 
     # normalized_word_offsets_path = f"{out_dir}/normalized-word-offsets/{basename}.json"
     # xp.store_normalized_word_offsets(normalized_word_offsets_path)
@@ -1425,7 +1451,7 @@ def handle_xmi(
         ]
     else:
         logger.warning(f"no canvas entry found in manifest {inv_nr}.json for {basename}")
-    return ner_annotations, page_text, xp.normalized_word_offset
+    return ner_annotations, event_annotations, page_text, xp.normalized_word_offset
 
 
 def get_base_name(path: str):

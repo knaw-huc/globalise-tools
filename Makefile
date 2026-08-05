@@ -75,6 +75,11 @@ work/%/annotation_enhancements.json:
 	@mkdir -p work/$*
 	cp ../globalise-ktools/work/$*/annotation_enhancements.json $@
 
+work/%/xmi: data/xmi/%.zip
+	(cd work/ && unzip -q ../data/xmi/$*.zip)
+	mkdir -p work/$*/xmi
+	mv work/$*/*.xmi work/$*/xmi/
+
 .PHONY: extract-all
 extract-all:
 	poetry run gt-extract-text --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
@@ -211,6 +216,10 @@ docker-run:
 clean:
 	rm -rf .make
 
+.PHONY: test
+test:
+	poetry run pytest
+
 .PHONY: help
 help:
 	@echo -e "make-tools for $(GREEN)globalise-tools$(RESET)"
@@ -218,6 +227,8 @@ help:
 	@echo -e "Please use \`$(YELLOW)make <target>$(RESET)', where $(YELLOW)<target>$(RESET) is one of:"
 	@echo -e "  $(BLUE)install$(RESET)                    - to install the necessary requirements"
 	@echo -e "  $(BLUE)install-spacy-model$(RESET)        - to load the 'nl_core_news_lg' language model used by spacy"
+	@echo
+	@echo -e "  $(BLUE)test$(RESET)                       - run the tests"
 	@echo
 	@echo -e "  $(BLUE)docker$(RESET)                     - build a docker container containing everything"
 	@echo -e "  $(BLUE)docker-run$(RESET)                 - run the docker container interactively (build it first)"

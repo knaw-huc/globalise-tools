@@ -20,7 +20,7 @@ THIS_SCRIPT_PATH = "scripts/" + os.path.basename(__file__)
 
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
-        description="Generate entity and transcription annotation pages for the given inventory number",
+        description="Generate entity, event and transcription annotation pages for the given inventory number",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     parser.add_argument("-v",
                         help="Turn on logging",
@@ -52,6 +52,12 @@ def get_arguments() -> Namespace:
     parser.add_argument("-t",
                         "--type-system",
                         help="The path to the TypeSystem.xml to use",
+                        type=str,
+                        required=True
+                        )
+    parser.add_argument("-e",
+                        "--event-mapping",
+                        help="The path to the eventmapping.json to use",
                         type=str,
                         required=True
                         )
@@ -93,6 +99,7 @@ def main():
     apf.build_annotation_pages()
     store_annotation_pages(apf.transcription_pages, args.output_dir, AnnotationPageType.TRANSCRIPTIONS)
     store_annotation_pages(apf.entity_pages, args.output_dir, AnnotationPageType.ENTITIES)
+    store_annotation_pages(apf.event_pages, args.output_dir, AnnotationPageType.EVENTS)
 
     toc = time.perf_counter()
     print(
