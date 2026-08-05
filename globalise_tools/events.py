@@ -1,3 +1,6 @@
+from dataclasses import dataclass
+from typing import Optional
+
 time_roles = ["Time"]
 actor_roles = ["Agent", "AgentPatient", "Benefactive", "Cargo", "Instrument", "Patient"]
 place_roles = ["Location", "Path", "Source", "Target"]
@@ -40,115 +43,142 @@ ENTITIES = {
     "UNFREE": "Slaves en related terms"
 }
 
-# ner_base = 'https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner'
-ner_base = "gan"
+ner_base = "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus"
 prefix = 'urn:example:globalise:entityType'
+
+
+@dataclass
+class NerData:
+    id: str
+    uri: str
+    label: str
+    entity_type: str
+    body_type: str
+    classificatory_subject: Optional[str] = None
+    appellative_subject: Optional[str] = None
+
+
 NER_DATA_DICT = {
-    'CMTY_NAME': {
-        'uri': f'{ner_base}:CMTY_NAME',
-        'label': 'Name of Commodity',
-        'entity_type': f'{prefix}:Commodity',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Dimension'
-    },
-    'CMTY_QUAL': {
-        'uri': f'{ner_base}:CMTY_QUAL',
-        'label': 'Commodity qualifier: colors, processing',
-        'entity_type': f'{prefix}:CommodityQualifier',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'PhysicalThing'
-    },
-    'CMTY_QUANT': {
-        'uri': f'{ner_base}:CMTY_QUANT',
-        'label': 'Quantity',
-        'entity_type': f'{prefix}:CommodityQuantity',
-        'body_type': 'Dimension'
-    },
-    'DATE': {
-        'uri': f'{ner_base}:DATE',
-        'label': 'Date',
-        'entity_type': f'{prefix}:Date',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'TimeSpan',
-        'classificatory_subject': 'Dimension'
-    },
-    'DOC': {
-        'uri': f'{ner_base}:DOC',
-        'label': 'Document',
-        'entity_type': f'{prefix}:Document',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'HumanMadeObject'
-    },
-    'ETH_REL': {
-        'uri': f'{ner_base}:ETH_REL',
-        'label': 'Ethno-religious appellation or attribute, not derived from location name',
-        'entity_type': f'{prefix}:EthnoReligiousAppellation',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Person'
-    },
-    'LOC_ADJ': {
-        'uri': f'{ner_base}:LOC_ADJ',
-        'label': 'Derived (adjectival) form of location name',
-        'entity_type': f'{prefix}:Location',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'Place'
-    },
-    'LOC_NAME': {
-        'uri': f'{ner_base}:LOC_NAME',
-        'label': 'Name of Location',
-        'entity_type': f'{prefix}:Location',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'Place'
-    },
-    'ORG': {
-        'uri': f'{ner_base}:ORG',
-        'label': 'Organisation name',
-        'entity_type': f'{prefix}:Organisation',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'Group'
-    },
-    'PER_ATTR': {
-        'uri': f'{ner_base}:PER_ATTR',
-        'label': 'Other persons attributes (than PER or STATUS)',
-        'entity_type': f'{prefix}:PersonAttribute',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Person'
-    },
-    'PER_NAME': {
-        'uri': f'{ner_base}:PER_NAME',
-        'label': 'Name of Person',
-        'entity_type': f'{prefix}:Person',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'Person'
-    },
-    'PRF': {
-        'uri': f'{ner_base}:PRF',
-        'label': 'Profession, title',
-        'entity_type': f'{prefix}:Profession',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Person'
-    },
-    'SHIP': {
-        'uri': f'{ner_base}:SHIP',
-        'label': 'Ship name',
-        'entity_type': f'{prefix}:Ship',
-        'body_type': 'AppellativeStatus',
-        'appellative_subject': 'HumanMadeObject'
-    },
-    'SHIP_TYPE': {
-        'uri': f'{ner_base}:SHIP_TYPE',
-        'label': 'Ship type',
-        'entity_type': f'{prefix}:Ship',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'HumanMadeObject'
-    },
-    'STATUS': {
-        'uri': f'{ner_base}:STATUS',
-        'label': '(Civic) status',
-        'entity_type': f'{prefix}:CivicStatus',
-        'body_type': 'ClassificatoryStatus',
-        'classificatory_subject': 'Person'
-    }
+    'CMTY_NAME': NerData(
+        id='CMTY_NAME',
+        uri=f'{ner_base}:cmty_name',
+        label='Name of Commodity',
+        entity_type=f'{prefix}:Commodity',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Dimension'
+    ),
+    'CMTY_QUAL': NerData(
+        id='CMTY_QUAL',
+        uri=f'{ner_base}:cmty_qual',
+        label='Commodity qualifier: colors, processing',
+        entity_type=f'{prefix}:CommodityQualifier',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='PhysicalThing'
+    ),
+    'CMTY_QUANT': NerData(
+        id='CMTY_QUANT',
+        uri=f'{ner_base}:cmty_quant',
+        label='Quantity',
+        entity_type=f'{prefix}:CommodityQuantity',
+        body_type='Dimension'
+    ),
+    'DATE': NerData(
+        id='DATE',
+        uri=f'{ner_base}:date',
+        label='Date',
+        entity_type=f'{prefix}:Date',
+        body_type='AppellativeStatus',
+        appellative_subject='TimeSpan',
+        classificatory_subject='Dimension'
+    ),
+    'DOC': NerData(
+        id='DOC',
+        uri=f'{ner_base}:doc',
+        label='Document',
+        entity_type=f'{prefix}:Document',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='HumanMadeObject'
+    ),
+    'ETH_REL': NerData(
+        id='ETH_REL',
+        uri=f'{ner_base}:eth_rel',
+        label='Ethno-religious appellation or attribute, not derived from location name',
+        entity_type=f'{prefix}:EthnoReligiousAppellation',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Person'
+    ),
+    'LOC_ADJ': NerData(
+        id='LOC_ADJ',
+        uri=f'{ner_base}:loc_adj',
+        label='Derived (adjectival) form of location name',
+        entity_type=f'{prefix}:Location',
+        body_type='AppellativeStatus',
+        appellative_subject='Place'
+    ),
+    'LOC_NAME': NerData(
+        id='LOC_NAME',
+        uri=f'{ner_base}:loc_name',
+        label='Name of Location',
+        entity_type=f'{prefix}:Location',
+        body_type='AppellativeStatus',
+        appellative_subject='Place'
+    ),
+    'ORG': NerData(
+        id='ORG',
+        uri=f'{ner_base}:org',
+        label='Organisation name',
+        entity_type=f'{prefix}:Organisation',
+        body_type='AppellativeStatus',
+        appellative_subject='Group'
+    ),
+    'PER_ATTR': NerData(
+        id='PER_ATTR',
+        uri=f'{ner_base}:per_attr',
+        label='Other persons attributes (than PER or STATUS)',
+        entity_type=f'{prefix}:PersonAttribute',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Person'
+    ),
+    'PER_NAME': NerData(
+        id='PER_NAME',
+        uri=f'{ner_base}:per_name',
+        label='Name of Person',
+        entity_type=f'{prefix}:Person',
+        body_type='AppellativeStatus',
+        appellative_subject='Person'
+    ),
+    'PRF': NerData(
+        id='PRF',
+        uri=f'{ner_base}:prf',
+        label='Profession, title',
+        entity_type=f'{prefix}:Profession',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Person'
+    ),
+    'SHIP': NerData(
+        id='SHIP',
+        uri=f'{ner_base}:ship',
+        label='Ship name',
+        entity_type=f'{prefix}:Ship',
+        body_type='AppellativeStatus',
+        appellative_subject='HumanMadeObject'
+    ),
+    'SHIP_TYPE': NerData(
+        id='SHIP_TYPE',
+        uri=f'{ner_base}:ship_type',
+        label='Ship type',
+        entity_type=f'{prefix}:Ship',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='HumanMadeObject'
+    ),
+    'STATUS': NerData(
+        id='STATUS',
+        uri=f'{ner_base}:status',
+        label='(Civic) status',
+        entity_type=f'{prefix}:CivicStatus',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Person'
+    )
 }
 
 wiki_base = "https://github.com/globalise-huygens/nlp-event-detection/wiki#"

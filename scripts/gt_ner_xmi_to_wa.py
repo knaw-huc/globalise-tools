@@ -31,7 +31,7 @@ import globalise_tools.tools as gt
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
-                                    wiki_base)
+                                    wiki_base, NerData)
 from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
@@ -238,8 +238,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[
-        str, list[str | dict[str, str]] | str | list[str]]:
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, Any]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -385,8 +384,23 @@ class XMIProcessor:
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
                 {
-                    "gan": "https://digitaalerfgoed.poolparty.biz/globalise/annotation/ner/",
-                    "iiif": "http://iiif.io/api/presentation/3#"
+                    "iiif": "http://iiif.io/api/presentation/3#",
+                    "ner": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:",
+                    "PER_NAME": "ner:per_name",
+                    "PRF": "ner:prf",
+                    "STATUS": "ner:status",
+                    "PER_ATTR": "ner:per_attr",
+                    "LOC_NAME": "ner:loc_name",
+                    "LOC_ADJ": "ner:loc_adj",
+                    "ETH_REL": "ner:eth_rel",
+                    "CMTY_NAME": "ner:cmty_name",
+                    "CMTY_QUAL": "ner:cmty_qual",
+                    "CMTY_QUANT": "ner:cmty_quant",
+                    "SHIP": "ner:ship",
+                    "SHIP_TYPE": "ner:ship_type",
+                    "ORG": "ner:org",
+                    "DATE": "ner:date",
+                    "DOC": "ner:doc"
                 }
             ],
             "id": anno_id,
@@ -472,8 +486,7 @@ class XMIProcessor:
             raise Exception(f"unknown presentation_version: {presentation_version}")
 
     @staticmethod
-    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh) -> dict[
-        str, str | list[str] | list[dict[str, str]]]:
+    def _version_2_annotation(canvas_url, manifest, printable_entity_type, svg, text, xywh) -> dict[str, Any]:
         return {
             "@id": f"urn:example:globalise:annotation:{uuid.uuid4()}",
             # "@id": uf.annotation_url(uf.AnnotationPageType.ENTITIES,sel),
@@ -550,13 +563,13 @@ class XMIProcessor:
     def _named_entity_body(self, feature_structure: FeatureStructure) -> list:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
-        body_type = ner_data['body_type']
+        body_type = ner_data.body_type
         covered_text = feature_structure.get_covered_text()
         if entity_id == "LOC_ADJ":
             aBody = self._as_appellative_status_body(ner_data, covered_text)
             c_data = copy.deepcopy(ner_data)
-            c_data['body_type'] = "ClassificatoryStatus"
-            c_data['classificatory_subject'] = 'PersistentItem'
+            c_data.body_type = "ClassificatoryStatus"
+            c_data.classificatory_subject = 'PersistentItem'
             cBody = self._as_classificatory_status_body(c_data, covered_text)
             return [aBody, cBody]
         elif body_type == "AppellativeStatus":
@@ -568,12 +581,12 @@ class XMIProcessor:
         else:
             raise Exception(f"unknown body_type: {body_type}")
 
-    def _as_appellative_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
+    def _as_appellative_status_body(self, ner_data: NerData, covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "appellative_status") | {
             "label": covered_text,
             "has_appellative_subject": {
-                "id": self._new_id(ner_data['appellative_subject']),
-                "type": ner_data['appellative_subject'],
+                "id": self._new_id(ner_data.appellative_subject),
+                "type": ner_data.appellative_subject,
                 "_label": covered_text
             },
             "ascribes_appellative_relation": {
@@ -587,12 +600,12 @@ class XMIProcessor:
             },
         }
 
-    def _as_classificatory_status_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
+    def _as_classificatory_status_body(self, ner_data: NerData, covered_text: str) -> dict[str, object]:
         return self._as_base_ner_body(ner_data, "classificatory_status") | {
             "label": covered_text,
             "has_classificatory_subject": {
-                "id": self._new_id(ner_data['classificatory_subject']),
-                "type": ner_data['classificatory_subject'],
+                "id": self._new_id(ner_data.classificatory_subject),
+                "type": ner_data.classificatory_subject,
                 "_label": covered_text
             },
             "ascribes_classification_relation": {
@@ -602,7 +615,7 @@ class XMIProcessor:
             },
         }
 
-    def _as_dimension_body(self, ner_data: dict[str, str], covered_text: str) -> dict[str, object]:
+    def _as_dimension_body(self, ner_data: NerData, covered_text: str) -> dict[str, object]:
         base = self._as_base_ner_body(ner_data, "dimension")
         parts = covered_text.split()
         if len(parts) > 1:
@@ -680,17 +693,15 @@ class XMIProcessor:
 
         return Quant(number_part_str, unit_part_str, unit_name)
 
-    def _as_base_ner_body(self, ner_data, base_name: str) -> dict[str, object]:
-        entity_uri = ner_data['uri']
-        entity_label = ner_data['label']
+    def _as_base_ner_body(self, ner_data: NerData, base_name: str) -> dict[str, object]:
         return {
             "id": self._new_id(base_name),
-            "type": ner_data['body_type'],
+            "type": ner_data.body_type,
             "timespan": self.time_span,
             "classified_as": {
-                "id": entity_uri,
+                "id": ner_data.id,
                 "type": "Type",
-                "_label": entity_label,
+                "_label": ner_data.label,
             },
         }
 
@@ -698,14 +709,12 @@ class XMIProcessor:
     def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, object]]]:
         entity_id = feature_structure.value
         ner_data = NER_DATA_DICT[entity_id]
-        entity_uri = ner_data['uri']
-        entity_label = ner_data['label']
         return [
             {
                 "type": "SpecificResource",
                 "source": {
-                    "id": entity_uri,
-                    "_label": entity_label
+                    "id": ner_data.id,
+                    "_label": ner_data.label
                 }
             }
         ]
@@ -796,7 +805,7 @@ class XMIProcessor:
             for xywh in xywh_list
         ]
 
-    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]) -> dict[str, list[str] | str | list]:
+    def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]) -> dict[str, Any]:
         selectors = self._fragment_selectors(xywh_list)
         return {
             "type": ["Image", "DigitalObject"],
@@ -884,8 +893,7 @@ class XMIProcessor:
         path = f"""<path d="{' '.join(path_defs)}"/>"""
         return f"""<svg height="{height}" width="{width}">{path}</svg>"""
 
-    def _entity_inference_annotation(self, entity_annotation, entity_type: str, anno_num: object) -> dict[
-        str, list[str | dict[str, str | dict[str, str]]] | str | dict[str, str]]:
+    def _entity_inference_annotation(self, entity_annotation, entity_type: str) -> dict[str, Any]:
         raw_entity_name = entity_annotation["target"][0]['selector'][0]['exact']
         start = entity_annotation["target"][0]['selector'][1]['start']
         end = entity_annotation["target"][0]['selector'][1]['end']
