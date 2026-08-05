@@ -227,7 +227,7 @@ class TranscriptionAnnotationPageBuilder:
             #         f"{uf.URI_BASE_PATTERN}thesaurus:annotation:"
             #         + urllib.parse.quote(body_classification)
             # )
-            classification_uri = uf.concept_url(f"annotation:{body_classification}")
+            classification_uri = uf.concept_url(f"{body_classification}")
             body.append({
                 "type": "SpecificResource",
                 "source": {
