@@ -126,10 +126,10 @@ NER_DATA_DICT = {
     'ORG': NerData(
         id='ORG',
         uri=f'{ner_base}:org',
-        label='Organisation name',
-        entity_type=f'{prefix}:Organisation',
-        body_type='AppellativeStatus',
-        appellative_subject='Group'
+        label='Organisation type',
+        entity_type=f'{prefix}:OrganisationType',
+        body_type='ClassificatoryStatus',
+        classificatory_subject='Group'
     ),
     'PER_ATTR': NerData(
         id='PER_ATTR',
