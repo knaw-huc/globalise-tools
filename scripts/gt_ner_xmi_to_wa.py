@@ -31,7 +31,7 @@ import globalise_tools.tools as gt
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
-                                    wiki_base, NerData)
+                                    wiki_base, NerData, THESAURUS_LABEL_TO_URI)
 from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
@@ -587,7 +587,12 @@ class XMIProcessor:
             "has_appellative_subject": {
                 "id": self._new_id(ner_data.appellative_subject),
                 "type": ner_data.appellative_subject,
-                "_label": covered_text
+                "_label": covered_text,
+                "classified_as": {
+                    "id": THESAURUS_LABEL_TO_URI[ner_data.thesaurus_label],
+                    "type": "Type",
+                    "_label": ner_data.thesaurus_label
+                }
             },
             "ascribes_appellative_relation": {
                 "id": "http://www.cidoc-crm.org/cidoc-crm/P1_is_identified_by",
@@ -606,7 +611,12 @@ class XMIProcessor:
             "has_classificatory_subject": {
                 "id": self._new_id(ner_data.classificatory_subject),
                 "type": ner_data.classificatory_subject,
-                "_label": covered_text
+                "_label": covered_text,
+                "classified_as": {
+                    "id": THESAURUS_LABEL_TO_URI[ner_data.thesaurus_label],
+                    "type": "Type",
+                    "_label": ner_data.thesaurus_label
+                }
             },
             "ascribes_classification_relation": {
                 "id": "http://www.cidoc-crm.org/cidoc-crm/P2_has_type",

@@ -54,9 +54,23 @@ class NerData:
     label: str
     entity_type: str
     body_type: str
+    thesaurus_label: str
+    classificatory_subject: str
     classificatory_subject: Optional[str] = None
     appellative_subject: Optional[str] = None
 
+
+THESAURUS_LABEL_TO_URI = {
+    "Person": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c207dd28-0b00-44b0-be2c-c810ab55fdd1",
+    "Place": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:179d998f-e0aa-41b7-ac8b-437c21d2d6de",
+    "Polity": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:b18a60bb-184b-4406-9f98-ba8590b4c696",
+    "Ship": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:6a88e519-f72d-4d85-8dce-13675a685048",
+    "Organisation": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:9046bc09-7019-4afb-9edd-7258245fcb42",
+    "Commodity": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c9ab191a-f147-4e6d-aad0-cfef646f9278",
+    "Unit": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:958ac1ab-945b-45e6-ac01-07830f6eb750",
+    "Document": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c05a9151-050e-4d47-85a8-9f0758b7556c",
+    "Date": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:a0bdd099-e91e-430b-b035-8e22d37e818f"
+}
 
 NER_DATA_DICT = {
     'CMTY_NAME': NerData(
@@ -64,6 +78,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:cmty_name',
         label='Name of Commodity',
         entity_type=f'{prefix}:Commodity',
+        thesaurus_label="Commodity",
         body_type='ClassificatoryStatus',
         classificatory_subject='Dimension'
     ),
@@ -72,6 +87,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:cmty_qual',
         label='Commodity qualifier: colors, processing',
         entity_type=f'{prefix}:CommodityQualifier',
+        thesaurus_label="Commodity",
         body_type='ClassificatoryStatus',
         classificatory_subject='PhysicalThing'
     ),
@@ -80,6 +96,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:cmty_quant',
         label='Quantity',
         entity_type=f'{prefix}:CommodityQuantity',
+        thesaurus_label="Commodity",
         body_type='Dimension'
     ),
     'DATE': NerData(
@@ -87,6 +104,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:date',
         label='Date',
         entity_type=f'{prefix}:Date',
+        thesaurus_label="Date",
         body_type='AppellativeStatus',
         appellative_subject='TimeSpan',
         classificatory_subject='Dimension'
@@ -96,6 +114,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:doc',
         label='Document',
         entity_type=f'{prefix}:Document',
+        thesaurus_label="Document",
         body_type='ClassificatoryStatus',
         classificatory_subject='HumanMadeObject'
     ),
@@ -104,6 +123,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:eth_rel',
         label='Ethno-religious appellation or attribute, not derived from location name',
         entity_type=f'{prefix}:EthnoReligiousAppellation',
+        thesaurus_label="Person",
         body_type='ClassificatoryStatus',
         classificatory_subject='Person'
     ),
@@ -112,6 +132,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:loc_adj',
         label='Derived (adjectival) form of location name',
         entity_type=f'{prefix}:Location',
+        thesaurus_label="Place",  # But only for the appellative subject here
         body_type='AppellativeStatus',
         appellative_subject='Place'
     ),
@@ -120,6 +141,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:loc_name',
         label='Name of Location',
         entity_type=f'{prefix}:Location',
+        thesaurus_label="Place",
         body_type='AppellativeStatus',
         appellative_subject='Place'
     ),
@@ -128,6 +150,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:org',
         label='Organisation type',
         entity_type=f'{prefix}:OrganisationType',
+        thesaurus_label="Organisation",
         body_type='ClassificatoryStatus',
         classificatory_subject='Group'
     ),
@@ -136,6 +159,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:per_attr',
         label='Other persons attributes (than PER or STATUS)',
         entity_type=f'{prefix}:PersonAttribute',
+        thesaurus_label="Person",
         body_type='ClassificatoryStatus',
         classificatory_subject='Person'
     ),
@@ -144,6 +168,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:per_name',
         label='Name of Person',
         entity_type=f'{prefix}:Person',
+        thesaurus_label="Person",
         body_type='AppellativeStatus',
         appellative_subject='Person'
     ),
@@ -152,6 +177,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:prf',
         label='Profession, title',
         entity_type=f'{prefix}:Profession',
+        thesaurus_label="Person",
         body_type='ClassificatoryStatus',
         classificatory_subject='Person'
     ),
@@ -160,6 +186,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:ship',
         label='Ship name',
         entity_type=f'{prefix}:Ship',
+        thesaurus_label="Ship",
         body_type='AppellativeStatus',
         appellative_subject='HumanMadeObject'
     ),
@@ -168,6 +195,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:ship_type',
         label='Ship type',
         entity_type=f'{prefix}:Ship',
+        thesaurus_label="Ship",
         body_type='ClassificatoryStatus',
         classificatory_subject='HumanMadeObject'
     ),
@@ -176,6 +204,7 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:status',
         label='(Civic) status',
         entity_type=f'{prefix}:CivicStatus',
+        thesaurus_label="Person",
         body_type='ClassificatoryStatus',
         classificatory_subject='Person'
     )
