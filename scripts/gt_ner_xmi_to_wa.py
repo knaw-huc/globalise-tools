@@ -565,12 +565,12 @@ class XMIProcessor:
         ner_data = NER_DATA_DICT[entity_id]
         body_type = ner_data.body_type
         covered_text = feature_structure.get_covered_text()
-        if entity_id == "LOC_ADJ":
+        if str(entity_id) == "LOC_ADJ":
             aBody = self._as_appellative_status_body(ner_data, covered_text)
             c_data = copy.deepcopy(ner_data)
             c_data.body_type = "ClassificatoryStatus"
             c_data.classificatory_subject = 'PersistentItem'
-            cBody = self._as_classificatory_status_body(c_data, covered_text)
+            cBody = self._as_classificatory_status_body(c_data, covered_text, False)
             return [aBody, cBody]
         elif body_type == "AppellativeStatus":
             return [self._as_appellative_status_body(ner_data, covered_text)]
@@ -605,19 +605,23 @@ class XMIProcessor:
             },
         }
 
-    def _as_classificatory_status_body(self, ner_data: NerData, covered_text: str) -> dict[str, object]:
+    def _as_classificatory_status_body(self, ner_data: NerData, covered_text: str, add_classified_as: bool = True) -> \
+            dict[str, object]:
+        classified_as = {
+            "id": THESAURUS_LABEL_TO_URI[ner_data.thesaurus_label],
+            "type": "Type",
+            "_label": ner_data.thesaurus_label
+        }
+        subject: dict[str, Any] = {
+            "id": self._new_id(ner_data.classificatory_subject),
+            "type": ner_data.classificatory_subject,
+            "_label": covered_text,
+        }
+        if add_classified_as:
+            subject["classified_as"] = classified_as
         return self._as_base_ner_body(ner_data, "classificatory_status") | {
             "label": covered_text,
-            "has_classificatory_subject": {
-                "id": self._new_id(ner_data.classificatory_subject),
-                "type": ner_data.classificatory_subject,
-                "_label": covered_text,
-                "classified_as": {
-                    "id": THESAURUS_LABEL_TO_URI[ner_data.thesaurus_label],
-                    "type": "Type",
-                    "_label": ner_data.thesaurus_label
-                }
-            },
+            "has_classificatory_subject": subject,
             "ascribes_classification_relation": {
                 "id": "http://www.cidoc-crm.org/cidoc-crm/P2_has_type",
                 "type": "Type",
