@@ -177,6 +177,11 @@ out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_
 		--api-key=$(TEXTREPO_API_KEY) \
 		--inv-nr=3598
 
+.PHONY: annotation-pages-%
+annotation-pages-%: work/%/xmi data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py data/typesystem.xml data/eventmapping.json
+	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
+	ls -lF work/$*
+
 .PHONY: process-ner-xmi-3598
 process-ner-xmi-3598: out/3598/ner-annotations.json
 
@@ -261,4 +266,6 @@ help:
 	@echo -e "  $(BLUE)detect-copy-paste$(RESET)          - find code duplication"
 	@echo
 	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
+	@echo
+	@echo -e "  $(BLUE)annotation-pages-<inv_nr>$(RESET)  - to generate annotation pages for the given inventory number $(GREEN)inv_nr$(RESET)"
 	@echo

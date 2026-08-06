@@ -82,9 +82,11 @@ class XMIProcessor:
             commit_id: str,
             xmi_path: str,
             htr_offset: dict[str, Offset],
+            event_mapping: dict[str, Any],
             presentation_version: int = 2,
             time_span: dict[str, str] = None
     ) -> None:
+        self.event_mapping = event_mapping
         self.time_span = time_span
         self.typesystem = typesystem
         self.document_data = document_data
@@ -192,15 +194,15 @@ class XMIProcessor:
                         web_annotations.append(link_web_annotation)
                         event_linking_annotation_ids.append(link_web_annotation['id'])
 
-            if event_web_annotation:
-                web_annotations.append(
-                    self._event_inference_annotation(
-                        event_annotation=event_annotation,
-                        event_predicate_annotation=event_web_annotation,
-                        event_argument_annotation_ids=event_argument_annotation_ids,
-                        event_linking_annotation_ids=event_linking_annotation_ids
-                    )
-                )
+            # if event_web_annotation:
+            #     web_annotations.append(
+            #         self._event_inference_annotation(
+            #             event_annotation=event_annotation,
+            #             event_predicate_annotation=event_web_annotation,
+            #             event_argument_annotation_ids=event_argument_annotation_ids,
+            #             event_linking_annotation_ids=event_linking_annotation_ids
+            #         )
+            #     )
 
         return web_annotations
 
@@ -733,27 +735,24 @@ class XMIProcessor:
             }
         ]
 
-    @staticmethod
-    def _event_predicate_body(feature_structure: FeatureStructure) -> list:
-        # ic(feature_structure)
+    def _event_predicate_body(self, feature_structure: FeatureStructure) -> list:
         bodies = []
         raw_category = feature_structure['category']
         if not raw_category:
-            logger.warning(f"no category for {feature_structure}")
+            logger.warning(f"no category for {feature_structure} in {self.document_id}.xmi")
+        elif raw_category not in self.event_mapping:
+            logger.warning(f"unknown category {raw_category} for {feature_structure} in {self.document_id}.xmi, skipping")
         else:
-            category = raw_category.replace("+", "Plus").replace("-", "Min")
-            category_source = f"{wiki_base}{category}"
+            mapping = self.event_mapping[raw_category]
+            body_id = f"{uf.URI_BASE_PATTERN}/annotations:events:{self.document_id}#event:{feature_structure.xmiID:06d}"
             bodies.append(
                 {
-                    "purpose": "classifying",
-                    "source": category_source
+                    "id": body_id,
+                    "type": mapping["type"],
+                    "_label": feature_structure.get_covered_text(),
+                    "classified_as": mapping["classified_as"],
                 }
             )
-            relation_type = f"{wiki_base}{feature_structure['relationtype']}"
-            bodies.append({
-                "purpose": "classifying",
-                "source": relation_type
-            })
         return bodies
 
     @staticmethod
@@ -949,6 +948,7 @@ class XMIProcessor:
         raw_event_name = event_predicate_annotation["target"][0]['selector'][0]['exact']
         normalized_event_name = re.sub(r"[^a-z0-9]+", "_", raw_event_name.lower()).strip("_")
         event_id = self._event_id(f"{normalized_event_name}:{event_annotation.xmiID}")
+
         event_type = event_predicate_annotation['body'][0]['source']
         event_annotation_id = event_predicate_annotation['id']
         event_sources = [event_annotation_id]
@@ -1057,8 +1057,12 @@ class XMIProcessor:
 
 class XMIProcessorFactory:
 
-    def __init__(self, typesystem_path: str, timespan4inventory: dict[str, dict[str, str]],
-                 git_commit_id: str = None) -> None:
+    def __init__(self,
+                 typesystem_path: str,
+                 timespan4inventory: dict[str, dict[str, str]],
+                 event_mapping: dict[str, Any],
+                 git_commit_id: Optional[str] = None
+                 ) -> None:
         log_reading_file(typesystem_path)
         with open(typesystem_path, 'rb') as f:
             self.typesystem = cas.load_typesystem(f)
@@ -1068,6 +1072,7 @@ class XMIProcessorFactory:
         else:
             self.commit_id = git.read_current_commit_id(warn_on_uncommitted_changes=True)
         self.timespan4inventory = timespan4inventory
+        self.event_mapping = event_mapping
         self.errors = []
 
     def get_xmi_processor(self, xmi_path: str, htr_offset: dict[str, Offset],
@@ -1080,6 +1085,7 @@ class XMIProcessorFactory:
             self.commit_id,
             xmi_path,
             htr_offset,
+            event_mapping=self.event_mapping,
             time_span=timespan,
             presentation_version=presentation_version
         )
@@ -1363,7 +1369,7 @@ def process_inventory(context: InventoryProcessingContext):
         for xmi_path in xmi_paths:
             pagexml_path = get_page_xml_path(xmi_path, pagexml_dir)
             plain_text_source = handle_page_xml(xmi_path, pagexml_path, xpf, iiif_base_uri_idx, canvas_id_idx)
-            normalized_text, normalized_offset = handle_xmi(
+            ner_annotations, event_annotations, normalized_text, normalized_offset = handle_xmi(
                 xmi_path,
                 ner_annotations,
                 xpf,

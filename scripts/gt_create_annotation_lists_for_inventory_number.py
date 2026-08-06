@@ -10,6 +10,7 @@ from typing import Any
 import orjson
 from loguru import logger
 
+import globalise_tools.io_tools as rw
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
 from globalise_tools.logger_tools import log_writing_file
@@ -85,7 +86,8 @@ def main():
         Path(path).mkdir(parents=True, exist_ok=True)
 
     timespan4inventory = nx.load_timespan_dict()
-    xpf = nx.XMIProcessorFactory(args.type_system, timespan4inventory, args.git_commit)
+    event_mapping = rw.read_json(args.event_mapping)
+    xpf = nx.XMIProcessorFactory(args.type_system, timespan4inventory, event_mapping, args.git_commit)
 
     logger.info(f"processing inventory number {args.inventory_number}")
     apf = AnnotationPageFactory(

@@ -143,14 +143,14 @@ upload-%: $(OUT)/annotation-lists/%-annotation-lists.zip
 	mkdir -p $(OUT)/$*/ && \
 	cd $(OUT)/$*/ && \
 	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip && \
-	for j in {entities,transcriptions}/*.json ; do \
+	for j in {entities,events,transcriptions}/*.json ; do \
 	  gzip --force $$j && \
 	  mv $$j.gz $$j ; \
 	done
-	#@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
-	#s5cmd cp --content-type "application/json" --content-encoding "gzip" "$(OUT)/$*/*" s3://globalise-data/annotations/ > /dev/null
-	#@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
-	#rm -rf $(OUT)/$*/
+	@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
+	s5cmd cp --content-type "application/json" --content-encoding "gzip" "$(OUT)/$*/*" s3://globalise-data/annotations/ > /dev/null
+	@echo -e "$(GREEN)done, cleaning up ...$(RESET)"
+	rm -rf $(OUT)/$*/
 
 .PHONY: upload-all
 upload-all: scripts/gt-upload-all-annotation-lists.sh
