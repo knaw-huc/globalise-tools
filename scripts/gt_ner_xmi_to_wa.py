@@ -17,24 +17,23 @@ from multiprocessing import Value
 from typing import Tuple, Any, Optional
 
 import cassis as cas
+import globalise_tools.git_tools as git
+import globalise_tools.tools as gt
+import globalise_tools.url_factory as uf
 import multiprocess as mp
 import orjson
 import pagexml.parser as px
 from cassis.typesystem import FeatureStructure
-from icecream import ic
-from intervaltree import Interval, IntervalTree
-from loguru import logger
-from tqdm import tqdm
-
-import globalise_tools.git_tools as git
-import globalise_tools.tools as gt
-import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
                                     wiki_base, NerData, THESAURUS_LABEL_TO_URI)
 from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
+from icecream import ic
+from intervaltree import Interval, IntervalTree
+from loguru import logger
+from tqdm import tqdm
 
 GLOBALISE_TEAM = "https://globalise.huygens.knaw.nl/team/"
 
@@ -740,11 +739,12 @@ class XMIProcessor:
         raw_category = feature_structure['category']
         if not raw_category:
             logger.warning(f"no category for {feature_structure} in {self.document_id}.xmi")
-        elif raw_category not in self.event_mapping:
-            logger.warning(f"unknown category {raw_category} for {feature_structure} in {self.document_id}.xmi, skipping")
+        elif raw_category not in self.event_mapping and raw_category is not "None":
+            logger.warning(
+                f"unknown category {raw_category} for {feature_structure} in {self.document_id}.xmi, skipping")
         else:
             mapping = self.event_mapping[raw_category]
-            body_id = f"{uf.URI_BASE_PATTERN}/annotations:events:{self.document_id}#event:{feature_structure.xmiID:06d}"
+            body_id = f"{uf.URI_BASE_PATTERN}annotations:events:{self.document_id}#event:{feature_structure.xmiID:06d}"
             bodies.append(
                 {
                     "id": body_id,
@@ -813,7 +813,7 @@ class XMIProcessor:
         return [
             {
                 "type": "DigitalObject",
-                "source": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
+                "id": f"{iiif_base_uri}/{xywh}/max/0/default.jpg"
             }
             for xywh in xywh_list
         ]
@@ -821,9 +821,12 @@ class XMIProcessor:
     def _image_selector_target(self, iiif_base_uri: str, xywh_list: list[str]) -> dict[str, Any]:
         selectors = self._fragment_selectors(xywh_list)
         return {
-            "type": ["Image", "DigitalObject"],
-            "source": f"{iiif_base_uri}/full/max/0/default.jpg",
-            "selector": selectors
+            "type": "SpecificResource",
+            "source": {
+                "type": ["Image", "DigitalObject"],
+                "id": f"{iiif_base_uri}/full/max/0/default.jpg",
+                "selector": selectors
+            }
         }
 
     def _canvas_target(

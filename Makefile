@@ -178,12 +178,17 @@ out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_
 		--inv-nr=3598
 
 .PHONY: annotation-pages-%
-annotation-pages-%: work/%/xmi data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py data/typesystem.xml data/eventmapping.json
+annotation-pages-%: .make/annotation-pages-%
+	$:
+
+.make/annotation-pages-%: work/%/xmi data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py ./scripts/gt_ner_xmi_to_wa.py data/typesystem.xml data/eventmapping.json | .make
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
 	ls -lF work/$*
+	touch $@
 
 .PHONY: process-ner-xmi-3598
 process-ner-xmi-3598: out/3598/ner-annotations.json
+	$:
 
 .PHONY: stop-inception
 stop-inception:
