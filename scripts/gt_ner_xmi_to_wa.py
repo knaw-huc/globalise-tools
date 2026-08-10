@@ -133,9 +133,9 @@ class XMIProcessor:
                               a.type.name == "de.tudarmstadt.ukp.dkpro.core.api.ner.type.NamedEntity" and a.value]
         web_annotations = []
         for a in entity_annotations:
-            named_entity_annotation = self._as_web_annotation(a, self._named_entity_body(a))
+            named_entity_annotation = self._as_web_annotation(a, self._named_entity_body(a), is_entity_annotation=True)
             web_annotations.append(named_entity_annotation)
-            # ner_data = NER_DATA_DICT[a['value']]
+            # ner_data = NER_DATA_DICT[a['value']]¬
             # entity_type = ner_data['entity_type']
             # body_type = ner_data['body_type']
             # inference_annotation = self._entity_inference_annotation(named_entity_annotation, entity_type, a.xmiID)
@@ -168,7 +168,8 @@ class XMIProcessor:
             event_linking_annotation_ids = []
             event_predicate_body = self._event_predicate_body(event_annotation)
             if event_predicate_body:
-                event_web_annotation = self._as_web_annotation(event_annotation, event_predicate_body)
+                event_web_annotation = self._as_web_annotation(event_annotation, event_predicate_body,
+                                                               is_entity_annotation=False)
                 web_annotations.append(event_web_annotation)
             else:
                 event_web_annotation = None
@@ -178,7 +179,8 @@ class XMIProcessor:
                 for argument_annotation in event_annotation['arguments']['elements']:
                     argument_annotations.append(argument_annotation)
                     event_argument_web_annotation = \
-                        self._as_web_annotation(argument_annotation, self._event_argument_body())
+                        self._as_web_annotation(argument_annotation, self._event_argument_body(),
+                                                is_entity_annotation=False)
                     event_argument_annotation_ids.append(event_argument_web_annotation['id'])
                     raw_target_entity = event_argument_web_annotation['target'][0]['selector'][0]['exact']
                     target_entity = re.sub(r"[^a-z0-9]+", "_", raw_target_entity.lower()).strip("_")
@@ -206,7 +208,7 @@ class XMIProcessor:
         return web_annotations
 
     def get_event_argument_annotations(self) -> list:
-        return [self._as_web_annotation(a, self._event_argument_body())
+        return [self._as_web_annotation(a, self._event_argument_body(), is_entity_annotation=False)
                 for a in self.cas.views[0].get_all_annotations()
                 if a.type.name == "webanno.custom.SemPredGLOBArgumentsLink"]
 
@@ -239,7 +241,8 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, Any]:
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body, is_entity_annotation: bool = True) -> dict[
+        str, Any]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -376,33 +379,37 @@ class XMIProcessor:
             targets.append(self._image_selector_target(iiif_base_uri, xywh))
             targets.append(self._canvas_target(canvas_id, xywh, manifest_uri))
 
+        context_addition = {"iiif": "http://iiif.io/api/presentation/3#"}
+        if is_entity_annotation:
+            context_addition |= {
+                "ner": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:",
+                "PER_NAME": "ner:per_name",
+                "PRF": "ner:prf",
+                "STATUS": "ner:status",
+                "PER_ATTR": "ner:per_attr",
+                "LOC_NAME": "ner:loc_name",
+                "LOC_ADJ": "ner:loc_adj",
+                "ETH_REL": "ner:eth_rel",
+                "CMTY_NAME": "ner:cmty_name",
+                "CMTY_QUAL": "ner:cmty_qual",
+                "CMTY_QUANT": "ner:cmty_quant",
+                "SHIP": "ner:ship",
+                "SHIP_TYPE": "ner:ship_type",
+                "ORG": "ner:org",
+                "DATE": "ner:date",
+                "DOC": "ner:doc"
+            }
+
         return {
             "@context": [
-                "http://www.w3.org/ns/anno.jsonld",
                 "https://linked.art/ns/v1/linked-art.json",
+                "http://www.w3.org/ns/anno.jsonld", # after linked-art because it also defines "created"
                 "https://ns.huc.knaw.nl/globalise.jsonld",
-                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
-                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
-                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
-                {
-                    "iiif": "http://iiif.io/api/presentation/3#",
-                    "ner": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:",
-                    "PER_NAME": "ner:per_name",
-                    "PRF": "ner:prf",
-                    "STATUS": "ner:status",
-                    "PER_ATTR": "ner:per_attr",
-                    "LOC_NAME": "ner:loc_name",
-                    "LOC_ADJ": "ner:loc_adj",
-                    "ETH_REL": "ner:eth_rel",
-                    "CMTY_NAME": "ner:cmty_name",
-                    "CMTY_QUAL": "ner:cmty_qual",
-                    "CMTY_QUANT": "ner:cmty_quant",
-                    "SHIP": "ner:ship",
-                    "SHIP_TYPE": "ner:ship_type",
-                    "ORG": "ner:org",
-                    "DATE": "ner:date",
-                    "DOC": "ner:doc"
-                }
+                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
+                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
+                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
+                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
+                context_addition
             ],
             "id": anno_id,
             "type": ["Annotation", "DigitalObject"],
@@ -720,26 +727,28 @@ class XMIProcessor:
             },
         }
 
-    @staticmethod
-    def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, object]]]:
-        entity_id = feature_structure.value
-        ner_data = NER_DATA_DICT[entity_id]
-        return [
-            {
-                "type": "SpecificResource",
-                "source": {
-                    "id": ner_data.id,
-                    "_label": ner_data.label
-                }
-            }
-        ]
+    # @staticmethod
+    # def _named_entity_body0(feature_structure: FeatureStructure) -> list[dict[str, str | dict[str, object]]]:
+    #     entity_id = feature_structure.value
+    #     ner_data = NER_DATA_DICT[entity_id]
+    #     return [
+    #         {
+    #             "type": "SpecificResource",
+    #             "source": {
+    #                 "id": ner_data.id,
+    #                 "_label": ner_data.label
+    #             }
+    #         }
+    #     ]
 
     def _event_predicate_body(self, feature_structure: FeatureStructure) -> list:
         bodies = []
         raw_category = feature_structure['category']
         if not raw_category:
             logger.warning(f"no category for {feature_structure} in {self.document_id}.xmi")
-        elif raw_category not in self.event_mapping and raw_category is not "None":
+        elif raw_category == "None":
+            pass
+        elif raw_category not in self.event_mapping:
             logger.warning(
                 f"unknown category {raw_category} for {feature_structure} in {self.document_id}.xmi, skipping")
         else:
@@ -755,28 +764,28 @@ class XMIProcessor:
             )
         return bodies
 
-    @staticmethod
-    def _event_predicate_body0(feature_structure: FeatureStructure) -> list:
-        # ic(feature_structure)
-        bodies = []
-        raw_category = feature_structure['category']
-        if not raw_category:
-            logger.warning(f"no category for {feature_structure}")
-        else:
-            category = raw_category.replace("+", "Plus").replace("-", "Min")
-            category_source = f"{wiki_base}{category}"
-            bodies.append(
-                {
-                    "purpose": "classifying",
-                    "source": category_source
-                }
-            )
-            relation_type = f"{wiki_base}{feature_structure['relationtype']}"
-            bodies.append({
-                "purpose": "classifying",
-                "source": relation_type
-            })
-        return bodies
+    # @staticmethod
+    # def _event_predicate_body0(feature_structure: FeatureStructure) -> list:
+    #     # ic(feature_structure)
+    #     bodies = []
+    #     raw_category = feature_structure['category']
+    #     if not raw_category:
+    #         logger.warning(f"no category for {feature_structure}")
+    #     else:
+    #         category = raw_category.replace("+", "Plus").replace("-", "Min")
+    #         category_source = f"{wiki_base}{category}"
+    #         bodies.append(
+    #             {
+    #                 "purpose": "classifying",
+    #                 "source": category_source
+    #             }
+    #         )
+    #         relation_type = f"{wiki_base}{feature_structure['relationtype']}"
+    #         bodies.append({
+    #             "purpose": "classifying",
+    #             "source": relation_type
+    #         })
+    #     return bodies
 
     @staticmethod
     def _event_argument_body() -> dict[str, str]:
