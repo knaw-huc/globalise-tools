@@ -8,7 +8,7 @@ MAPPING = {
     "http://iiif.io/api/presentation/3/context.json": f"{FILE_PREFIX}/context.json",
     "http://www.w3.org/ns/anno.jsonld": f"{FILE_PREFIX}/anno.jsonld",
     "https://linked.art/ns/v1/linked-art.json": f"{FILE_PREFIX}/linked-art.json",
-    "https://ns.huc.knaw.nl/globalise.jsonld": f"{FILE_PREFIX}/globalise0.jsonld",
+    "https://ns.huc.knaw.nl/globalise.jsonld": f"{FILE_PREFIX}/globalise.jsonld",
     "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json": f"{FILE_PREFIX}/globalise.json",
 }
 
