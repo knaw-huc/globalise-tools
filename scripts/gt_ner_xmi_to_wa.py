@@ -383,32 +383,14 @@ class XMIProcessor:
         if is_entity_annotation:
             context_addition |= {
                 "ner": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:",
-                "PER_NAME": "ner:per_name",
-                "PRF": "ner:prf",
-                "STATUS": "ner:status",
-                "PER_ATTR": "ner:per_attr",
-                "LOC_NAME": "ner:loc_name",
-                "LOC_ADJ": "ner:loc_adj",
-                "ETH_REL": "ner:eth_rel",
-                "CMTY_NAME": "ner:cmty_name",
-                "CMTY_QUAL": "ner:cmty_qual",
-                "CMTY_QUANT": "ner:cmty_quant",
-                "SHIP": "ner:ship",
-                "SHIP_TYPE": "ner:ship_type",
-                "ORG": "ner:org",
-                "DATE": "ner:date",
-                "DOC": "ner:doc"
             }
 
         return {
             "@context": [
                 "https://linked.art/ns/v1/linked-art.json",
-                "http://www.w3.org/ns/anno.jsonld", # after linked-art because it also defines "created"
                 "https://ns.huc.knaw.nl/globalise.jsonld",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
+                "http://www.w3.org/ns/anno.jsonld",  # after linked-art because it also defines "created"
                 context_addition
             ],
             "id": anno_id,
@@ -647,7 +629,12 @@ class XMIProcessor:
                 "unit": {
                     "id": f"{uf.URI_BASE_PATTERN}exchangeunit:{urllib.parse.quote(quant.unit_name)}",
                     "type": "ExchangeUnit",
-                    "_label": quant.unit
+                    "_label": quant.unit,
+                    "classified_as": {
+                        "id": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:958ac1ab-945b-45e6-ac01-07830f6eb750",
+                        "type": "Type",
+                        "_label": "Exchange Unit"
+                    }
                 }
             }
         else:
@@ -721,7 +708,7 @@ class XMIProcessor:
             "type": ner_data.body_type,
             "timespan": self.time_span,
             "classified_as": {
-                "id": ner_data.id,
+                "id": f"ner:{ner_data.id.lower()}",
                 "type": "Type",
                 "_label": ner_data.label,
             },
