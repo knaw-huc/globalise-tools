@@ -152,11 +152,8 @@ class TranscriptionAnnotationPageBuilder:
                 "http://iiif.io/api/extension/text-granularity/context.json",
                 "http://iiif.io/api/presentation/3/context.json",
                 "https://linked.art/ns/v1/linked-art.json",
-                "http://www.w3.org/ns/anno.jsonld", # after linked-art because it also defines "created"
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/aaao.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/crmdig.json",
-                # "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/glob.json",
+                "http://www.w3.org/ns/anno.jsonld", # after linked-art because it also defines "created"
                 {
                     "transcription-diplomatic": {
                         "@id": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:transcription-diplomatic"
