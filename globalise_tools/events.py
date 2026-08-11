@@ -60,6 +60,7 @@ class NerData:
     appellative_subject: Optional[str] = None
 
 
+# from https://github.com/globalise-huygens/glob-portal-infomodel/issues/83
 THESAURUS_LABEL_TO_URI = {
     "Person": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c207dd28-0b00-44b0-be2c-c810ab55fdd1",
     "Place": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:179d998f-e0aa-41b7-ac8b-437c21d2d6de",
@@ -69,7 +70,9 @@ THESAURUS_LABEL_TO_URI = {
     "Commodity": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c9ab191a-f147-4e6d-aad0-cfef646f9278",
     "Unit": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:958ac1ab-945b-45e6-ac01-07830f6eb750",
     "Document": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:c05a9151-050e-4d47-85a8-9f0758b7556c",
-    "Date": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:a0bdd099-e91e-430b-b035-8e22d37e818f"
+    "Date": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:a0bdd099-e91e-430b-b035-8e22d37e818f",
+    "Qualifier": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:a3e3f6d4-f90a-4a3d-bd32-dec4ca79e713",
+    "Exchange Unit": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:958ac1ab-945b-45e6-ac01-07830f6eb750"
 }
 
 NER_DATA_DICT = {
@@ -87,16 +90,16 @@ NER_DATA_DICT = {
         uri=f'{ner_base}:cmty_qual',
         label='Commodity qualifier: colors, processing',
         entity_type=f'{prefix}:CommodityQualifier',
-        thesaurus_label="Commodity",
+        thesaurus_label="Qualifier",
         body_type='ClassificatoryStatus',
-        classificatory_subject='PhysicalThing'
+        classificatory_subject='Dimension'
     ),
     'CMTY_QUANT': NerData(
         id='CMTY_QUANT',
         uri=f'{ner_base}:cmty_quant',
         label='Quantity',
         entity_type=f'{prefix}:CommodityQuantity',
-        thesaurus_label="Commodity",
+        thesaurus_label="Exchange Unit",
         body_type='Dimension'
     ),
     'DATE': NerData(
