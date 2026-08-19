@@ -6,16 +6,15 @@ from argparse import Namespace
 from dataclasses import dataclass
 from typing import NamedTuple, Any, List
 
+import globalise_tools.io_tools as rw
+import globalise_tools.url_factory as uf
 from Levenshtein import distance
 from dataclasses_json import dataclass_json
+from globalise_tools.url_factory import AnnotationPageType
 from icecream import ic
 from jsondataclass import from_dict
 from jsonpath_ng import parse
 from loguru import logger
-
-import globalise_tools.io_tools as rw
-import globalise_tools.url_factory as uf
-from globalise_tools.url_factory import AnnotationPageType
 
 # globalise issue:
 # https://github.com/globalise-huygens/glob-portal-infomodel/issues/58
@@ -298,7 +297,13 @@ class DocumentProcessor:
                 if entities_page is not None:
                     items = entities_page["items"]
                     for annotation in items:
-                        self._process_annotation(annotation, page_id, page_offset)
+                        self._process_entity_annotation(annotation, page_id, page_offset)
+                        self.annotations_parsed += 1
+                events_page = self._read_events_page(page_id)
+                if events_page is not None:
+                    items = events_page["items"]
+                    for annotation in items:
+                        self._process_event_annotation(annotation, page_id, page_offset)
                         self.annotations_parsed += 1
             # else:
             #     logger.warning(f"expected body in annotation {normalized_page_annotation}")
@@ -322,7 +327,16 @@ class DocumentProcessor:
             entities_page = rw.get_json(entities_page_url, quiet=True)
         return entities_page
 
-    def _process_annotation(self, annotation: dict[str, Any], page_id, page_offset: int):
+    def _read_events_page(self, page_id: str) -> Any:
+        events_page_path = f"work/{self.inventory_number}/events/{page_id}.json"
+        if os.path.exists(events_page_path):
+            events_page = rw.read_json(events_page_path, quiet=True)
+        else:
+            events_page_url = uf.annotation_page_url(AnnotationPageType.EVENTS, page_id)
+            events_page = rw.get_json(events_page_url, quiet=True)
+        return events_page
+
+    def _process_entity_annotation(self, annotation: dict[str, Any], page_id: str, page_offset: int):
         annotation_id = annotation["id"]
         bodies = annotation["body"]
         classificatory_bodies = [b for b in bodies if b["type"] == "ClassificatoryStatus"]
@@ -388,6 +402,28 @@ class DocumentProcessor:
         if not classificatory_bodies and not appellative_bodies and not dimension_bodies:
             logger.warning(f"No suitable body found in annotation")
             ic(annotation)
+
+    def _process_event_annotation(self, annotation: dict[str, Any], page_id: str, page_offset: int):
+        annotation_id = annotation["id"]
+        bodies = annotation["body"]
+        for body in bodies:
+            tag = body["type"]
+            label = body["_label"]
+            selector = annotation["target"][0]["selector"][1]
+            start = selector["start"]
+            end = selector["end"]
+            self.entity_records.append(
+                NerRecord(
+                    annotation_id=annotation_id,
+                    page_id=page_id,
+                    tag=tag,
+                    start_in_page=start,
+                    end_in_page=end,
+                    start_in_doc=start + page_offset,
+                    end_in_doc=end + page_offset,
+                    text=label
+                )
+            )
 
     def _enrich_place_and_profession_annotations(self):
         self.entity_records = [self._enrich_place_annotation(a) for a in self.entity_records]
@@ -503,6 +539,8 @@ class InventoryProcessor:
                 document['date_start'] = self.inventory["date_start"]
             if document['date_end'] == "":
                 document['date_end'] = self.inventory["date_end"]
+            if document['title'] == "":
+                document['title'] = "(no title)"
             if doc_id in documents_with_multiple_pages_done:
                 print(
                     f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} | (same page range, skipping)")

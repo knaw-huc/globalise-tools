@@ -62,7 +62,7 @@ data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
 
 work/%/transcriptions:
 	scp globalise-vm:/data/globalise-data/annotation-lists/work/annotation-lists/$*-annotation-lists.zip .
-	cd work && mkdir -p $* && cd $* && unzip -q ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
+	cd work && mkdir -p $* && cd $* && unzip -oq ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
 
 work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json scripts/gt_make_inventory_index.py | work/%/transcriptions
 	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
@@ -76,7 +76,7 @@ work/%/annotation_enhancements.json:
 	cp ../globalise-ktools/work/$*/annotation_enhancements.json $@
 
 work/%/xmi: data/xmi/%.zip
-	(cd work/ && unzip -q ../data/xmi/$*.zip)
+	(cd work/ && unzip -oq ../data/xmi/$*.zip)
 	mkdir -p work/$*/xmi
 	mv work/$*/*.xmi work/$*/xmi/
 
@@ -181,6 +181,10 @@ out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_
 annotation-pages-%: .make/annotation-pages-%
 	$:
 
+.PHONY: index-json-%
+index-json-%: work/%/index.json
+	@echo "created/updated $<"
+
 .make/annotation-pages-%: work/%/xmi data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py ./scripts/gt_ner_xmi_to_wa.py data/typesystem.xml data/eventmapping.json | .make
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
 	ls -lF work/$*
@@ -273,4 +277,5 @@ help:
 	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
 	@echo
 	@echo -e "  $(BLUE)annotation-pages-<inv_nr>$(RESET)  - to generate annotation pages for the given inventory number $(GREEN)inv_nr$(RESET)"
+	@echo -e "  $(BLUE)index-json-<inv_nr>$(RESET)        - to generate the file for indexing the documents in inventory number $(GREEN)inv_nr$(RESET)"
 	@echo
