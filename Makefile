@@ -12,6 +12,9 @@ RESET=\033[0m
 pagexml_directory := ~/c/data/globalise/pagexml
 xmi_directory := ~/c/data/globalise/ner
 
+TODAY=$(shell date +"%Y-%m-%d")
+TODAY_TAG=$(shell date +"%Y.%m.%d")
+
 .PHONY: FORCE
 FORCE:
 
@@ -29,6 +32,11 @@ FORCE:
 		mv data/1.04.02.xml.tmp data/1.04.02.xml; \
 	fi
 	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
+
+.make/pagexml-%: | .make/
+	@mkdir -p work/pagexml
+	scp globalise-vm:/data/globalise-data/annotation-lists/data/pagexml/$*.zip work/pagexml/ && unzip -o --qq -j work/pagexml/$*.zip -d work/pagexml/$*/
+	@touch $@
 
 data/:
 	@mkdir -p $@
@@ -185,7 +193,7 @@ annotation-pages-%: .make/annotation-pages-%
 index-json-%: work/%/index.json
 	@echo "created/updated $<"
 
-.make/annotation-pages-%: work/%/xmi data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py ./scripts/gt_ner_xmi_to_wa.py data/typesystem.xml data/eventmapping.json | .make
+.make/annotation-pages-%: work/%/xmi .make/pagexml-% data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py ./scripts/gt_ner_xmi_to_wa.py data/typesystem.xml data/eventmapping.json | .make
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
 	ls -lF work/$*
 	touch $@
@@ -234,6 +242,10 @@ clean:
 test:
 	poetry run pytest
 
+.PHONY: repo-tag
+repo-tag:
+	git tag -a $(TODAY_TAG) -m "$(TODAY)" && git push --tags
+
 .PHONY: help
 help:
 	@echo -e "make-tools for $(GREEN)globalise-tools$(RESET)"
@@ -243,6 +255,8 @@ help:
 	@echo -e "  $(BLUE)install-spacy-model$(RESET)        - to load the 'nl_core_news_lg' language model used by spacy"
 	@echo
 	@echo -e "  $(BLUE)test$(RESET)                       - run the tests"
+	@echo
+	@echo -e "  $(BLUE)repo-tag$(RESET)                   - tag the current state of this git repo with the current date: $(TODAY_TAG)"
 	@echo
 	@echo -e "  $(BLUE)docker$(RESET)                     - build a docker container containing everything"
 	@echo -e "  $(BLUE)docker-run$(RESET)                 - run the docker container interactively (build it first)"
