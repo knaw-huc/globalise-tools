@@ -179,7 +179,7 @@ out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_
 
 .PHONY: annotation-pages-%
 annotation-pages-%: .make/annotation-pages-%
-	$:
+	@:
 
 .PHONY: index-json-%
 index-json-%: work/%/index.json
@@ -192,7 +192,7 @@ index-json-%: work/%/index.json
 
 .PHONY: process-ner-xmi-3598
 process-ner-xmi-3598: out/3598/ner-annotations.json
-	$:
+	@:
 
 .PHONY: stop-inception
 stop-inception:
