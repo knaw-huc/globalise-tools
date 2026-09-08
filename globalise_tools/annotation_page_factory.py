@@ -1,20 +1,20 @@
 import os
 import sys
 from pathlib import Path
-from typing import Any
-
-import multiprocess as mp
-import orjson
-from loguru import logger
+from typing import Any, Optional
 
 import globalise_tools.pagexml_tools as pt
 import globalise_tools.url_factory as uf
+import multiprocess as mp
+import orjson
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.model import Dimensions
+from globalise_tools.tools import sliding_window_iter
+from loguru import logger
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
-
+from icecream import ic
 
 class AnnotationPageFactory:
     def __init__(
@@ -54,9 +54,9 @@ class AnnotationPageFactory:
                 self.event_pages[page_id] = event_annotation_page
 
     def _run_sequentially(self, pagexml_paths: list[Path]):
-        for pagexml_path in pagexml_paths:
+        for (prev_path, pagexml_path, next_path) in sliding_window_iter(pagexml_paths, 3):
             page_id, transcription_annotation_page, entity_annotation_page, event_annotation_page = self._process_pagexml(
-                pagexml_path)
+                pagexml_path, prev_path, next_path)
             self.transcription_pages[page_id] = transcription_annotation_page
             if entity_annotation_page:
                 self.entity_pages[page_id] = entity_annotation_page
@@ -65,9 +65,19 @@ class AnnotationPageFactory:
 
     def _process_pagexml(
             self,
-            pagexml_path: Path
+            pagexml_path: Path,
+            prev_path: Optional[Path] = None,
+            next_path: Optional[Path] = None,
     ):
-        page_id = pagexml_path.name.split("/")[-1].replace(".xml", "")
+        page_id = self.page_id_from_path(pagexml_path)
+        if prev_path:
+            prev_page_id = self.page_id_from_path(prev_path)
+        else:
+            prev_page_id = None
+        if next_path:
+            next_page_id = self.page_id_from_path(next_path)
+        else:
+            next_page_id = None
         xmi_path = Path(f"{self.xmi_dir}/{page_id}.xmi")
         dp = DocumentPageProcessor(
             page_id=page_id,
@@ -78,9 +88,15 @@ class AnnotationPageFactory:
             canvas_id_idx=self.canvas_id_idx,
             script_path=self.script_path,
             manifest_item_idx=self.manifest_item_idx,
-            manifest=self.manifest
+            manifest=self.manifest,
+            prev_page_id=prev_page_id,
+            next_page_id=next_page_id,
         )
         return page_id, dp.transcription_annotation_page, dp.entity_annotation_page, dp.event_annotation_page
+
+    def page_id_from_path(self, path: Path) -> str:
+        page_id = path.name.split("/")[-1].replace(".xml", "")
+        return page_id
 
     def _load_manifest(self, manifest_path: str) -> None:
         if os.path.exists(manifest_path):
@@ -105,9 +121,13 @@ class DocumentPageProcessor:
             canvas_id_idx,
             script_path: str,
             manifest_item_idx,
-            manifest
+            manifest,
+            prev_page_id: Optional[str],
+            next_page_id: Optional[str],
     ):
         self.page_id = page_id
+        self.prev_page_id = prev_page_id
+        self.next_page_id = next_page_id
         self.pagexml_path = pagexml_path
         self.xmi_path = xmi_path
         xml_string = self._read_page_xml(pagexml_path)
@@ -125,7 +145,9 @@ class DocumentPageProcessor:
             xml_string=xml_string,
             canvas_id=canvas_id,
             script_path=script_path,
-            commit_id=xpf.commit_id
+            commit_id=xpf.commit_id,
+            prev_page_id=prev_page_id,
+            next_page_id=next_page_id
         )
         if xmi_path.exists():
             htr_word_offsets = annotation_page_builder.htr_word_offsets
@@ -196,6 +218,7 @@ class DocumentPageProcessor:
             page_type: uf.AnnotationPageType
     ):
         context = ["http://iiif.io/api/presentation/3/context.json"]
+        inventory_number = page_id.split("_")[-2]
         # assumption: all annotations have the same @context
         context += annotations[0]["@context"]
         items = [self._as_item(a) for a in annotations]
@@ -204,13 +227,24 @@ class DocumentPageProcessor:
             "@context": context,
             "type": ["DigitalObject", "AnnotationPage"],
             "id": uf.annotation_page_url(page_type, page_id),
+        }
+        if self.prev_page_id is not None:
+            page["prev"] = uf.annotation_page_url(page_type, self.prev_page_id)
+        if self.next_page_id is not None:
+            page["next"] = uf.annotation_page_url(page_type, self.next_page_id)
+        page |= {
             "label": f"{anno_type} of {page_id}.jpg",
             "created_by": creator,
             "partOf": {
                 "id": uf.canvas_url(page_id),
                 "type": "Canvas",
                 "width": dim.width,
-                "height": dim.height
+                "height": dim.height,
+                "partOf": {
+                    "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
+                    "type": "Manifest"
+                }
+
             },
             "items": items
         }

@@ -16,6 +16,8 @@ from globalise_tools.lang_deduction import LangDeduction
 from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.model import Document, DocumentMetadata, WebAnnotation
 from globalise_tools.nav_provider import NavProvider
+from collections import deque
+from itertools import islice
 
 PAGE_TYPE = "px:Page"
 
@@ -952,3 +954,13 @@ def inv_nr_sort_key(path: str) -> tuple[int, str]:
     num_part = re.sub(pattern=NO_NUMBERS, string=last, repl="")
     other_part = re.sub(pattern=NUMBERS, string=last, repl="")
     return int(num_part), other_part.lower()
+
+
+def sliding_window_iter(iterable, size):
+    it = iter([None] + iterable + [None])
+    window = deque(islice(it, size), maxlen=size)
+    if len(window) == size:
+        yield tuple(window)
+    for x in it:
+        window.append(x)
+        yield tuple(window)

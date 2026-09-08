@@ -21,9 +21,13 @@ class TranscriptionAnnotationPageBuilder:
             canvas_id: str = "",
             page_text: str = "",
             script_path: str = "",
-            commit_id: Optional[str] = None
+            commit_id: Optional[str] = None,
+            prev_page_id: Optional[str] = None,
+            next_page_id: Optional[str] = None,
     ) -> None:
         self.page_id = page_id
+        self.prev_page_id = prev_page_id
+        self.next_page_id = next_page_id
         self.xml_string = xml_string
         self.canvas_id = canvas_id
         self.normalized_page_text = page_text
@@ -153,7 +157,7 @@ class TranscriptionAnnotationPageBuilder:
                 "http://iiif.io/api/presentation/3/context.json",
                 "https://linked.art/ns/v1/linked-art.json",
                 "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
-                "http://www.w3.org/ns/anno.jsonld", # after linked-art because it also defines "created"
+                "http://www.w3.org/ns/anno.jsonld",  # after linked-art because it also defines "created"
                 {
                     "transcription-diplomatic": {
                         "@id": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:transcription-diplomatic"
@@ -165,18 +169,28 @@ class TranscriptionAnnotationPageBuilder:
             ],
             "type": ["DigitalObject", "AnnotationPage"],
             "id": ap_uri,
+        }
+        if self.prev_page_id is not None:
+            annotation_page["prev"] = uf.annotation_page_url(uf.AnnotationPageType.TRANSCRIPTIONS, self.prev_page_id)
+        if self.next_page_id is not None:
+            annotation_page["next"] = uf.annotation_page_url(uf.AnnotationPageType.TRANSCRIPTIONS, self.next_page_id)
+        annotation_page |= {
             "label": f"Transcription of {page_filename}",
             "created_by": creator,
-            "items": annotations,
         }
-
         if self.canvas_id and width and height:
+            inventory_number = self.canvas_id.split("_")[-2]
             annotation_page["partOf"] = {
                 "id": self.canvas_id,
                 "type": "Canvas",
                 "height": height,
                 "width": width,
+                "partOf": {
+                    "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
+                    "type": "Manifest"
+                }
             }
+        annotation_page["items"] = annotations
 
         return annotation_page
 
@@ -345,11 +359,11 @@ class TranscriptionAnnotationPageBuilder:
             return None
         text_equiv = self._find_first(node, "TextEquiv")
         unicode_el = self._find_first(text_equiv, "Unicode")
-        text=None
+        text = None
         if unicode_el is not None and unicode_el.text:
-            text= unicode_el.text.strip()
+            text = unicode_el.text.strip()
         if text:
-            text =re.sub(r"\s+", " ", text).strip()
+            text = re.sub(r"\s+", " ", text).strip()
         return text
 
     def _text_quote(self, text: str, text_position: Offset) -> TextQuote:
