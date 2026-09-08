@@ -4,7 +4,7 @@ BATCHSIZE=20
 BAR_CHAR='#'
 EMPTY_CHAR=' '
 start_time=$(date +%s)
-
+LOGFILE=work/create-annotation-lists.log
 fatal() {
   echo '[FATAL]' "$@" >&2
   exit 1
@@ -62,7 +62,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs 14 --keep-going $(for i in "${invnrs[@]}"; do printf "annotation-lists-$i "; done) 2>&1 | tee work/create-annotation-lists.log
+  make --jobs 14 --keep-going $(for i in "${invnrs[@]}"; do printf "annotation-lists-$i "; done) 2>&1 | tee -a $LOGFILE
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
@@ -89,6 +89,7 @@ send-notification() {
 }
 
 main() {
+  rm $LOGFILE
   shopt -s globstar nullglob checkwinsize
   # this line is to ensure LINES and COLUMNS are set
   (:)
