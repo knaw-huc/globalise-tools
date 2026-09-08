@@ -730,7 +730,7 @@ class XMIProcessor:
 
     def _event_predicate_body(self, feature_structure: FeatureStructure) -> list:
         bodies = []
-        raw_category = feature_structure['category']
+        raw_category = feature_structure['category'].replace('IntentionalDamaging','Damaging') # https://knaw-huc.slack.com/archives/D02N1PWJB52/p1788856386706469
         if not raw_category:
             logger.warning(f"no category for {feature_structure} in {self.document_id}.xmi")
         elif raw_category == "None":
