@@ -31,7 +31,7 @@ def store_annotations(annotations) -> None:
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     with open(metadata_path, 'r') as f:
         reader = csv.DictReader(f)

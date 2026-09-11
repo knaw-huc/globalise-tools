@@ -40,7 +40,7 @@ def store_annotations(annotations) -> None:
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     with open(missiven, 'r') as f:
         reader = csv.DictReader(f, delimiter=';')

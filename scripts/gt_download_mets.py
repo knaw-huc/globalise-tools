@@ -22,7 +22,7 @@ def print_failed_urls(failed_urls) -> None:
             print(f)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def download_mets(data_dir: str) -> None:
     mets_csv = f'{data_dir}/NL-HaNA_1.04.02_mets.csv'
     print(f"reading {mets_csv}...")
@@ -53,7 +53,7 @@ def download_mets(data_dir: str) -> None:
     print_failed_urls(failed_urls)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Download METS files",

@@ -6,7 +6,7 @@ from loguru import logger
 from globalise_tools.logger_tools import log_reading_file, log_writing_file
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     import pathlib
     inventories_path = pathlib.Path("../manifests/inventories")

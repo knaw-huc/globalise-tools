@@ -8,7 +8,7 @@ from omegaconf import DictConfig
 from globalise_tools.inception_client import Document, InceptionClient
 
 
-@logger.catch
+@logger.catch(reraise=True)
 @hydra.main(version_base=None)
 def main(cfg: DictConfig) -> None:
     inception_cfg = cfg.inception

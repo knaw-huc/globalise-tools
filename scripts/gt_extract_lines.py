@@ -13,7 +13,7 @@ def main() -> None:
     run(args.input_directory, args.output_directory, args.force)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def run(base_pagexml_path: str, output_directory: str, force: bool) -> None:
     inv_nrs = sorted(
         [p.split("/")[-1] for p in glob.glob(f"{base_pagexml_path}/*") if os.path.isdir(p)])
@@ -48,7 +48,7 @@ def process_inv(inv_nr: str, base_pagexml_path: str, output_directory: str, forc
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = ArgumentParser(
         description="Extract line text from pagexml files",

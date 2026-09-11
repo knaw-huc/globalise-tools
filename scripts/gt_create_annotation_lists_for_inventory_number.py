@@ -73,7 +73,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     tic = time.perf_counter()
 

@@ -192,7 +192,7 @@ def export_in_ttl(ner_annotations: list, ttl_out_path: str) -> None:
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert Web Annotations to Turtle",
@@ -204,7 +204,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     log_reading_file(args.json_path)

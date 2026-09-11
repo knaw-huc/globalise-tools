@@ -442,7 +442,7 @@ def process(directories, iiif_mapping_file, merge_sections) -> None:
             process_directory_group(group_id, [d], webannotation_factory)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     if args.directory:

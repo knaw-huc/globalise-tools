@@ -90,7 +90,7 @@ def convert(page_xml_paths: list[str], output_directory: str = "out") -> None:
             cas.to_xmi(cas_xmi, pretty_print=True)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if args.page_xml_path:

@@ -76,7 +76,7 @@ def print_missing_files(missing_files) -> None:
             print(f)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def map_pagexml_to_iiif_url(data_dir: str) -> None:
     mets_csv = f"{data_dir}/NL-HaNA_1.04.02_mets.csv"
     mapping_csv = f"{data_dir}/iiif-url-mapping.csv"
@@ -117,7 +117,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if args.data_dir:

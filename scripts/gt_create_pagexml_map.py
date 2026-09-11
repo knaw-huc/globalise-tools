@@ -11,7 +11,7 @@ external_id_path = "data/external_ids.csv"
 documents_path = "data/pagexml_map.json"
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     log_reading_file(external_id_path)
     with open(external_id_path) as f:

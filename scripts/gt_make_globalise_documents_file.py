@@ -160,7 +160,7 @@ def _spanning_range(dates: list[str]) -> str:
     return ",".join(list(set(dates)))
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     ead_inv_data = EADParser("data/1.04.02.xml").parse()
 

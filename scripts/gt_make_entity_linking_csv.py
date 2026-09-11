@@ -163,7 +163,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     inventory_numbers = args.inventory_number

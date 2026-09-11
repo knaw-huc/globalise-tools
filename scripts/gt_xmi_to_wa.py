@@ -546,7 +546,7 @@ class XMIProcessorFactory:
             return json.load(f)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract Web Annotations from XMI files",
@@ -593,7 +593,7 @@ def extract_web_annotations(xmi_paths: list[str], typesystem_path: str, output_d
             json.dump(all_web_annotations, f, indent=2, ensure_ascii=False)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     if args.xmi_path:

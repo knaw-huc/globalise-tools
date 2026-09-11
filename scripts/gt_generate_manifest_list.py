@@ -22,7 +22,7 @@ def generate_manifest_list() -> None:
             f.write(f'{{manifestId:"{m}"}},\n')
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     generate_manifest_list()
 

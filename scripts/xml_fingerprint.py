@@ -79,7 +79,7 @@ def show_xml_fingerprints(paths: list[str]) -> None:
         print(f"  {e}: {', '.join(attribute_dict[e])}")
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     show_xml_fingerprints(args.xml_path)

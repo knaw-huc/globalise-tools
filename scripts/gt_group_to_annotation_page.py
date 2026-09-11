@@ -123,7 +123,7 @@ def group_to_page(annotations_path: str, manifests_dir: str, git_commit: Optiona
             json.dump(annotation_page, f, ensure_ascii=False)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     if not args.verbose:

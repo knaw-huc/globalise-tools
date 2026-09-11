@@ -37,7 +37,7 @@ word_break_chars = '„¬-'
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     # logger.level('warning')
     results = {}

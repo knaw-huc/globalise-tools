@@ -9,7 +9,7 @@ from loguru import logger
 from globalise_tools.nav_provider import index_path_for_inv_nr
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     widgets = [
         '[',

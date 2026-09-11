@@ -52,7 +52,7 @@ def export(inventory_number: str) -> None:
         export_page(pagexml_path)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     for inventory_number in read_inventories_of_interest():
         export(inventory_number)

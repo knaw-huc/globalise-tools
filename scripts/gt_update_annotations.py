@@ -25,7 +25,7 @@ class ProjectResults:
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     lang_deduction_for_page = ld.read_lang_deduction_for_page(cfg.automated_page_langs_file)
     ar = AnnoRepoClient(cfg.annorepo.base_uri, api_key=cfg.annorepo.api_key)

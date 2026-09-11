@@ -1113,7 +1113,7 @@ class XMIProcessorFactory:
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Extract NER Web Annotations from XMI files",
@@ -1529,7 +1529,7 @@ def get_page_xml_path(xmi_path: str, pagexml_dir: str) -> str:
     return f"{pagexml_dir}/{inv_nr}/{xmi_base}.xml"
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     logger.remove()

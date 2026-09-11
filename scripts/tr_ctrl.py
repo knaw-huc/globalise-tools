@@ -116,7 +116,7 @@ class TRDocument:
     conll_version: str = None
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def access_textrepo(base_uri: str, api_key: str) -> None:
     trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)
     set_file_types(trc)
@@ -223,7 +223,7 @@ def has_file_type(trc, type_name) -> bool:
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Access a textrepo instance",

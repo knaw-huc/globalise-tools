@@ -42,7 +42,7 @@ def extract_ngrams(page_xml_paths: list[str]) -> None:
         print(c)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if args.page_xml_path:

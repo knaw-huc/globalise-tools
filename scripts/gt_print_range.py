@@ -6,7 +6,7 @@ from loguru import logger
 import globalise_tools.io_tools as rw
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     parser = argparse.ArgumentParser(
         description="Print text range defined by offset and length from given text file",

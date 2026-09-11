@@ -10,7 +10,7 @@ from loguru import logger
 from globalise_tools.nav_provider import NavProvider
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main(root_path) -> None:
     widgets = [
         '[',

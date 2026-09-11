@@ -9,7 +9,7 @@ from loguru import logger
 chunk_size = 30000
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main(root_path) -> None:
     widgets = [
         '[',

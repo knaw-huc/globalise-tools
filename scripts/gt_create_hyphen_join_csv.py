@@ -199,7 +199,7 @@ def print_as_table(data) -> None:
     print(table)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     lines_per_file = [as_file_lines(file) for file in files]
     file_lines = list(chain(*lines_per_file))

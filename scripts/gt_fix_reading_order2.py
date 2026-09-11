@@ -9,7 +9,7 @@ from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.page_xml_fixer import PageXmlFixer
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Read the PageXML files from the given folders and fix the reading order when required."
@@ -33,7 +33,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def fix_reading_order(input_directory: str, output_directory: str, inventory_numbers: list[str]) -> None:
     os.makedirs(output_directory, exist_ok=True)
     pagexml_paths = []

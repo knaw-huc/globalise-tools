@@ -13,7 +13,7 @@ from globalise_tools.events import (ENTITIES, EVENT_LAYER_NAME,
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     base = '/Users/bram/workspaces/globalise'
     with open(f'{base}/globalise-tools/data/typesystem.xml', 'rb') as f:

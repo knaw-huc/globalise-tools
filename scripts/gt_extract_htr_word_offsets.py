@@ -55,7 +55,7 @@ def extract_word_offsets(out_dir: str, pagexml_paths: list[str]):
             json.dump(htr_word_offsets, f, ensure_ascii=False, cls=AnnotationEncoder)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if not args.verbose:

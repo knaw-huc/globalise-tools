@@ -33,7 +33,7 @@ def is_relevant(document_metadata: DocumentMetadata) -> bool:
     return '3.1.1' in quality_check or '3.1.2' in quality_check or '3.2' in quality_check and document_metadata.scan_range != ""
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if args.document_metadata_path:

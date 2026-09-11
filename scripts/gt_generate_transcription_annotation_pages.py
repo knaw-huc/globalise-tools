@@ -99,7 +99,7 @@ def generate_transcription_annotation_page(out_dir: str, pagexml_path: str, page
         f.write(s)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     if not args.verbose:

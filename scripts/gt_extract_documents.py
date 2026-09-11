@@ -158,7 +158,7 @@ def process_document(doc: DocumentMetadata, trc: TextRepoClient, arc: AnnoRepoCl
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     meta_path = "data/metadata_1618-1793_2022-08-30.csv"
 

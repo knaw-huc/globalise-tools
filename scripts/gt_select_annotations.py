@@ -12,7 +12,7 @@ def list_web_annotation_files(directory: str):
     return sorted([f'{directory}/{f}' for f in all_files if f.endswith("-web-annotations.json")])
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     files = list_web_annotation_files("out")
     annotations = []

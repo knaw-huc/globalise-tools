@@ -667,7 +667,7 @@ class InventoryProcessor:
     #     self.concept_hierarchies_per_page
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
 

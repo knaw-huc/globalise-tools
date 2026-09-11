@@ -19,7 +19,7 @@ spacy_core = "nl_core_news_lg"
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Convert the PageXML belonging to the given document and page range to UIMA CAS,"
@@ -62,7 +62,7 @@ def output_path(page_xml_path: str) -> str:
     return f"out/{base}.xmi"
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def convert(page_xml_path: str) -> None:
     log_reading_file(page_xml_path)
     scan_doc = parse_pagexml_file(page_xml_path)
@@ -157,7 +157,7 @@ def join_words(px_words) -> str:
     return text.strip()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def import_document(document_id: str, first_page: int, last_page: int, base_uri: str, api_key: str) -> None:
     ic(document_id, first_page, last_page)
     trc = TextRepoClient(base_uri, api_key=api_key, verbose=False)

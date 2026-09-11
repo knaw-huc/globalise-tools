@@ -9,7 +9,7 @@ from loguru import logger
 file = "/Users/bram/workspaces/globalise/globalise-tools/data/globalise-word-joins-MH.csv"
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     with open(file) as f:
         reader = csv.DictReader(f)

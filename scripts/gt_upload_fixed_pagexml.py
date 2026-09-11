@@ -11,7 +11,7 @@ from globalise_tools.document_metadata import read_document_selection
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     metadata = read_document_selection(cfg.selection_files)
     quality_checked_metadata = [m for m in metadata if record_passes_quality_check(m)]

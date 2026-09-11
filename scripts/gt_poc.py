@@ -147,7 +147,7 @@ class PageHandler:
             return orjson.loads(json)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     args = get_arguments()
     logger.remove()

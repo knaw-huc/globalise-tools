@@ -7,7 +7,7 @@ from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
 
 
 class XMITestCase(unittest.TestCase):
-    @logger.catch
+    @logger.catch(reraise=True)
     def test_original(self):
         # file_path = "./NL-HaNA_1.04.02_3598_0797.xmi"
         file_path =".local/p_80-ner-event-preanno_NL-HaNA_1.04.02_3598_0797-0809 - 1781 -.xmi"

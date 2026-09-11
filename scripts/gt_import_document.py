@@ -334,7 +334,7 @@ class DocumentsProcessor:
 
 
 @hydra.main(version_base=None)
-@logger.catch
+@logger.catch(reraise=True)
 def main(cfg: DictConfig) -> None:
     base_provenance = make_base_provenance(cfg)
 

@@ -4,7 +4,7 @@ import csv
 from loguru import logger
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main() -> None:
     tr_version_csv = "data/tr-versions.csv"
     base_url = "https://globalise.tt.di.huc.knaw.nl/textrepo"

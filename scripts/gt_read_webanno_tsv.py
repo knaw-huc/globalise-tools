@@ -152,7 +152,7 @@ def colorize(text: str, text_color: str) -> str:
     return f"{text_color}{text}{Fore.RESET}"
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main():
     args = get_arguments()
     if args.file:

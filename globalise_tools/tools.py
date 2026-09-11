@@ -120,7 +120,7 @@ class WebAnnotationFactory:
         self._init_iiif_base_url_idx(iiif_mapping_file)
         self._iiif_mapping_file = iiif_mapping_file
 
-    @logger.catch
+    @logger.catch(reraise=True)
     def annotation_targets(self, annotation: Annotation) -> list:
         targets = []
         page_id = annotation.page_id

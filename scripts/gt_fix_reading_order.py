@@ -14,7 +14,7 @@ fixable_error_codes = ['3.1.1', '3.1.2', '3.2']
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Read the given PageXML files and fix the reading order when required."
@@ -44,7 +44,7 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def fix_reading_order(input_directory: str, output_directory: str, document_metadata_paths: list[str]) -> None:
     relevant_documents = [r for r in DM.read_document_selection(document_metadata_paths) if is_relevant(r)]
     pagexml_paths = []
