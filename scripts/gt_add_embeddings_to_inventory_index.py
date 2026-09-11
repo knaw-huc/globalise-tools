@@ -3,12 +3,17 @@ import argparse
 import os
 from copy import deepcopy
 
+import globalise_tools.io_tools as rw
 from loguru import logger
 from openai import OpenAI
-
-import globalise_tools.io_tools as rw
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_random_exponential,
+)
 
 CHARACTERS_TO_STRIP = ",'„&():;=-–—_./#^"
+
 
 # see https://github.com/globalise-huygens/glob-portal-infomodel/issues/85
 
@@ -19,7 +24,7 @@ class EmbeddingsGenerator:
         self.index = rw.read_json(index_file)
         self.client = OpenAI(
             base_url="https://api.scaleway.ai/v1",  # Scaleway's Generative APIs service URL
-            api_key=os.environ['SCW_SECRET_KEY']    # Your unique API key from Scaleway
+            api_key=os.environ['SCW_SECRET_KEY']  # Your unique API key from Scaleway
         )
         self.chunks_processed = 0
 
@@ -58,6 +63,7 @@ class EmbeddingsGenerator:
                 break
         return chunks
 
+    @retry(wait=wait_random_exponential(min=1, max=60), stop=stop_after_attempt(6))
     def _get_embeddings(self, chunk: str) -> list[float]:
         embedding_response = self.client.embeddings.create(
             input=chunk,
