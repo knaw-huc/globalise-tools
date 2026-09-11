@@ -246,6 +246,21 @@ test:
 repo-tag:
 	git tag -a $(TODAY_TAG) -m "$(TODAY)" && git push --tags
 
+#----------------------------------------------------------------------------------------------------
+# embeddings
+
+.PHONY: add-embeddings-%
+add-embeddings-%: .make/add-embeddings-%
+	@:
+
+.make/add-embeddings-%: work/%/index.json scripts/gt_add_embeddings_to_inventory_index.py | .make
+	poetry run gt-add-embeddings-to-inventory-index --inventory-index-file $<
+	touch $@
+
+#----------------------------------------------------------------------------------------------------
+
+
+
 .PHONY: help
 help:
 	@echo -e "make-tools for $(GREEN)globalise-tools$(RESET)"
@@ -293,3 +308,4 @@ help:
 	@echo -e "  $(BLUE)annotation-pages-<inv_nr>$(RESET)  - to generate annotation pages for the given inventory number $(GREEN)inv_nr$(RESET)"
 	@echo -e "  $(BLUE)index-json-<inv_nr>$(RESET)        - to generate the file for indexing the documents in inventory number $(GREEN)inv_nr$(RESET)"
 	@echo
+	@echo -e "  $(BLUE)add-embeddings-<inv_nr>$(RESET)    - to generate embeddings per document for the index.json of the given $(GREEN)inv_nr$(RESET), and add then to the index.json"
