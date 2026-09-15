@@ -3,18 +3,19 @@ import sys
 from pathlib import Path
 from typing import Any, Optional
 
-import globalise_tools.pagexml_tools as pt
-import globalise_tools.url_factory as uf
 import multiprocess as mp
 import orjson
+from loguru import logger
+
+import globalise_tools.pagexml_tools as pt
+import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.logger_tools import log_reading_file
 from globalise_tools.model import Dimensions
 from globalise_tools.tools import sliding_window_iter
-from loguru import logger
 from scripts.gt_ner_xmi_to_wa import XMIProcessorFactory
-from icecream import ic
+
 
 class AnnotationPageFactory:
     def __init__(
@@ -174,25 +175,43 @@ class DocumentPageProcessor:
 
             canvas_dimensions = {self._page_id(c): Dimensions(c["width"], c["height"]) for c in
                                  manifest["items"]}
-            if ner_annotations:
-                self.entity_annotation_page = self._make_annotation_page(
-                    page_id=page_id,
-                    annotations=ner_annotations,
-                    canvas_dimensions=canvas_dimensions,
-                    creator=creator,
-                    anno_type="Entities",
-                    page_type=uf.AnnotationPageType.ENTITIES
-                )
-            if event_annotations:
-                self.event_annotation_page = self._make_annotation_page(
-                    page_id=page_id,
-                    annotations=event_annotations,
-                    canvas_dimensions=canvas_dimensions,
-                    creator=creator,
-                    anno_type="Events",
-                    page_type=uf.AnnotationPageType.EVENTS
-                )
+            # if ner_annotations:
+            self.entity_annotation_page = self._make_annotation_page(
+                page_id=page_id,
+                annotations=ner_annotations,
+                canvas_dimensions=canvas_dimensions,
+                creator=creator,
+                anno_type="Entities",
+                page_type=uf.AnnotationPageType.ENTITIES
+            )
+            # if event_annotations:
+            self.event_annotation_page = self._make_annotation_page(
+                page_id=page_id,
+                annotations=event_annotations,
+                canvas_dimensions=canvas_dimensions,
+                creator=creator,
+                anno_type="Events",
+                page_type=uf.AnnotationPageType.EVENTS
+            )
         else:
+            canvas_dimensions = {self._page_id(c): Dimensions(c["width"], c["height"]) for c in
+                                 manifest["items"]}
+            self.entity_annotation_page = self._make_annotation_page(
+                page_id=page_id,
+                annotations=[],
+                canvas_dimensions=canvas_dimensions,
+                creator=creator,
+                anno_type="Entities",
+                page_type=uf.AnnotationPageType.ENTITIES
+            )
+            self.event_annotation_page = self._make_annotation_page(
+                page_id=page_id,
+                annotations=[],
+                canvas_dimensions=canvas_dimensions,
+                creator=creator,
+                anno_type="Events",
+                page_type=uf.AnnotationPageType.EVENTS
+            )
             normalized_page_text = ""  # TODO: generate
 
         annotation_page_builder.normalized_page_text = normalized_page_text
@@ -220,7 +239,8 @@ class DocumentPageProcessor:
         context = ["http://iiif.io/api/presentation/3/context.json"]
         inventory_number = page_id.split("_")[-2]
         # assumption: all annotations have the same @context
-        context += annotations[0]["@context"]
+        if len(annotations) > 0:
+            context.append(annotations[0]["@context"])
         items = [self._as_item(a) for a in annotations]
         dim = canvas_dimensions[page_id]
         page = {
