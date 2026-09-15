@@ -58,6 +58,8 @@ class EmbeddingsGenerator:
         size = len(words)
         for i in range(0, size, step):
             chunk = " ".join(trimmed_words[i:i + chunk_size])
+            if len(chunk) < chunk_size < len(trimmed_words):
+                chunk = " ".join(trimmed_words[-chunk_size:])
             chunks.append(chunk)
             if i + chunk_size >= size:
                 break
