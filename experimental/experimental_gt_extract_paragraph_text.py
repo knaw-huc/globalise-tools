@@ -24,7 +24,7 @@ logger.info(f"loading spacy core {spacy_core}")
 nlp = spacy.load(spacy_core)
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def main(inv_nr: str) -> None:
     out_dir = f"out/{inv_nr}"
     os.makedirs(out_dir, exist_ok=True)

@@ -106,7 +106,7 @@ wa = [
 ]
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def access_annorepo(base_uri: str, api_key: str, container_name: str) -> None:
     arc = AnnoRepoClient(base_uri, api_key=api_key)
     ic(arc.get_about())
@@ -148,7 +148,7 @@ def make_container(arc, container_name) -> None:
 from argparse import Namespace
 
 
-@logger.catch
+@logger.catch(reraise=True)
 def get_arguments() -> Namespace:
     parser = argparse.ArgumentParser(
         description="Access an annorepo instance",
