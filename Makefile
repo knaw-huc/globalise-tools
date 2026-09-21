@@ -75,13 +75,13 @@ work/%/transcriptions:
 work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json  | work/%/transcriptions
 	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
 
-work/%/entity_hierarchy.json:
-	@mkdir -p work/$*
-	cp ../globalise-ktools/work/$*/entity_hierarchy.json $@
+#work/%/entity_hierarchy.json:
+#	@mkdir -p work/$*
+#	cp ../globalise-ktools/work/$*/entity_hierarchy.json $@
 
-work/%/annotation_enhancements.json:
-	@mkdir -p work/$*
-	cp ../globalise-ktools/work/$*/annotation_enhancements.json $@
+#work/%/annotation_enhancements.json:
+#	@mkdir -p work/$*
+#	cp ../globalise-ktools/work/$*/annotation_enhancements.json $@
 
 work/%/xmi: data/xmi/%.zip
 	(cd work/ && unzip -oq ../data/xmi/$*.zip)
@@ -249,16 +249,18 @@ repo-tag:
 #----------------------------------------------------------------------------------------------------
 # embeddings
 
-.PHONY: add-embeddings-%
-add-embeddings-%: .make/add-embeddings-%
+.PHONY: generate-embeddings-%
+generate-embeddings-%: .make/generate-embeddings-%
 	@:
 
-.make/add-embeddings-%: work/%/index.json scripts/gt_add_embeddings_to_inventory_index.py | .make
-	poetry run gt-add-embeddings-to-inventory-index --inventory-index-file $<
+work/%/embeddings:
+	@mkdir -p $@
+
+.make/generate-embeddings-%: work/%/index.json scripts/gt_generate_embeddings_for_inventory_index.py| .make work/%/embeddings
+	poetry run gt-generate-embeddings-for-inventory-index --inventory-index-file $< --embeddings-folder work/$*/embeddings
 	touch $@
 
 #----------------------------------------------------------------------------------------------------
-
 
 
 .PHONY: help
@@ -308,4 +310,4 @@ help:
 	@echo -e "  $(BLUE)annotation-pages-<inv_nr>$(RESET)  - to generate annotation pages for the given inventory number $(GREEN)inv_nr$(RESET)"
 	@echo -e "  $(BLUE)index-json-<inv_nr>$(RESET)        - to generate the file for indexing the documents in inventory number $(GREEN)inv_nr$(RESET)"
 	@echo
-	@echo -e "  $(BLUE)add-embeddings-<inv_nr>$(RESET)    - to generate embeddings per document for the index.json of the given $(GREEN)inv_nr$(RESET), and add then to the index.json"
+	@echo -e "  $(BLUE)generate-embeddings-<inv_nr>$(RESET) - to generate embeddings per document for the index.json of the given $(GREEN)inv_nr$(RESET) in work/<inv_nr>/embeddings"

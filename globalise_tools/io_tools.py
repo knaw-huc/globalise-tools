@@ -44,6 +44,22 @@ def write_json(path: str, data: Any, clean_nones: bool = True, quiet: bool = Fal
             f.write(orjson.dumps(data))
 
 
+def write_jsonl(path: str, data: list[Any], clean_nones: bool = True, quiet: bool = False,
+                encoder: type[JSONEncoder] = JSONEncoder) -> None:
+    if not quiet:
+        log_writing_file(path)
+    if clean_nones:
+        data = _clean_nones(data)
+    if encoder != JSONEncoder:
+        with open(path, mode='w', newline='') as file:
+            f.writelines([json.dumps(l, ensure_ascii=False, cls=encoder) + "\n" for l in data])
+    else:
+        with open(path, "wb") as f:
+            for line in data:
+                f.write(orjson.dumps(line))
+                f.write('\n'.encode(encoding="utf-8"))
+
+
 def read_text(path: str, quiet: bool = False) -> str:
     if not quiet:
         log_reading_file(path)

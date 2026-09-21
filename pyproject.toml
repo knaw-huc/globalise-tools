@@ -60,7 +60,7 @@ retry = "^0.9.2"
 #textrepo-client = { path = "/Users/bram/workspaces/textrepo/textrepo-client-python", develop = true }
 
 [tool.poetry.scripts]
-gt-add-embeddings-to-inventory-index = "scripts.gt_add_embeddings_to_inventory_index:main"
+gt-generate-embeddings-for-inventory-index = "scripts.gt_generate_embeddings_for_inventory_index:main"
 gt-align-rgp = "scripts.gt_align_rgp:main"
 gt-align-rgp-lines = "scripts.gt_align_rgp_lines:main"
 gt-annotations-as-ttl = "scripts.gt_annotations_as_ttl:main"
