@@ -1,6 +1,7 @@
 #!/usr/bin/env bash
 
-BATCHSIZE=10
+BATCHSIZE=20
+CPU=14
 BAR_CHAR='#'
 EMPTY_CHAR=' '
 start_time=$(date +%s)
@@ -62,7 +63,7 @@ seconds-to-dhms() {
 
 process-inventory() {
   local invnrs=("$@")
-  make --jobs 3 --keep-going $(for i in "${invnrs[@]}"; do printf "upload-$i "; done)
+  make --jobs $CPU --keep-going $(for i in "${invnrs[@]}"; do printf "upload-$i "; done)
   for invnr in "${invnrs[@]}"; do
     echo $invnr >> work/inv-done.lst
   done
@@ -100,6 +101,7 @@ main() {
   readarray -t invnrs < work/inv-todo.lst
   local len=${#invnrs[@]}
   echo "uploading $len inventories"
+  send-notification "gt-upload-all-annotation-lists: started"
 
   local i
   for ((i = 0; i < len; i += BATCHSIZE)); do

@@ -216,6 +216,18 @@ $(OUT)/%/entity_linking.csv.gz: $(OUT)/%/entity_linking.csv
 	  > /dev/null
 	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.csv"
 	@touch $@
+#------------------------------------------------------------
+.PHONY: upload-%
+upload-%: work/%/events/ work/%/transcriptions/ work/%/entities/
+	@echo -e "$(BLUE)uploading annotation lists for $* ...$(RESET)"
+	for d in transcriptions entities events; do \
+	  (cd work/$* && \
+	    (cd $$d && for g in *.gz; do mv $$g $${g/.gz/}; done) && \
+	    s5cmd cp --content-type "application/json" --content-encoding "gzip" "$$d" s3://globalise-data/annotations 2> /dev/null \
+	    (cd $$d && for g in *.json; do mv $$g $$g.gz; done) \
+	  ) \
+	done
+#------------------------------------------------------------
 
 .PHONY: help
 help:
