@@ -46,6 +46,7 @@ class EmbeddingsGenerator:
             logger.info(f"processing document {i + 1}/{total}")
             new_document = deepcopy(document)
             new_document.pop("embeddings", None)
+            new_documents.append(new_document)
             fields = document["fields"]
             textfield = [f for f in fields if f['name'] == 'content'][0]
             text = textfield['value']
