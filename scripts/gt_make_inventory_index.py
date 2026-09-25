@@ -119,7 +119,7 @@ class DocumentProcessor:
         self.places_identified = 0
         self.profession_annotation_count = 0
         self.professions_identified = 0
-        self.entity_records: list[NerRecord] = []
+        self.ner_records: list[NerRecord] = []
         self.annotations_parsed = 0
         self.start_data_position = start_data_position
         self.end_data_position = end_data_position
@@ -148,6 +148,7 @@ class DocumentProcessor:
             self._string_field("identifier", self.document["id"]),
             self._string_field("name", self.document["name"]),
             self._string_field("title", self.document["title"]),
+            self._string_field("archive_path", ["NL-HaNA 1.04.02"]),
             self._string_field("settlement", self.document["settlement"]),
             self._int_field("pages", self.document["number_of_scans"]),
             self._string_field("start_page", self.document["start_scan"]),
@@ -238,46 +239,46 @@ class DocumentProcessor:
             value=value
         )
 
-    def _make_doc0(self, page_ids: list[str]) -> dict[str, Any]:
-        doc = dict(
-            id=self.document["id"],
-            name=self.document["name"],
-            title=self.document["title"],
-            settlement=self.document["settlement"],
-            normalized_text=dict(
-                value=self.document_text,
-                DataPositionSelector=dict(
-                    source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
-                    start=self.start_data_position[page_ids[0]],
-                    end=self.end_data_position[page_ids[-1]])),
-            method=self.document["method"],
-            start_page=self.document["start_scan"],
-            end_page=self.document["end_scan"],
-            start_date=self.document["date_start"],
-            end_date=self.document["date_end"],
-            number_of_pages=self.document["number_of_scans"],
-            annotations=[r._asdict() for r in self.entity_records]
-        )
-        if "hierarchies" not in doc:
-            doc["hierarchies"] = []
-        if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
-            doc["hierarchies"].append({
-                "name": "DocumentType",
-                "paths": self.document["type_hierarchies"],
-            })
-        if self.document_concepts:
-            document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
-            document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
-            sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
-            grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
-                                                                     key=lambda h: h.scheme)
-            concept_hierarchies = []
-            for scheme, in_hierarchies in grouped_document_concept_hierarchies:
-                paths = [[{"identifier": e.identifier, "title": e.label} for e in h.elements] for h in
-                         in_hierarchies]
-                concept_hierarchies.append({"name": scheme, "paths": paths})
-            doc["hierarchies"].extend(concept_hierarchies)
-        return doc
+    # def _make_doc0(self, page_ids: list[str]) -> dict[str, Any]:
+    #     doc = dict(
+    #         id=self.document["id"],
+    #         name=self.document["name"],
+    #         title=self.document["title"],
+    #         settlement=self.document["settlement"],
+    #         normalized_text=dict(
+    #             value=self.document_text,
+    #             DataPositionSelector=dict(
+    #                 source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+    #                 start=self.start_data_position[page_ids[0]],
+    #                 end=self.end_data_position[page_ids[-1]])),
+    #         method=self.document["method"],
+    #         start_page=self.document["start_scan"],
+    #         end_page=self.document["end_scan"],
+    #         start_date=self.document["date_start"],
+    #         end_date=self.document["date_end"],
+    #         number_of_pages=self.document["number_of_scans"],
+    #         annotations=[r._asdict() for r in self.entity_records]
+    #     )
+    #     if "hierarchies" not in doc:
+    #         doc["hierarchies"] = []
+    #     if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
+    #         doc["hierarchies"].append({
+    #             "name": "DocumentType",
+    #             "paths": self.document["type_hierarchies"],
+    #         })
+    #     if self.document_concepts:
+    #         document_concept_hierarchy_lists = [c.hierarchies for c in self.document_concepts]
+    #         document_concept_hierarchies = list(itertools.chain.from_iterable(document_concept_hierarchy_lists))
+    #         sorted_document_concept_hierarchies = sorted(document_concept_hierarchies, key=lambda h: h.scheme)
+    #         grouped_document_concept_hierarchies = itertools.groupby(sorted_document_concept_hierarchies,
+    #                                                                  key=lambda h: h.scheme)
+    #         concept_hierarchies = []
+    #         for scheme, in_hierarchies in grouped_document_concept_hierarchies:
+    #             paths = [[{"identifier": e.identifier, "title": e.label} for e in h.elements] for h in
+    #                      in_hierarchies]
+    #             concept_hierarchies.append({"name": scheme, "paths": paths})
+    #         doc["hierarchies"].extend(concept_hierarchies)
+    #     return doc
 
     def _process_page(self, page_id: str) -> None:
         transcription_page = self._read_transcription_page(page_id)
@@ -300,6 +301,7 @@ class DocumentProcessor:
                         self._process_entity_annotation(annotation, page_id, page_offset)
                         self.annotations_parsed += 1
                 events_page = self._read_events_page(page_id)
+                # ic(events_page)
                 if events_page is not None:
                     items = events_page["items"]
                     for annotation in items:
@@ -346,7 +348,7 @@ class DocumentProcessor:
             selector = annotation["target"][0]["selector"][1]
             start = selector["start"]
             end = selector["end"]
-            self.entity_records.append(
+            self.ner_records.append(
                 NerRecord(
                     annotation_id=annotation_id,
                     page_id=page_id,
@@ -366,7 +368,7 @@ class DocumentProcessor:
             selector = annotation["target"][0]["selector"][1]
             start = selector["start"]
             end = selector["end"]
-            self.entity_records.append(
+            self.ner_records.append(
                 NerRecord(
                     annotation_id=annotation_id,
                     page_id=page_id,
@@ -386,7 +388,7 @@ class DocumentProcessor:
             label = selectors[0]["exact"]
             start = selectors[1]["start"]
             end = selectors[1]["end"]
-            self.entity_records.append(
+            self.ner_records.append(
                 NerRecord(
                     annotation_id=annotation_id,
                     page_id=page_id,
@@ -407,12 +409,13 @@ class DocumentProcessor:
         annotation_id = annotation["id"]
         bodies = annotation["body"]
         for body in bodies:
+            # ic(body)
             tag = body["type"]
             label = body["_label"]
             selector = annotation["target"][0]["selector"][1]
             start = selector["start"]
             end = selector["end"]
-            self.entity_records.append(
+            self.ner_records.append(
                 NerRecord(
                     annotation_id=annotation_id,
                     page_id=page_id,
@@ -426,8 +429,8 @@ class DocumentProcessor:
             )
 
     def _enrich_place_and_profession_annotations(self):
-        self.entity_records = [self._enrich_place_annotation(a) for a in self.entity_records]
-        self.entity_records = [self._enrich_profession_annotation(a) for a in self.entity_records]
+        self.ner_records = [self._enrich_place_annotation(a) for a in self.ner_records]
+        self.ner_records = [self._enrich_profession_annotation(a) for a in self.ner_records]
 
     def _enrich_place_annotation(self, record: NerRecord) -> NerRecord:
         if record.tag == "Place":
@@ -490,7 +493,7 @@ class DocumentProcessor:
 
     def _simplified_annotations(self) -> list[dict[str, Any]]:
         simplified_annotations = []
-        for r in self.entity_records:
+        for r in self.ner_records:
             simplified_annotations.append({
                 "tag": r.tag,
                 "from": r.start_in_doc,
@@ -565,7 +568,7 @@ class InventoryProcessor:
                     self.place_annotation_count += dp.place_annotation_count
                     self.professions_identified += dp.professions_identified
                     self.profession_annotation_count += dp.profession_annotation_count
-                    self.records_extracted += len(dp.entity_records)
+                    self.records_extracted += len(dp.ner_records)
                 if document["number_of_scans"] > 1:
                     documents_with_multiple_pages_done.append(doc_id)
 

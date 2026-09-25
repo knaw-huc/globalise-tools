@@ -223,7 +223,7 @@ upload-%: work/%/events/ work/%/transcriptions/ work/%/entities/
 	for d in transcriptions entities events; do \
 	  (cd work/$* && \
 	    (cd $$d && for g in *.gz; do mv $$g $${g/.gz/}; done) && \
-	    s5cmd cp --content-type "application/json" --content-encoding "gzip" "$$d" s3://globalise-data/annotations 2> /dev/null \
+	    s5cmd cp --content-type "application/json" --content-encoding "gzip" "$$d" s3://globalise-data/annotations/ && \
 	    (cd $$d && for g in *.json; do mv $$g $$g.gz; done) \
 	  ) \
 	done
