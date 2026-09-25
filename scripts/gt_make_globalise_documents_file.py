@@ -106,7 +106,8 @@ class EADParser:
                 if mets_dao is not None:
                     inv_data["mets"] = mets_dao.get("href")
                 unitid = self._normalize(f.findall("./did/unitid", namespaces=ns)[0].text)
-                unittitle = self._normalize(f.findall("./did/unittitle", namespaces=ns)[0].text)
+                unittitle = self._normalize(
+                    " ".join([t for t in f.findall("./did/unittitle", namespaces=ns)[0].itertext()]))
                 file_id = SeriesIdentifier(unitid, unittitle)
                 new_hierarchy = hierarchy.copy()
                 new_hierarchy.append(file_id)
