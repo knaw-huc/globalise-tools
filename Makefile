@@ -41,24 +41,31 @@ FORCE:
 data/:
 	@mkdir -p $@
 
-#data/1.04.02.xml: .make/1.04.02.etag | data/
+data/1.04.02.xml: .make/1.04.02.etag | data/
+	@echo "missing file: $@"
 
-data/document_metadata.csv: | data/
-	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document data/document_metadata.csv
-
-data/generale_missiven.csv: | data/
-	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document data/generale_missiven.csv
-
-data/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
-	poetry run gt-make-globalise-documents-file
-
-data/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
-	poetry run gt-map-pagexml-to-iiif-url --data-dir data
+data/all-page-ids.lst: | data/
+	@echo "missing file: $@"
 
 data/inventory2dates.json: | data/
 	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
 
-data/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
+data/NL-HaNA_1.04.02_mets.csv: | data/
+	@echo "missing file: $@"
+
+work/document_metadata.csv: | work
+	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document $@
+
+work/generale_missiven.csv: | work
+	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document $@
+
+work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
+	poetry run gt-make-globalise-documents-file
+
+work/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
+	poetry run gt-map-pagexml-to-iiif-url --data-dir data
+
+work/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inventory_dates.py poetry_scripts.py
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
@@ -72,7 +79,7 @@ work/%/transcriptions:
 	scp globalise-vm:/data/globalise-data/annotation-lists/work/annotation-lists/$*-annotation-lists.zip .
 	cd work && mkdir -p $* && cd $* && unzip -oq ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
 
-work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json data/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json scripts/gt_make_inventory_index.py | work/%/transcriptions
+work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json work/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json scripts/gt_make_inventory_index.py | work/%/transcriptions
 	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
 
 #work/%/entity_hierarchy.json:
@@ -90,7 +97,7 @@ work/%/xmi: data/xmi/%.zip
 
 .PHONY: extract-all
 extract-all:
-	poetry run gt-extract-text --iiif-mapping-file data/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
+	poetry run gt-extract-text --iiif-mapping-file work/iiif-url-mapping.csv data/[0-9]* && mv *.{txt,json,conll} out/
 
 .PHONY: sample
 sample:
@@ -105,17 +112,17 @@ web-annotations:
 	poetry run gt-convert-webanno-tsv-to-web-annotations > out/entity-annotations.json
 
 .PHONY: test-untangle
-test-untangle: data/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
+test-untangle: work/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
 	poetry run gt-untangle-globalise -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
 
 .PHONY: test-missive-annotations
-test-missive-annotations: out/*/web_annotations.json data/generale_missiven.csv data/iiif-url-mapping.csv scripts/gt_create_missive_annotations.py conf/test.yaml
+test-missive-annotations: out/*/web_annotations.json work/generale_missiven.csv work/iiif-url-mapping.csv scripts/gt_create_missive_annotations.py conf/test.yaml
 	poetry run gt-create-missive-annotations -cd conf -cn test.yaml
 
 .PHONY: test-inception-annotations
-test-inception-annotations: data/2024/document_metadata.csv data/iiif-url-mapping.csv scripts/gt_convert_inception_annotations_2024.py conf/test.yaml
+test-inception-annotations: data/2024/document_metadata.csv work/iiif-url-mapping.csv scripts/gt_convert_inception_annotations_2024.py conf/test.yaml
 	poetry run gt-convert-inception-annotations-2024 -cd conf -cn test.yaml
 
 .PHONY: test-xmi-generation
@@ -132,7 +139,7 @@ convert-example-xmi: scripts/gt-convert-example-xmi.sh
 
 .PHONY: fix-reading-order
 fix-reading-order:
-	poetry run gt-fix-reading-order -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m data/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
+	poetry run gt-fix-reading-order -i ~/e/globalise/pagexml/2023-09/1.04.02 -o out-local/fixed-pagexml -m work/document_metadata.csv -m data/document_metadata_esta.csv | tee > out-local/fix-reading-order.log
 
 .PHONY: extract-paragraph-text
 extract-paragraph-text:
