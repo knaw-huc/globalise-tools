@@ -21,15 +21,15 @@ FORCE:
 .make/:
 	@mkdir -p $@
 
-.make/1.04.02.etag: FORCE # phony file for EAD XML data/1.04.02.xml
+.make/1.04.02.etag: FORCE # phony file for EAD XML work/1.04.02.xml
 	@mkdir -p .make data
 	curl -s \
 		--etag-save .make/1.04.02.etag.tmp \
 		--etag-compare .make/1.04.02.etag \
-		-o data/1.04.02.xml.tmp \
+		-o work/1.04.02.xml.tmp \
 		https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/download/xml
-	@if [ -f data/1.04.02.xml.tmp ]; then \
-		mv data/1.04.02.xml.tmp data/1.04.02.xml; \
+	@if [ -f work/1.04.02.xml.tmp ]; then \
+		mv work/1.04.02.xml.tmp work/1.04.02.xml; \
 	fi
 	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
 
@@ -41,7 +41,7 @@ FORCE:
 data/:
 	@mkdir -p $@
 
-data/1.04.02.xml: .make/1.04.02.etag | data/
+work/1.04.02.xml: .make/1.04.02.etag | work/
 	@echo "missing file: $@"
 
 data/all-page-ids.lst: | data/
@@ -59,7 +59,7 @@ work/document_metadata.csv: | work
 work/generale_missiven.csv: | work
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document $@
 
-work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
+work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst work/1.04.02.xml scripts/gt_make_globalise_documents_file.py
 	poetry run gt-make-globalise-documents-file
 
 work/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
@@ -69,18 +69,18 @@ work/inventory2timespan.json: data/inventory2dates.json scripts/gt_convert_inven
 	poetry run gt-convert-inventory-dates
 	poetry run gt-validate-inventory-timespan-completeness
 
-data/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
+work/pagexml_map.json: scripts/gt_create_pagexml_map.py data/external_ids.csv
 	poetry run gt-create-pagexml-map
 
-data/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
+work/scan_url_mapping.json: scripts/gt_extract_scan_url_mapping.py | data/
 	poetry run gt-extract-scan-url-mapping
 
 work/%/transcriptions:
 	scp globalise-vm:/data/globalise-data/annotation-lists/work/annotation-lists/$*-annotation-lists.zip .
 	cd work && mkdir -p $* && cd $* && unzip -oq ../../$*-annotation-lists.zip && rm ../../$*-annotation-lists.zip
 
-work/%/document.txt work/%/index.json: data/documents-per-inventory.json data/placename-alternatives.json work/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json scripts/gt_make_inventory_index.py | work/%/transcriptions
-	poetry run gt-make-inventory-index -d data/documents-per-inventory.json -p data/placename-alternatives.json $*
+work/%/document.txt work/%/index.json: work/documents-per-inventory.json data/placename-alternatives.json work/globalise-inventories.json work/%/entity_hierarchy.json work/%/annotation_enhancements.json scripts/gt_make_inventory_index.py | work/%/transcriptions
+	poetry run gt-make-inventory-index -d work/documents-per-inventory.json -p data/placename-alternatives.json $*
 
 #work/%/entity_hierarchy.json:
 #	@mkdir -p work/$*
@@ -112,7 +112,7 @@ web-annotations:
 	poetry run gt-convert-webanno-tsv-to-web-annotations > out/entity-annotations.json
 
 .PHONY: test-untangle
-test-untangle: work/iiif-url-mapping.csv data/pagexml_map.json data/scan_url_mapping.json
+test-untangle: work/iiif-url-mapping.csv work/pagexml_map.json work/scan_url_mapping.json
 	poetry run gt-untangle-globalise -cd conf -cn test.yaml
 #	make test-missive-annotations
 #	make test-inception-annotations
