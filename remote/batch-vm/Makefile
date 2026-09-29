@@ -25,27 +25,39 @@ FORCE:
 .make:
 	@mkdir -p .make
 
-data/eventmapping.json:
-	echo "find the latest version of eventmapping.json on https://github.com/globalise-huygens/glob-portal-infomodel/issues/82"
+data/:
+	@mkdir -p $@
+
+data/eventmapping.json: | data/
+	@echo "find the latest version of eventmapping.json on https://github.com/globalise-huygens/glob-portal-infomodel/issues/82"
 	#curl -Ls --compressed https://github.com/user-attachments/files/30279994/eventmapping.json > $@
+
+data/all-page-ids.lst: | data/
+	@echo "missing file: all-page-ids.lst containing all page ids, from NL-HaNA_1.04.02_10000_0001 to NL-HaNA_1.04.02_9999_0540"
 
 .make/documents-csv-timestamp: FORCE | .make
 	s5cmd ls "s3://globalise-data/objects/document/documents.csv" > .make/documents-csv-timestamp.new
 	cmp .make/documents-csv-timestamp.new .make/documents-csv-timestamp 2>/dev/null || mv .make/documents-csv-timestamp.new .make/documents-csv-timestamp
 
-data/documents.csv: .make/documents-csv-timestamp
+work/documents.csv: .make/documents-csv-timestamp
 	curl -s --compressed https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/document/documents.csv > $@
 
-data/documents-per-inventory.json: data/documents.csv data/all-page-ids.lst $(JAR)
+work/documents-per-inventory.json: work/documents.csv data/all-page-ids.lst $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) generate-document-definitions --in-file $< --page-ids-file data/all-page-ids.lst --out-file $@
 
-data/concept-uuids.lst: FORCE
+work/concept-uuids.lst: FORCE
 	s5cmd ls "s3://globalise-data/objects/thesaurus/*-*-*-*.json" | awk '{sub(/\.json$$/,"",$$NF); print $$NF}' > $@
 
-data/facets.json: data/concept-index.json
+work/facets.json: work/concept-index.json
 	@:
 
-data/concept-index.json: data/concept-uuids.lst work/globalise-inventories.json $(JAR)
+data/inventory2dates.json: | data/
+	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
+
+work/globalise-inventories.json: data/inventory2dates.json work/all-page-ids.lst work/1.04.02.xml
+	@cd globalise-tools && $(MAKE) $@
+
+work/concept-index.json: work/concept-uuids.lst work/globalise-inventories.json $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) \
 	  generate-concept-index \
 	  --concept-uuids-file $< \
@@ -65,7 +77,7 @@ work/%/entity_hierarchy.json: work/%/entity_links.csv work/%/entity_annotations.
 	  aggregate-entity-hierarchies-per-page \
 	  --entity-links-file       work/$*/entity_links.csv \
 	  --entity-annotations-file work/$*/entity_annotations.csv \
-	  --concept-index-file      data/concept-index.json \
+	  --concept-index-file      work/concept-index.json \
 	  --out-file                $@
 
 work/%/annotation_enhancements.json: work/%/entity_links.csv $(JAR)
@@ -92,7 +104,7 @@ work/persons.json:# $(JAR)
 #------------------------------------------------------------
 
 .PHONY: facets-file
-facets-file: data/facets.json
+facets-file: work/facets.json
 	@:
 
 .PHONY: person-index-file
@@ -100,11 +112,11 @@ person-index-file: work/persons.json
 	$:
 
 .PHONY: refresh-data-files
-refresh-data-files: data/documents-per-inventory.json data/concept-index.json
+refresh-data-files: work/documents-per-inventory.json work/concept-index.json
 	$:
 
 .PHONY: documents-per-inventory-json
-documents-per-inventory-json: data/documents-per-inventory.json
+documents-per-inventory-json: work/documents-per-inventory.json
 
 .PHONY: show-usage
 show-usage: $(JAR)
@@ -130,7 +142,7 @@ upload-person-index-file: .make/upload-persons-json
 	$:
 
 #------------------------------------------------------------
-work/facets.json: data/facets.json
+work/facets.json: work/facets.json
 	cp $< $@
 
 work/facets.json.gz: work/facets.json
@@ -149,18 +161,6 @@ work/facets.json.gz: work/facets.json
 .PHONY: upload-facets-file
 upload-facets-file: .make/upload-facets-json
 	$:
-
-#------------------------------------------------------------
-
-.PHONY: index-all-inventory-numbers
-# command line in work/x??.sh must be <= 4095 chars
-index-all-inventory-numbers: $(INVNUM_PATH)
-	ntfy -m "index-all-inventory-numbers: started"
-	cd work && \
-	cat $(INVNUM_PATH) | while read i; do echo "index-$$i" ; done | split -l 350 && \
-	for x in x??; do echo -n "make -k -j 13 " > $$x.sh; cat $$x | tr '\n' ' ' >> $$x.sh; rm $$x; chmod a+x $$x.sh; done
-	for j in work/x*.sh; do ./$$j && rm $$j; done
-	ntfy -m "index-all-inventory-numbers: finished"
 
 #------------------------------------------------------------
 
