@@ -35,6 +35,22 @@ data/eventmapping.json: | data/
 data/all-page-ids.lst: | data/
 	@echo "missing file: all-page-ids.lst containing all page ids, from NL-HaNA_1.04.02_10000_0001 to NL-HaNA_1.04.02_9999_0540"
 
+
+.make/1.04.02.etag: FORCE # phony file for EAD XML work/1.04.02.xml
+	@mkdir -p .make data
+	curl -s \
+		--etag-save .make/1.04.02.etag.tmp \
+		--etag-compare .make/1.04.02.etag \
+		-o work/1.04.02.xml.tmp \
+		https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/download/xml
+	@if [ -f work/1.04.02.xml.tmp ]; then \
+		mv work/1.04.02.xml.tmp data/1.04.02.xml; \
+	fi
+	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
+
+#data/1.04.02.xml: .make/1.04.02.etag | data/
+#	@:
+
 .make/documents-csv-timestamp: FORCE | .make
 	s5cmd ls "s3://globalise-data/objects/document/documents.csv" > .make/documents-csv-timestamp.new
 	cmp .make/documents-csv-timestamp.new .make/documents-csv-timestamp 2>/dev/null || mv .make/documents-csv-timestamp.new .make/documents-csv-timestamp
@@ -52,9 +68,9 @@ work/facets.json: work/concept-index.json
 	@:
 
 data/inventory2dates.json: | data/
-	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
+	@echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
 
-work/globalise-inventories.json: data/inventory2dates.json work/all-page-ids.lst work/1.04.02.xml
+work/globalise-inventories.json: data/inventory2dates.json work/all-page-ids.lst data/1.04.02.xml
 	@cd globalise-tools && $(MAKE) $@
 
 work/concept-index.json: work/concept-uuids.lst work/globalise-inventories.json $(JAR)
@@ -66,13 +82,14 @@ work/concept-index.json: work/concept-uuids.lst work/globalise-inventories.json 
 
 work/%/entity_annotations.csv:
 	mkdir -p work/$*
-	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/$*.csv > $@
+	curl -Ls http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/$*.csv > $@.gz
+	gunzip $@.gz
 
 work/%/entity_links.csv:
 	mkdir -p work/$*
 	curl -Ls --compressed http://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/objects/inventory/links/$*.csv > $@
 
-work/%/entity_hierarchy.json: work/%/entity_links.csv work/%/entity_annotations.csv $(JAR)
+work/%/entity_hierarchy.json: work/%/entity_links.csv work/%/entity_annotations.csv work/concept-index.json $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) \
 	  aggregate-entity-hierarchies-per-page \
 	  --entity-links-file       work/$*/entity_links.csv \
@@ -85,7 +102,6 @@ work/%/annotation_enhancements.json: work/%/entity_links.csv $(JAR)
 	  enhance-annotations \
 	  --entity-links-file       work/$*/entity_links.csv \
 	  --out-file                $@
-
 
 
 #work/%/index.json:
@@ -142,8 +158,6 @@ upload-person-index-file: .make/upload-persons-json
 	$:
 
 #------------------------------------------------------------
-work/facets.json: work/facets.json
-	cp $< $@
 
 work/facets.json.gz: work/facets.json
 	gzip --force $<
@@ -196,8 +210,10 @@ upload-%: work/%/events/ work/%/transcriptions/ work/%/entities/
 
 #------------------------------------------------------------
 
-work/%/index.json:
+work/%/index.json: work/%/entity_hierarchy.json work/documents-per-inventory.json work/%/annotation_enhancements.json
+	cd work/$* && for d in {transcriptions,entities,events}/*.json.gz; do gunzip $$d; done
 	cd globalise-tools && $(MAKE) $@
+	cd work/$* && for d in {transcriptions,entities,events}/*.json; do gzip $$d; done
 
 work/%/index.json.gz: work/%/index.json
 	gzip --force $<
@@ -215,10 +231,10 @@ work/%/index.json.gz: work/%/index.json
 .PHONY: ui-%
 ui-%: .make/upload-index-%
 	# clean up some afterwards to save storage space
-	rm -rf work/$*/entities work/$*/transcriptions work/$*/*.csv
+	rm -rf work/$*/entities work/$*/events work/$*/transcriptions work/$*/*.csv work/$*/*.json work/$*/*.txt
 
 .PHONY: upload-all-document-index-files
-upload-all-document-index-files:
+upload-all-document-index-files: .make/1.04.02.etag
 	@ntfy -m "upload-all-document-index-files: started"
 	cd work/ && \
 	rm -rf upload-all-document-index-files && \
@@ -244,4 +260,4 @@ help:
 	@echo -e "  $(BLUE)person-index-file$(RESET)          - to aggregate person data to a json file for indexing"
 	@echo -e "  $(BLUE)upload-person-index-file$(RESET)   - to upload persons.json to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:persons.json"
 	@echo
-	@echo -e "  $(BLUE)upload-all-document-index-files$(RESET) - to generate indx.json for all indexes and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:*.index"
+	@echo -e "  $(BLUE)upload-all-document-index-files$(RESET) - to generate index.json for all indexes and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:*.index"

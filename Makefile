@@ -29,7 +29,7 @@ FORCE:
 		-o work/1.04.02.xml.tmp \
 		https://www.nationaalarchief.nl/onderzoeken/archief/1.04.02/download/xml
 	@if [ -f work/1.04.02.xml.tmp ]; then \
-		mv work/1.04.02.xml.tmp work/1.04.02.xml; \
+		mv work/1.04.02.xml.tmp data/1.04.02.xml; \
 	fi
 	@mv .make/1.04.02.etag.tmp .make/1.04.02.etag
 
@@ -41,8 +41,8 @@ FORCE:
 data/:
 	@mkdir -p $@
 
-work/1.04.02.xml: .make/1.04.02.etag | work/
-	@echo "missing file: $@"
+data/1.04.02.xml: .make/1.04.02.etag | work/
+	@:
 
 data/all-page-ids.lst: | data/
 	@echo "missing file: $@"
@@ -59,8 +59,9 @@ work/document_metadata.csv: | work
 work/generale_missiven.csv: | work
 	wget https://datasets.iisg.amsterdam/api/access/datafile/10784 --output-document $@
 
-work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst work/1.04.02.xml scripts/gt_make_globalise_documents_file.py
+work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
 	poetry run gt-make-globalise-documents-file
+	mv data/globalise-inventories.json work/
 
 work/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
 	poetry run gt-map-pagexml-to-iiif-url --data-dir data
