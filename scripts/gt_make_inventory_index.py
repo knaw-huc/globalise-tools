@@ -495,14 +495,21 @@ class DocumentProcessor:
         simplified_annotations = []
         for r in self.ner_records:
             simplified_annotations.append({
-                "tag": r.tag,
+                "tag": f"type:{r.tag}",
                 "from": r.start_in_doc,
                 "to": r.end_in_doc,
                 "text": r.text
             })
-            if r.tag in ["Place", "Person"] and r.identifier is not None and r.identifier != "":
+            if r.tag == "Place" and r.identifier is not None and r.identifier != "":
                 simplified_annotations.append({
-                    "tag": r.identifier,
+                    "tag": f"placeId:{r.identifier}",
+                    "from": r.start_in_doc,
+                    "to": r.end_in_doc,
+                    "text": r.text
+                })
+            if r.tag == "Person" and r.identifier is not None and r.identifier != "":
+                simplified_annotations.append({
+                    "tag": f"personId:{r.identifier}",
                     "from": r.start_in_doc,
                     "to": r.end_in_doc,
                     "text": r.text
@@ -686,7 +693,6 @@ def main():
 
     inventory_numbers = args.inventory_number
 
-    globalise_inventories_path = "data/globalise-inventories.json"  # TODO: move to args
     inventory_idx = _load_inventory_idx(globalise_inventories_path)
 
     for inventory_number in inventory_numbers:
@@ -703,6 +709,8 @@ def _load_inventory_idx(globalise_documents_path: str) -> dict[Any, Any]:
     document_idx = {r["inventory_number"]: r for r in document_data}
     return document_idx
 
+
+globalise_inventories_path = "work/globalise-inventories.json"
 
 if __name__ == '__main__':
     main()

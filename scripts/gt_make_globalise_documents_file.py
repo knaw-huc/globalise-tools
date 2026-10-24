@@ -209,8 +209,9 @@ def main():
         inventories.append(inv)
 
     logger.info(f"writing {len(inventories)} inventory definitions")
-    rw.write_json("data/globalise-inventories.json", inventories, encoder=MyJsonEncoder)
+    rw.write_json(globalise_inventories_path, inventories, encoder=MyJsonEncoder)
 
 
+globalise_inventories_path = "work/globalise-inventories.json"
 if __name__ == '__main__':
     main()

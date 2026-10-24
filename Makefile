@@ -45,13 +45,16 @@ data/1.04.02.xml: .make/1.04.02.etag | work/
 	@:
 
 data/all-page-ids.lst: | data/
-	@echo "missing file: $@"
-
-data/inventory2dates.json: | data/
-	echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
+	@echo "❌ missing file: $@"
+	@exit 1
 
 data/NL-HaNA_1.04.02_mets.csv: | data/
-	@echo "missing file: $@"
+	@echo "❌ missing file: $@"
+	@exit 1
+
+data/inventory2dates.json: | data/
+	@echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
+	@exit 1
 
 work/document_metadata.csv: | work
 	wget https://raw.githubusercontent.com/globalise-huygens/annotation/main/2023/documents/document_metadata.csv?token=GHSAT0AAAAAAB5IWT2N2Q3F56VQALTYBSDQZHPKMAA --output-document $@
@@ -61,7 +64,6 @@ work/generale_missiven.csv: | work
 
 work/globalise-inventories.json: data/inventory2dates.json data/all-page-ids.lst data/1.04.02.xml scripts/gt_make_globalise_documents_file.py
 	poetry run gt-make-globalise-documents-file
-	mv data/globalise-inventories.json work/
 
 work/iiif-url-mapping.csv: scripts/gt_map_pagexml_to_iiif_url.py data/NL-HaNA_1.04.02_mets.csv | data/
 	poetry run gt-map-pagexml-to-iiif-url --data-dir data
@@ -92,7 +94,7 @@ work/%/document.txt work/%/index.json: work/documents-per-inventory.json data/pl
 #	cp ../globalise-ktools/work/$*/annotation_enhancements.json $@
 
 work/%/xmi: data/xmi/%.zip
-	(cd work/ && unzip -oq ../data/xmi/$*.zip)
+	current=$(shell pwd) && (cd work/ && unzip -oq $$current/data/xmi/$*.zip)
 	mkdir -p work/$*/xmi
 	mv work/$*/*.xmi work/$*/xmi/
 
@@ -200,6 +202,10 @@ annotation-pages-%: .make/annotation-pages-%
 .PHONY: index-json-%
 index-json-%: work/%/index.json
 	@echo "created/updated $<"
+
+data/manifests/%.json:
+	s5cmd cp "s3://globalise-data/objects/inventory/$*.manifest.json" $@.gz
+	gunzip $@.gz
 
 .make/annotation-pages-%: work/%/xmi .make/pagexml-% data/manifests/%.json ./scripts/gt-create-annotation-lists-for-inventory-number.sh ./scripts/gt_create_annotation_lists_for_inventory_number.py ./scripts/gt_ner_xmi_to_wa.py data/typesystem.xml data/eventmapping.json | .make
 	./scripts/gt-create-annotation-lists-for-inventory-number.sh $*
