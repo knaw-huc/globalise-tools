@@ -105,7 +105,8 @@ class DocumentProcessor:
                  end_data_position: dict[str, int],
                  concepts_per_page: dict[str, dict[str, Any]],
                  annotation_enhancements: dict[str, dict[str, str]],
-                 ead_identifier_lists: list[list[str]]
+                 ead_identifier_lists: list[list[str]],
+                 archive_description: list[str],
                  ) -> None:
         self.inventory_number = inventory_number
         self.document_id = document_id
@@ -124,6 +125,7 @@ class DocumentProcessor:
         self.start_data_position = start_data_position
         self.end_data_position = end_data_position
         self.ead_identifier_lists = ead_identifier_lists
+        self.archive_description = archive_description
 
     def process(self):
         first_page = int(self.document["start_scan"].split("_")[-1].replace("P", ""))
@@ -148,7 +150,7 @@ class DocumentProcessor:
             self._string_field("identifier", self.document["id"]),
             self._string_field("name", self.document["name"]),
             self._string_field("title", self.document["title"]),
-            self._string_field("archive_path", ["NL-HaNA 1.04.02"]),
+            self._string_field("archive_path", ["NL-HaNA 1.04.02"] + self.archive_description),
             self._string_field("settlement", self.document["settlement"]),
             self._int_field("pages", self.document["number_of_scans"]),
             self._string_field("start_page", self.document["start_scan"]),
@@ -536,6 +538,7 @@ class InventoryProcessor:
         self.concept_hierarchies_per_page = rw.read_json(f"work/{inventory_number}/entity_hierarchy.json")
         self.annotation_enhancements = rw.read_json(f"work/{inventory_number}/annotation_enhancements.json")
         self.ead_identifier_lists = self._ead_identifiers_lists()
+        self.archive_description = self._archive_description()
 
     def process(self):
         print(f"# inventory number  : {self.inventory_number}")
@@ -551,6 +554,7 @@ class InventoryProcessor:
                 document['date_end'] = self.inventory["date_end"]
             if document['title'] == "":
                 document['title'] = "(no title)"
+            document['title'] = document['title'].replace("\n", " ").replace("¬ ", "")
             if doc_id in documents_with_multiple_pages_done:
                 print(
                     f"## {i + 1}/{total_documents} : {doc_id} {document['method']}: {document['title']} | (same page range, skipping)")
@@ -565,7 +569,8 @@ class InventoryProcessor:
                     self.end_data_position,
                     self.concept_hierarchies_per_page,
                     self.annotation_enhancements,
-                    self.ead_identifier_lists
+                    self.ead_identifier_lists,
+                    self.archive_description
                 )
                 doc = dp.process()
                 if doc:
@@ -600,6 +605,16 @@ class InventoryProcessor:
                     identifiers = [e["identifier"] for e in p]
                     ead_identifier_lists.append(identifiers)
         return ead_identifier_lists
+
+    def _archive_description(self) -> list[str]:
+        path_list = []
+        first_ead_hierarchy = self.inventory["hierarchies"][0]
+        if first_ead_hierarchy["name"] != "EAD":
+            logger.error(f"unexpected hierarchy name: {h["name"]}")
+        else:
+            for p in first_ead_hierarchy["paths"][0]:
+                path_list.append(p["id"] + " " + p["title"])
+        return path_list
 
     def _process_all_pages(self) -> tuple[str, dict[str, int], dict[str, int]]:
         page_ids = self.inventory["documents"][0]["page_ids"]
