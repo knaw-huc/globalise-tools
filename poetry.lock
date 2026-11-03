@@ -1670,23 +1670,22 @@ tqdm = ["tqdm"]
 
 [[package]]
 name = "fuzzy-search"
-version = "2.8.0"
+version = "2.7.0"
 description = "Tool for fuzzy searching in texts with historical language use and OCR/HTR errors"
 optional = false
-python-versions = ">=3.11"
+python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "fuzzy_search-2.8.0-py3-none-any.whl", hash = "sha256:d6b7d24be80a24291d2f720386d5a3e1b62679170064f116e872f5a5738bc951"},
-    {file = "fuzzy_search-2.8.0.tar.gz", hash = "sha256:734c2994fa2c322dfbae13f024d58aecdd5e19686dac179ccf983a210690581e"},
+    {file = "fuzzy_search-2.7.0-py3-none-any.whl", hash = "sha256:98506289bac2e36349b3e91977b375e108302197fd148401699ed1dee59e9319"},
+    {file = "fuzzy_search-2.7.0.tar.gz", hash = "sha256:32abf1d724ef84f0b6822939b67262ba179ad3a06d142ca164e0fefd9f3297fd"},
 ]
 
 [package.dependencies]
 flake8 = ">=7.1.1,<8.0.0"
 levenshtein = ">=0.26"
-nltk = "3.9.4"
+nltk = ">=3.9.3,<4.0.0"
 numpy = ">=1.26,<3.0.0"
 pytest = ">=8.3.4,<9.0.0"
-scipy = ">=1.13"
 
 [[package]]
 name = "google"
@@ -3650,18 +3649,19 @@ files = [
 
 [[package]]
 name = "nltk"
-version = "3.9.4"
+version = "3.10.4"
 description = "Natural Language Toolkit"
 optional = false
 python-versions = ">=3.10"
 groups = ["main"]
 files = [
-    {file = "nltk-3.9.4-py3-none-any.whl", hash = "sha256:f2fa301c3a12718ce4a0e9305c5675299da5ad9e26068218b69d692fda84828f"},
-    {file = "nltk-3.9.4.tar.gz", hash = "sha256:ed03bc098a40481310320808b2db712d95d13ca65b27372f8a403949c8b523d0"},
+    {file = "nltk-3.10.4-py3-none-any.whl", hash = "sha256:769ba5413f265b7d3e87cd163cc28efa01e29eeef8bb6080bc907949d9fcfb51"},
+    {file = "nltk-3.10.4.tar.gz", hash = "sha256:44679f4e9220abfd496d2c8cdb22f8425ccbe557604f9aa5cacb1c44003dabc1"},
 ]
 
 [package.dependencies]
 click = "*"
+defusedxml = "*"
 joblib = "*"
 regex = ">=2021.8.3"
 tqdm = "*"
