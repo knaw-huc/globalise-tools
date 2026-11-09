@@ -6,15 +6,16 @@ from argparse import Namespace
 from dataclasses import dataclass
 from typing import NamedTuple, Any, List
 
-import globalise_tools.io_tools as rw
-import globalise_tools.url_factory as uf
 from Levenshtein import distance
 from dataclasses_json import dataclass_json
-from globalise_tools.url_factory import AnnotationPageType
 from icecream import ic
 from jsondataclass import from_dict
 from jsonpath_ng import parse
 from loguru import logger
+
+import globalise_tools.io_tools as rw
+import globalise_tools.url_factory as uf
+from globalise_tools.url_factory import AnnotationPageType
 
 # globalise issue:
 # https://github.com/globalise-huygens/glob-portal-infomodel/issues/58
@@ -121,6 +122,7 @@ class DocumentProcessor:
         self.profession_annotation_count = 0
         self.professions_identified = 0
         self.ner_records: list[NerRecord] = []
+        self.event_records: list[NerRecord] = []
         self.annotations_parsed = 0
         self.start_data_position = start_data_position
         self.end_data_position = end_data_position
@@ -160,6 +162,12 @@ class DocumentProcessor:
             self._daterange_field(self.document["date_start"], self.document["date_end"]),
             self._facet_field("ead", self.ead_identifier_lists)
         ]
+
+        if "type" in self.document:
+            fields.append(self._string_field("type", self.document["type"]))
+
+        if "language" in self.document:
+            fields.append(self._string_field("language", self.document["language"]))
 
         if "type_hierarchies" in self.document and self.document["type_hierarchies"]:
             type_hierarchies = list(itertools.chain.from_iterable(self.document["type_hierarchies"]))
@@ -417,7 +425,7 @@ class DocumentProcessor:
             selector = annotation["target"][0]["selector"][1]
             start = selector["start"]
             end = selector["end"]
-            self.ner_records.append(
+            self.event_records.append(
                 NerRecord(
                     annotation_id=annotation_id,
                     page_id=page_id,
@@ -497,7 +505,7 @@ class DocumentProcessor:
         simplified_annotations = []
         for r in self.ner_records:
             simplified_annotations.append({
-                "tag": f"type:{r.tag}",
+                "tag": f"ner:{r.tag}",
                 "from": r.start_in_doc,
                 "to": r.end_in_doc,
                 "text": r.text
@@ -516,6 +524,14 @@ class DocumentProcessor:
                     "to": r.end_in_doc,
                     "text": r.text
                 })
+
+        for r in self.event_records:
+            simplified_annotations.append({
+                "tag": f"event:{r.tag}",
+                "from": r.start_in_doc,
+                "to": r.end_in_doc,
+                "text": r.text
+            })
 
         return simplified_annotations
 
