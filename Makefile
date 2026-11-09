@@ -41,7 +41,7 @@ FORCE:
 data/:
 	@mkdir -p $@
 
-data/1.04.02.xml: .make/1.04.02.etag | work/
+data/1.04.02.xml: #.make/1.04.02.etag | work/
 	@:
 
 data/all-page-ids.lst: | data/
