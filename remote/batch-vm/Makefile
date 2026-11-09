@@ -141,7 +141,7 @@ show-usage: $(JAR)
 #------------------------------------------------------------
 
 work/persons.json.gz: work/persons.json
-	gzip --force $<
+	gzip --keep --force $<
 
 .make/upload-persons-json: work/persons.json.gz | .make
 	s5cmd cp \
@@ -160,7 +160,7 @@ upload-person-index-file: .make/upload-persons-json
 #------------------------------------------------------------
 
 work/facets.json.gz: work/facets.json
-	gzip --force $<
+	gzip --keep --force $<
 
 .make/upload-facets-json: work/facets.json.gz | .make
 	s5cmd cp \
@@ -216,7 +216,7 @@ work/%/index.json: work/%/entity_hierarchy.json work/documents-per-inventory.jso
 	cd work/$* && for d in {transcriptions,entities,events}/*.json; do gzip $$d; done
 
 work/%/index.json.gz: work/%/index.json
-	gzip --force $<
+	gzip --keep --force $<
 
 .make/upload-index-%: work/%/index.json.gz | .make
 	s5cmd cp \
@@ -233,16 +233,26 @@ ui-%: .make/upload-index-%
 	# clean up some afterwards to save storage space
 	rm -rf work/$*/entities work/$*/events work/$*/transcriptions work/$*/*.csv work/$*/*.json work/$*/*.txt
 
-.PHONY: upload-all-document-index-files
-upload-all-document-index-files: .make/1.04.02.etag
+
+work/upload-all-document-index-files.mk: work/inventorynumbers.lst | work
+	sed 's|.*|.make/upload-all-document-index-files: ui-&|' $< > $@
+
+include work/upload-all-document-index-files.mk
+
+.PHONY: upload-all-document-index-files-start
+upload-all-document-index-files-start:
 	@ntfy -m "upload-all-document-index-files: started"
-	cd work/ && \
-	rm -rf upload-all-document-index-files && \
-	mkdir -p upload-all-document-index-files && \
-	cat $(INVNUM_PATH) | while read i; do echo "ui-$$i" ; done | split -l 350 && \
-	for x in x??; do echo -n "make -k -j 14 " > upload-all-document-index-files/$$x.sh; cat $$x | tr '\n' ' ' >> upload-all-document-index-files/$$x.sh; rm $$x; chmod a+x upload-all-document-index-files/$$x.sh; done
-	for j in work/upload-all-document-index-files/x*.sh; do ./$$j && rm $$j; done
-	rm -rf work/upload-all-document-index-files; done
+
+.PHONY: upload-all-document-index-files
+upload-all-document-index-files: upload-all-document-index-files-start #.make/1.04.02.etag
+	$(MAKE) -k -j14 .make/upload-all-document-index-files 2&>1 > work/upload-all-document-index-files.log
+#	cd work/ && \
+#	rm -rf upload-all-document-index-files && \
+#	mkdir -p upload-all-document-index-files && \
+#	cat $(INVNUM_PATH) | while read i; do echo "ui-$$i" ; done | split -l 350 && \
+#	for x in x??; do echo -n "make -k -j 14 " > upload-all-document-index-files/$$x.sh; cat $$x | tr '\n' ' ' >> upload-all-document-index-files/$$x.sh; rm $$x; chmod a+x upload-all-document-index-files/$$x.sh; done
+#	for j in work/upload-all-document-index-files/x*.sh; do ./$$j && rm $$j; done
+#	rm -rf work/upload-all-document-index-files; done
 	@ntfy -m "upload-all-document-index-files: finished"
 
 #------------------------------------------------------------
