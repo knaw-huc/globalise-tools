@@ -67,3 +67,17 @@ links-proycon-pollux:
 	#personal dev environment
 	ln -s /home/proycon/exp/globalize-pagexml/
 	ln -s /home/proycon/exp/voc-groundtruth/
+
+.PHONY: dist
+dist: kweepeer-globalise.tar.gz
+
+kweepeer-globalise.tar.gz:
+	tar -cvzf $@ production.config.toml int_historisch_lexicon_variants.tsv globalise-embeddings.fifu
+
+.PHONY: upload-dist
+upload-dist: kweepeer-globalise.tar.gz
+	@echo "This requires you to have defined 'park' in your ssh config"
+	scp -f $< park:/data/globalise/
+
+
+
