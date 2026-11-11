@@ -74,10 +74,10 @@ dist: kweepeer-globalise.tar.gz
 kweepeer-globalise.tar.gz:
 	tar -cvzf $@ production.config.toml int_historisch_lexicon_variants.tsv globalise-embeddings.fifu
 
-.PHONY: upload-dist
-upload-dist: kweepeer-globalise.tar.gz
+.PHONY: dist-upload
+dist-upload: kweepeer-globalise.tar.gz
 	@echo "This requires you to have defined 'park' in your ssh config"
-	scp -f $< park:/data/globalise/
+	scp $< park:/data/globalise/
 
 
 
