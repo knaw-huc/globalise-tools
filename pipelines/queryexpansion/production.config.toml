@@ -1,0 +1,10 @@
+[[lookup]]
+id = "inthislex"
+name = "INT Historisch Lexicon"
+file = "int_historisch_lexicon_variants.tsv"
+
+[[finalfusion]]
+id = "embeddings"
+name = "Globalise Word Embeddings"
+file = "globalize-embeddings.fifu"
+k = 10
