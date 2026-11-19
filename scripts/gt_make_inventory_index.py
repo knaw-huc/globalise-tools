@@ -23,7 +23,7 @@ from globalise_tools.url_factory import AnnotationPageType
 scheme2facet_name = {
     "Beroepen": "professions",
     "EAD": "ead",
-    "GLOBALISE documenttypen": "documenttypes",
+    "Globalise documenttypen": "documenttypes",
 }
 
 
