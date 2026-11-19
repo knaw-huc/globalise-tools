@@ -215,7 +215,7 @@ class DocumentProcessor:
             store=True,
             value=self.document_text,
             DataPositionSelector=dict(
-                source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+                source=f"https://id.globalise.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
                 start=self.start_data_position[page_ids[0]],
                 end=self.end_data_position[page_ids[-1]]),
             annotations=self._simplified_annotations())
@@ -258,7 +258,7 @@ class DocumentProcessor:
     #         normalized_text=dict(
     #             value=self.document_text,
     #             DataPositionSelector=dict(
-    #                 source=f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
+    #                 source=f"https://id.globalise.nl/hdl:20.500.14722/inventory:{self.inventory_number}.txt",
     #                 start=self.start_data_position[page_ids[0]],
     #                 end=self.end_data_position[page_ids[-1]])),
     #         method=self.document["method"],

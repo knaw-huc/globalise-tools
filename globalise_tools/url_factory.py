@@ -1,6 +1,6 @@
 from enum import Enum
 
-URI_BASE_PATTERN = "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/"
+URI_BASE_PATTERN = "https://id.globalise.nl/hdl:20.500.14722/"
 
 
 # see: https://gist.github.com/LvanWissen/736606df05b788aad38e3a74325300c7
@@ -55,7 +55,7 @@ def event_url(identifier: str) -> str:
 # Annotations and Manifest (IIIF)
 
 def manifest_url0(inventory_number: str) -> str:
-    return f"https://data.globalise.huygens.knaw.nl/manifests/inventories/{inventory_number}.json"
+    return f"https://id.globalise.nl/manifests/inventories/{inventory_number}.json"
 
 
 def manifest_url(inventory_number: str) -> str:

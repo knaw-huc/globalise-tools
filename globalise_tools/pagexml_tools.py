@@ -160,10 +160,10 @@ class TranscriptionAnnotationPageBuilder:
                 "http://www.w3.org/ns/anno.jsonld",  # after linked-art because it also defines "created"
                 {
                     "transcription-diplomatic": {
-                        "@id": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:transcription-diplomatic"
+                        "@id": "https://id.globalise.nl/hdl:20.500.14722/thesaurus:transcription-diplomatic"
                     },
                     "transcription-normalized": {
-                        "@id": "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/thesaurus:transcription-normalized"
+                        "@id": "https://id.globalise.nl/hdl:20.500.14722/thesaurus:transcription-normalized"
                     }
                 }
             ],
@@ -186,7 +186,7 @@ class TranscriptionAnnotationPageBuilder:
                 "height": height,
                 "width": width,
                 "partOf": {
-                    "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
+                    "id": f"https://id.globalise.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
                     "type": "Manifest"
                 }
             }

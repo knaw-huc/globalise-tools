@@ -263,7 +263,7 @@ class DocumentPageProcessor:
                 "width": dim.width,
                 "height": dim.height,
                 "partOf": {
-                    "id": f"https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
+                    "id": f"https://id.globalise.nl/hdl:20.500.14722/inventory:{inventory_number}.manifest",
                     "type": "Manifest"
                 }
 
