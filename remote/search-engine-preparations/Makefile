@@ -89,7 +89,7 @@ work/facets.json.gz: work/facets.json
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.index.json \
 	  > /dev/null
-	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
+	@echo "Uploaded: https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
 
 .make/upload-facets: work/facets.json.gz | .make
@@ -99,7 +99,7 @@ work/facets.json.gz: work/facets.json
 	  $< \
 	  s3://globalise-data/objects/inventory/facets.json \
 	  > /dev/null
-	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
+	@echo "Uploaded: https://id.globalise.nl/hdl:20.500.14722/inventory:facets.json"
 	@touch $@
 
 .PHONY: prepare-work
@@ -169,8 +169,8 @@ help:
 	@echo
 	@echo -e "  $(BLUE)update-documents-csv$(RESET) - to download the latest version of $(GREEN)documents.csv$(RESET) from the object store"
 	@echo
-	@echo -e "  $(BLUE)upload-facets$(RESET)        - to generate $(GREEN)facets.json$(RESET) and upload it to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
+	@echo -e "  $(BLUE)upload-facets$(RESET)        - to generate $(GREEN)facets.json$(RESET) and upload it to https://id.globalise.nl/hdl:20.500.14722/inventory:facets.json"
 	@echo
 	@echo -e "  $(BLUE)work/<invnum>/index.json$(RESET)            - to generate $(GREEN)index.json$(RESET) for the given inventory number without also uploading it"
-	@echo -e "  $(BLUE)ui-<invnum>$(RESET)                         - to generate $(GREEN)index.json$(RESET) for the given inventory number and upload it to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:<invnum>.index"
-	@echo -e "  $(BLUE)upload-all-inventory-index-metadata$(RESET) - to generate $(GREEN)index.json$(RESET) for all inventory numbers and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:<invnum>.index"
+	@echo -e "  $(BLUE)ui-<invnum>$(RESET)                         - to generate $(GREEN)index.json$(RESET) for the given inventory number and upload it to https://id.globalise.nl/hdl:20.500.14722/inventory:<invnum>.index"
+	@echo -e "  $(BLUE)upload-all-inventory-index-metadata$(RESET) - to generate $(GREEN)index.json$(RESET) for all inventory numbers and upload them to https://id.globalise.nl/hdl:20.500.14722/inventory:<invnum>.index"

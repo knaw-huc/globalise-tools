@@ -164,7 +164,7 @@ $(OUT)/%/index.json: scripts/gt_make_inventory_index.py data/globalise-documents
 	rm -rf $(OUT)/$*/{entities,transcriptions}
 
 #$(OUT)/%/index.json: | $(OUT)/%/
-#	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > $@
+#	curl -Ls --compressed https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index > $@
 
 $(OUT)/%/document.txt: $(OUT)/%/index.json
 
@@ -175,7 +175,7 @@ $(OUT)/%/document.txt: $(OUT)/%/index.json
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.txt \
 	  > /dev/null
-	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.txt"
+	@echo "uploaded https://id.globalise.nl/hdl:20.500.14722/inventory:$*.txt"
 	@touch $@
 
 $(OUT)/%/index.json.gz: $(OUT)/%/index.json
@@ -188,7 +188,7 @@ $(OUT)/%/index.json.gz: $(OUT)/%/index.json
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.index.json \
 	  > /dev/null
-	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
+	@echo "Uploaded: https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
 
 ## entity-linking-csv
@@ -196,7 +196,7 @@ $(OUT)/%/index.json.gz: $(OUT)/%/index.json
 	mkdir -p $(OUT)/$*/ && \
 	cd $(OUT)/$*/ && \
 	unzip -o -qq ../annotation-lists/$*-annotation-lists.zip
-	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > work/$*/index.json
+	curl -Ls --compressed https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index > work/$*/index.json
 	poetry run gt-make-entity-linking-csv $*
 	rm -rf $(OUT)/$*/{entities,transcriptions}
 	@touch $@
@@ -214,7 +214,7 @@ $(OUT)/%/entity_linking.csv.gz: $(OUT)/%/entity_linking.csv
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.csv \
 	  > /dev/null
-	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.csv"
+	@echo "uploaded https://id.globalise.nl/hdl:20.500.14722/inventory:$*.csv"
 	@touch $@
 #------------------------------------------------------------
 .PHONY: upload-%
@@ -243,7 +243,7 @@ help:
 	@echo -e "  $(BLUE)generate-all-n-quads$(RESET)     - convert all entities annotation pages for all inventory numbers to gzipped lists of unique n-quads"
 	@echo -e "  $(BLUE)qlever-index$(RESET)             - index the quads of all entities annotation pages in qlever"
 
-#curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?rel ?target where { "https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02__9999_0002#annotation:16" ?rel ?target }'
+#curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?rel ?target where { "https://id.globalise.nl/hdl:20.500.14722/annotations:entities:NL-HaNA_1.04.02__9999_0002#annotation:16" ?rel ?target }'
 #curl -s localhost:7019 -H "Accept: text/tab-separated-values" --data-urlencode query='select ?sub ?rel ?obj where { ?sub ?rel ?obj }'
 #curl -s localhost:7019 -H "Accept: text/csv" --data-urlencode query='select ?rel ?obj where { <https://github.com/knaw-huc/globalise-tools/blob/2026.02.13/scripts/gt_create_annotation_lists_for_inventory_number.py> ?rel ?obj }'
 

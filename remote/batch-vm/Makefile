@@ -106,7 +106,7 @@ work/%/annotation_enhancements.json: work/%/entity_links.csv $(JAR)
 
 #work/%/index.json:
 #	mkdir -p work/$*
-#	curl -Ls --compressed https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index > $@
+#	curl -Ls --compressed https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index > $@
 
 work/persons.json:# $(JAR)
 	java $(JAVA_OPTS) -jar $(JAR) \
@@ -150,7 +150,7 @@ work/persons.json.gz: work/persons.json
 	  $< \
 	  s3://globalise-data/objects/inventory/persons.json \
 	  > /dev/null
-	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:persons"
+	@echo "uploaded https://id.globalise.nl/hdl:20.500.14722/inventory:persons"
 	@touch $@
 
 .PHONY: upload-person-index-file
@@ -169,7 +169,7 @@ work/facets.json.gz: work/facets.json
 	  $< \
 	  s3://globalise-data/objects/inventory/facets.json \
 	  > /dev/null
-	@echo "uploaded https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets"
+	@echo "uploaded https://id.globalise.nl/hdl:20.500.14722/inventory:facets"
 	@touch $@
 
 .PHONY: upload-facets-file
@@ -225,7 +225,7 @@ work/%/index.json.gz: work/%/index.json
 	  $< \
 	  s3://globalise-data/objects/inventory/$*.index.json \
 	  > /dev/null
-	@echo "Uploaded: https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:$*.index"
+	@echo "Uploaded: https://id.globalise.nl/hdl:20.500.14722/inventory:$*.index"
 	@touch $@
 
 .PHONY: ui-%
@@ -265,9 +265,9 @@ help:
 	@echo -e "  $(BLUE)show-usage$(RESET)                 - to run the app jar without parameters"
 	@echo
 	@echo -e "  $(BLUE)facets-file$(RESET)                - to generate the facets.json file containing the facet info per facet id"
-	@echo -e "  $(BLUE)upload-facets-file$(RESET)         - to upload facets.json to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:facets.json"
+	@echo -e "  $(BLUE)upload-facets-file$(RESET)         - to upload facets.json to https://id.globalise.nl/hdl:20.500.14722/inventory:facets.json"
 	@echo
 	@echo -e "  $(BLUE)person-index-file$(RESET)          - to aggregate person data to a json file for indexing"
-	@echo -e "  $(BLUE)upload-person-index-file$(RESET)   - to upload persons.json to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:persons.json"
+	@echo -e "  $(BLUE)upload-person-index-file$(RESET)   - to upload persons.json to https://id.globalise.nl/hdl:20.500.14722/inventory:persons.json"
 	@echo
-	@echo -e "  $(BLUE)upload-all-document-index-files$(RESET) - to generate index.json for all indexes and upload them to https://data.globalise.huygens.knaw.nl/hdl:20.500.14722/inventory:*.index"
+	@echo -e "  $(BLUE)upload-all-document-index-files$(RESET) - to generate index.json for all indexes and upload them to https://id.globalise.nl/hdl:20.500.14722/inventory:*.index"
