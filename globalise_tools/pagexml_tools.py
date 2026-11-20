@@ -156,7 +156,7 @@ class TranscriptionAnnotationPageBuilder:
                 "http://iiif.io/api/extension/text-granularity/context.json",
                 "http://iiif.io/api/presentation/3/context.json",
                 "https://linked.art/ns/v1/linked-art.json",
-                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
+                "https://id.globalise.nl/hdl:20.500.14722/contexts/globalise.json",
                 "http://www.w3.org/ns/anno.jsonld",  # after linked-art because it also defines "created"
                 {
                     "transcription-diplomatic": {

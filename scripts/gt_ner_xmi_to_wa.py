@@ -393,7 +393,7 @@ class XMIProcessor:
             "@context": [
                 "https://linked.art/ns/v1/linked-art.json",
                 "https://ns.huc.knaw.nl/globalise.jsonld",
-                "https://objectstore.surf.nl/87435b768620494e8e911c83d1997f24:globalise-data/contexts/globalise.json",
+                "https://id.globalise.nl/hdl:20.500.14722/contexts/globalise.json",
                 "http://www.w3.org/ns/anno.jsonld",  # after linked-art because it also defines "created"
                 context_addition
             ],
