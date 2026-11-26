@@ -31,7 +31,7 @@ import globalise_tools.tools as gt
 import globalise_tools.url_factory as uf
 from globalise_tools.creator import CreatorFactory
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
-                                    wiki_base, NerData, THESAURUS_LABEL_TO_URI)
+                                    event_uri_prefix, NerData, THESAURUS_LABEL_TO_URI)
 from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData, Offset
 from globalise_tools.tools import inv_nr_sort_key
@@ -169,7 +169,8 @@ class XMIProcessor:
             event_linking_annotation_ids = []
             event_predicate_body = self._event_predicate_body(event_annotation)
             if event_predicate_body:
-                event_web_annotation = self._as_web_annotation(event_annotation, event_predicate_body,
+                event_web_annotation = self._as_web_annotation(feature_structure=event_annotation,
+                                                               body=event_predicate_body,
                                                                is_entity_annotation=False)
                 web_annotations.append(event_web_annotation)
             else:
@@ -180,7 +181,7 @@ class XMIProcessor:
                 for argument_annotation in event_annotation['arguments']['elements']:
                     argument_annotations.append(argument_annotation)
                     event_argument_web_annotation = \
-                        self._as_web_annotation(argument_annotation, self._event_argument_body(),
+                        self._as_web_annotation(feature_structure=argument_annotation, body=self._event_argument_body(),
                                                 is_entity_annotation=False)
                     event_argument_annotation_ids.append(event_argument_web_annotation['id'])
                     raw_target_entity = event_argument_web_annotation['target'][0]['selector'][0]['exact']
@@ -190,9 +191,9 @@ class XMIProcessor:
                     web_annotations.append(event_argument_web_annotation)
                     if event_web_annotation:
                         link_web_annotation = self._as_event_link_web_annotation(
-                            f"{wiki_base}{argument_annotation['role']}",
-                            event_web_annotation['id'],
-                            event_argument_web_annotation['id'])
+                            argument_identifier=f"{event_uri_prefix}{argument_annotation['role']}",
+                            event_annotation_uri=event_web_annotation['id'],
+                            argument_annotation_uri=event_argument_web_annotation['id'])
                         web_annotations.append(link_web_annotation)
                         event_linking_annotation_ids.append(link_web_annotation['id'])
 
@@ -782,7 +783,7 @@ class XMIProcessor:
     def _event_argument_body() -> dict[str, str]:
         return {
             "purpose": "classifying",
-            "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArgument"
+            "source": uf.event_url("EventArgument")
         }
 
     def _as_event_link_web_annotation(
@@ -962,7 +963,7 @@ class XMIProcessor:
                 "http://www.w3.org/ns/anno.jsonld",
                 {
                     "prov": "http://www.w3.org/ns/prov#",
-                    "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
+                    "glob": uf.event_url(""),
                     "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/",
                     "hasActor": "sem:hasActor",
                     "hasTime": "sem:hasTime",
@@ -1083,11 +1084,11 @@ class XMIProcessorFactory:
         inv_nr = xmi_path.split('/')[1]
         timespan = self._time_span(inv_nr)
         return XMIProcessor(
-            self.typesystem,
-            self.document_data,
-            self.commit_id,
-            xmi_path,
-            htr_offset,
+            typesystem=self.typesystem,
+            document_data=self.document_data,
+            commit_id=self.commit_id,
+            xmi_path=xmi_path,
+            htr_offset=htr_offset,
             event_mapping=self.event_mapping,
             time_span=timespan,
             presentation_version=presentation_version
@@ -1284,7 +1285,8 @@ def extract_ner_web_annotations(
     if inv_nr is not None:
         xmi_dirs = [x for x in xmi_dirs if x.endswith(f"/{inv_nr}")]
 
-    xpf = XMIProcessorFactory(type_system_path, timespan4inventory, git_commit)
+    xpf = XMIProcessorFactory(typesystem_path=type_system_path, timespan4inventory=timespan4inventory,
+                              git_commit_id=git_commit)
 
     total.value = len(xmi_dirs)
     logger.info(f"{total.value} inventories to process...")
@@ -1309,11 +1311,11 @@ def run_in_parallel(
 ) -> None:
     contexts = [
         InventoryProcessingContext(
-            xmi_dir,
-            output_dir,
-            pagexml_dir,
-            xpf,
-            PRESENTATION_VERSION,
+            xmi_dir=xmi_dir,
+            output_dir=output_dir,
+            pagexml_dir=pagexml_dir,
+            xpf=xpf,
+            presentation_version=PRESENTATION_VERSION,
             manifests_dir=manifests_dir
         )
         for xmi_dir in xmi_dirs
@@ -1332,11 +1334,11 @@ def run_sequentially(output_dir, pagexml_dir, xmi_dirs, xpf, manifests_dir: str)
     start_time.value = time.perf_counter()
     for xmi_dir in xmi_dirs:
         context = InventoryProcessingContext(
-            xmi_dir,
-            output_dir,
-            pagexml_dir,
-            xpf,
-            PRESENTATION_VERSION,
+            xmi_dir=xmi_dir,
+            output_dir=output_dir,
+            pagexml_dir=pagexml_dir,
+            xpf=xpf,
+            presentation_version=PRESENTATION_VERSION,
             manifests_dir=manifests_dir
         )
         process_inventory(context)
@@ -1373,14 +1375,14 @@ def process_inventory(context: InventoryProcessingContext):
             pagexml_path = get_page_xml_path(xmi_path, pagexml_dir)
             plain_text_source = handle_page_xml(xmi_path, pagexml_path, xpf, iiif_base_uri_idx, canvas_id_idx)
             ner_annotations, event_annotations, normalized_text, normalized_offset = handle_xmi(
-                xmi_path,
-                ner_annotations,
-                xpf,
-                plain_text_source,
-                manifest,
-                manifest_item_idx,
-                htr_offset,
-                context.presentation_version
+                xmi_path=xmi_path,
+                ner_annotations=ner_annotations,
+                xpf=xpf,
+                plain_text_source=plain_text_source,
+                manifest=manifest,
+                manifest_item_idx=manifest_item_idx,
+                htr_offset=htr_offset,
+                presentation_version=context.presentation_version
             )
         manifest['id'] = f"{MANIFEST_BASE_URL}/{inv_nr}/{inv_nr}.json"
         store_manifest(inv_nr, manifest, export_dir)
@@ -1545,14 +1547,14 @@ def main() -> None:
 
     if args.xmi_dir:
         extract_ner_web_annotations(
-            args.pagexml_dir,
-            args.xmi_dir,
-            args.manifests_dir,
-            args.word_offsets_dir,
-            args.type_system,
-            args.output_dir,
-            args.inv_nr,
-            args.git_commit
+            pagexml_dir=args.pagexml_dir,
+            xmi_dir=args.xmi_dir,
+            manifests_dir=args.manifests_dir,
+            word_offsets_dir=args.word_offsets_dir,
+            type_system_path=args.type_system,
+            output_dir=args.output_dir,
+            inv_nr=args.inv_nr,
+            git_commit=args.git_commit
         )
 
 

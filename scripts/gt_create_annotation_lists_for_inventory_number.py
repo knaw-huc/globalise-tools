@@ -1,5 +1,6 @@
 #!/usr/bin/env python3
 import argparse
+import copy
 import os
 import sys
 import time
@@ -8,11 +9,14 @@ from pathlib import Path
 from typing import Any
 
 import orjson
+from icecream import ic
 from loguru import logger
 
 import globalise_tools.io_tools as rw
+import globalise_tools.url_factory as uf
 import scripts.gt_ner_xmi_to_wa as nx
 from globalise_tools.annotation_page_factory import AnnotationPageFactory
+from globalise_tools.events import EVENT_TO_CATEGORY, CATEGORY_TO_LABEL
 from globalise_tools.logger_tools import log_writing_file
 from globalise_tools.url_factory import AnnotationPageType
 
@@ -73,6 +77,26 @@ def get_arguments() -> Namespace:
     return parser.parse_args()
 
 
+def _with_nested_classification(event_name: str, event_mapping: dict[str, Any]) -> dict[str, Any]:
+    new_event_mapping = copy.deepcopy(event_mapping)
+    # event_mapping contains event types that are no longer used in the xmi, and aren't featured in EVENT_TO_CATEGORY
+    # leave them as-is
+    if event_name in EVENT_TO_CATEGORY:
+        category_id = EVENT_TO_CATEGORY[event_name]
+        nested_classification = {
+            "id": category_id,
+            "type": "Type",
+            "_label": CATEGORY_TO_LABEL[category_id]
+        }
+        new_event_mapping["classified_as"]["id"] = uf.event_url(event_name)
+        new_event_mapping["classified_as"]["classified_as"] = nested_classification
+    return new_event_mapping
+
+
+def _add_classified(event_mapping_in: dict[str, Any]) -> dict[str, Any]:
+    return {k: _with_nested_classification(k, v) for (k, v) in event_mapping_in.items()}
+
+
 @logger.catch(reraise=True)
 def main():
     tic = time.perf_counter()
@@ -86,7 +110,8 @@ def main():
         Path(path).mkdir(parents=True, exist_ok=True)
 
     timespan4inventory = nx.load_timespan_dict()
-    event_mapping = rw.read_json(args.event_mapping)
+    raw_event_mapping = rw.read_json(args.event_mapping)
+    event_mapping = _add_classified(raw_event_mapping)
     xpf = nx.XMIProcessorFactory(args.type_system, timespan4inventory, event_mapping, args.git_commit)
 
     logger.info(f"processing inventory number {args.inventory_number}")
@@ -99,9 +124,10 @@ def main():
         script_path=THIS_SCRIPT_PATH
     )
     apf.build_annotation_pages()
-    store_annotation_pages(apf.transcription_pages, args.output_dir, AnnotationPageType.TRANSCRIPTIONS)
-    store_annotation_pages(apf.entity_pages, args.output_dir, AnnotationPageType.ENTITIES)
-    store_annotation_pages(apf.event_pages, args.output_dir, AnnotationPageType.EVENTS)
+    store_annotation_pages(pages_dict=apf.transcription_pages, output_dir=args.output_dir,
+                           type=AnnotationPageType.TRANSCRIPTIONS)
+    store_annotation_pages(pages_dict=apf.entity_pages, output_dir=args.output_dir, type=AnnotationPageType.ENTITIES)
+    store_annotation_pages(pages_dict=apf.event_pages, output_dir=args.output_dir, type=AnnotationPageType.EVENTS)
 
     toc = time.perf_counter()
     print(

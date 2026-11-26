@@ -18,8 +18,9 @@ from intervaltree import Interval, IntervalTree
 from loguru import logger
 
 import globalise_tools.git_tools as git
+import globalise_tools.url_factory as uf
 from globalise_tools.events import (NER_DATA_DICT, place_roles, time_roles,
-                                    wiki_base)
+                                    event_uri_prefix)
 from globalise_tools.logger_tools import log_writing_file, log_reading_file
 from globalise_tools.model import ImageData
 
@@ -99,7 +100,7 @@ class XMIProcessor:
                     web_annotations.append(event_argument_web_annotation)
                     if event_web_annotation:
                         link_web_annotation = self._as_event_link_web_annotation(
-                            f"{wiki_base}{argument_annotation['role']}",
+                            f"{event_uri_prefix}{argument_annotation['role']}",
                             event_web_annotation['id'],
                             event_argument_web_annotation['id'])
                         web_annotations.append(link_web_annotation)
@@ -146,7 +147,7 @@ class XMIProcessor:
             suffix = extended_suffix
         return suffix
 
-    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, str]:
+    def _as_web_annotation(self, feature_structure: FeatureStructure, body) -> dict[str, Any]:
         anno_id = self._annotation_id(feature_structure.xmiID)
         original_fs = feature_structure
         if feature_structure['begin'] is None:
@@ -262,14 +263,14 @@ class XMIProcessor:
             logger.warning(f"no category for {feature_structure}")
         else:
             category = raw_category.replace("+", "Plus").replace("-", "Min")
-            category_source = f"{wiki_base}{category}"
+            category_source = f"{event_uri_prefix}{category}"
             bodies.append(
                 {
                     "purpose": "classifying",
                     "source": category_source
                 }
             )
-            relation_type = f"{wiki_base}{feature_structure['relationtype']}"
+            relation_type = f"{event_uri_prefix}{feature_structure['relationtype']}"
             bodies.append({
                 "purpose": "classifying",
                 "source": relation_type
@@ -280,7 +281,7 @@ class XMIProcessor:
     def _event_argument_body() -> dict[str, str]:
         return {
             "purpose": "classifying",
-            "source": "https://github.com/globalise-huygens/nlp-event-detection/wiki#EventArgument"
+            "source": uf.event_url("EventArgument")
         }
 
     def _as_event_link_web_annotation(
@@ -288,7 +289,7 @@ class XMIProcessor:
             argument_identifier: str,
             event_annotation_uri: str,
             argument_annotation_uri: str
-    ) -> dict[str, str]:
+    ) -> dict[str, Any]:
         body_source = argument_identifier
         target1_num = event_annotation_uri.split(':')[-1]
         target2_num = argument_annotation_uri.split(':')[-1]
@@ -450,7 +451,7 @@ class XMIProcessor:
                 "http://www.w3.org/ns/anno.jsonld",
                 {
                     "prov": "http://www.w3.org/ns/prov#",
-                    "glob": "https://github.com/globalise-huygens/nlp-event-detection/wiki#",
+                    "glob": uf.event_url(""),
                     "sem": "http://semanticweb.cs.vu.nl/2009/11/sem/",
                     "hasActor": "sem:hasActor",
                     "hasTime": "sem:hasTime",

@@ -95,9 +95,9 @@ class AnnotationPageFactory:
         )
         return page_id, dp.transcription_annotation_page, dp.entity_annotation_page, dp.event_annotation_page
 
-    def page_id_from_path(self, path: Path) -> str:
-        page_id = path.name.split("/")[-1].replace(".xml", "")
-        return page_id
+    @staticmethod
+    def page_id_from_path(path: Path) -> str:
+        return path.name.split("/")[-1].replace(".xml", "")
 
     def _load_manifest(self, manifest_path: str) -> None:
         if os.path.exists(manifest_path):
@@ -141,7 +141,6 @@ class DocumentPageProcessor:
         entity_creator = factory.creator(label=entity_label)
         event_creator = factory.creator(label=event_label)
 
-        normalized_page_text = ""
         canvas_id = uf.canvas_url(page_id)
         annotation_page_builder = pt.TranscriptionAnnotationPageBuilder(
             page_id=page_id,

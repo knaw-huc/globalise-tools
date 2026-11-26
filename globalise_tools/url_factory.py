@@ -48,8 +48,11 @@ def place_url(identifier: str) -> str:
 
 
 # Events
-def event_url(identifier: str) -> str:
-    return _base_url("event", identifier)
+# def event_url(identifier: str) -> str:
+#     return _base_url("event", identifier)
+
+def event_url(name: str) -> str:
+    return f"https://w3id.org/globalise/ontology/events/{name}"
 
 
 # Annotations and Manifest (IIIF)
