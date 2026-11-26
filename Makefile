@@ -1,24 +1,33 @@
+.PHONY: all
 all: help
-SHELL=/bin/bash
+
 .SECONDARY:
 .DELETE_ON_ERROR:
 
-RED=\033[1;31m
-GREEN=\033[1;32m
-YELLOW=\033[1;33m
-BLUE=\033[1;34m
-RESET=\033[0m
+SHELL := /bin/bash
+
+RED    := \033[1;31m
+GREEN  := \033[1;32m
+YELLOW := \033[1;33m
+BLUE   := \033[1;34m
+RESET  := \033[0m
 
 pagexml_directory := ~/c/data/globalise/pagexml
-xmi_directory := ~/c/data/globalise/ner
+xmi_directory     := ~/c/data/globalise/ner
 
-TODAY=$(shell date +"%Y-%m-%d")
-TODAY_TAG=$(shell date +"%Y.%m.%d")
+TODAY     := $(shell date +"%Y-%m-%d")
+TODAY_TAG := $(shell date +"%Y.%m.%d")
+
+#-----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: FORCE
 FORCE:
 
-.make/:
+require = @test -e $(1) || { echo "❌ missing: $(1)"; exit 1; }
+
+#-----------------------------------------------------------------------------------------------------------------------
+
+.make/ data/:
 	@mkdir -p $@
 
 .make/1.04.02.etag: FORCE # phony file for EAD XML work/1.04.02.xml
@@ -38,19 +47,11 @@ FORCE:
 	scp globalise-vm:/data/globalise-data/annotation-lists/data/pagexml/$*.zip work/pagexml/ && unzip -o --qq -j work/pagexml/$*.zip -d work/pagexml/$*/
 	@touch $@
 
-data/:
-	@mkdir -p $@
-
 data/1.04.02.xml: #.make/1.04.02.etag | work/
 	@:
 
-data/all-page-ids.lst: | data/
-	@echo "❌ missing file: $@"
-	@exit 1
-
-data/NL-HaNA_1.04.02_mets.csv: | data/
-	@echo "❌ missing file: $@"
-	@exit 1
+data/all-page-ids.lst data/NL-HaNA_1.04.02_mets.csv: | data/
+	$(call require, $@)
 
 data/inventory2dates.json: | data/
 	@echo -e "$(RED)Contact Leon van Wissen for $@ ('a mapping between inventory number and date')$(RESET)"
@@ -169,37 +170,41 @@ test-paragraph-extraction:
 run-provenance:
 	cd ~/workspaces/provenance/provenance-server && make run-server
 
-.PHONY: run-inception
-run-inception:
-	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
+#-----------------------------------------------------------------------------------------------------------------------
 
-.PHONY: process-ner-xmi
-process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
-	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
-	poetry run gt-ner-xmi-to-wa \
-		--pagexml-dir ~/c/data/globalise/pagexml \
-		--xmi-dir ~/c/data/globalise/ner \
-		--type-system=data/typesystem.xml \
-		--output-dir=out \
-		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
-		--api-key=$(TEXTREPO_API_KEY)
+#.PHONY: process-ner-xmi
+#process-ner-xmi: scripts/gt_ner_xmi_to_wa.py $(pagexml_directory) $(xmi_directory) data/typesystem.xml
+#	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
+#	poetry run gt-ner-xmi-to-wa \
+#		--pagexml-dir ~/c/data/globalise/pagexml \
+#		--xmi-dir ~/c/data/globalise/ner \
+#		--type-system=data/typesystem.xml \
+#		--output-dir=out \
+#		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+#		--api-key=$(TEXTREPO_API_KEY)
+#
+#out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
+#	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
+#	poetry run gt-ner-xmi-to-wa \
+#		--pagexml-dir ~/c/data/globalise/pagexml \
+#		--xmi-dir .local/new \
+#		--type-system=data/typesystem.xml \
+#		--output-dir=out \
+#		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
+#		--api-key=$(TEXTREPO_API_KEY) \
+#		--inv-nr=3598
+#
+#.PHONY: process-ner-xmi-3598
+#process-ner-xmi-3598: out/3598/ner-annotations.json
+#	@:
 
-out/3598/ner-annotations.json: scripts/gt_ner_xmi_to_wa.py $(wildcard $(pagexml_directory)/3598/*.xml) $(wildcard .local/new/3598/*.xmi) data/typesystem.xml
-	@if [[ -z "${TEXTREPO_API_KEY}" ]]; then echo -e "$(RED)ENV variable TEXTREPO_API_KEY not set, set and retry$(RESET)" && exit 1 ; fi
-	poetry run gt-ner-xmi-to-wa \
-		--pagexml-dir ~/c/data/globalise/pagexml \
-		--xmi-dir .local/new \
-		--type-system=data/typesystem.xml \
-		--output-dir=out \
-		--text-repo=https://globalise.tt.di.huc.knaw.nl/textrepo \
-		--api-key=$(TEXTREPO_API_KEY) \
-		--inv-nr=3598
+#-----------------------------------------------------------------------------------------------------------------------
 
-.PHONY: annotation-pages-%
+# .PHONY: annotation-pages-% # % wildcards and .PHONY don't mix
 annotation-pages-%: .make/annotation-pages-%
 	@:
 
-.PHONY: index-json-%
+# .PHONY: index-json-%
 index-json-%: work/%/index.json
 	@echo "created/updated $<"
 
@@ -212,9 +217,11 @@ data/manifests/%.json:
 	ls -lF work/$*
 	touch $@
 
-.PHONY: process-ner-xmi-3598
-process-ner-xmi-3598: out/3598/ner-annotations.json
-	@:
+#-----------------------------------------------------------------------------------------------------------------------
+
+.PHONY: run-inception
+run-inception:
+	cd ~/workspaces/globalise/inception-local/ && docker compose up --detach && open http://localhost:8088/
 
 .PHONY: stop-inception
 stop-inception:
@@ -223,6 +230,8 @@ stop-inception:
 .PHONY: browse-globalise-inception
 browse-globalise-inception:
 	open https://text-annotation.huc.knaw.nl/
+
+#-----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: version-update-patch
 version-update-patch:
@@ -236,9 +245,13 @@ version-update-minor:
 version-update-major:
 	poetry run version major
 
+#-----------------------------------------------------------------------------------------------------------------------
+
 .PHONY: detect-copy-paste
 detect-copy-paste:
 	pmd cpd --minimum-tokens 50 --dir globalise_tools --dir scripts --language python | less
+
+#-----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: docker
 docker:
@@ -247,6 +260,8 @@ docker:
 .PHONY: docker-run
 docker-run:
 	docker run -t -i -v .:/data knaw-huc/globalise-tools
+
+#-----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: clean
 clean:
@@ -260,22 +275,21 @@ test:
 repo-tag:
 	git tag -a $(TODAY_TAG) -m "$(TODAY)" && git push --tags
 
-#----------------------------------------------------------------------------------------------------
-# embeddings
+#-----------------------------------------------------------------------------------------------------------------------
+# # embeddings (experimental, on pause)
+#
+# .PHONY: generate-embeddings-%
+# generate-embeddings-%: .make/generate-embeddings-%
+# 	@:
+#
+# work/%/embeddings:
+# 	@mkdir -p $@
+#
+# .make/generate-embeddings-%: work/%/index.json scripts/gt_generate_embeddings_for_inventory_index.py| .make work/%/embeddings
+# 	poetry run gt-generate-embeddings-for-inventory-index --inventory-index-file $< --embeddings-folder work/$*/embeddings
+# 	touch $@
 
-.PHONY: generate-embeddings-%
-generate-embeddings-%: .make/generate-embeddings-%
-	@:
-
-work/%/embeddings:
-	@mkdir -p $@
-
-.make/generate-embeddings-%: work/%/index.json scripts/gt_generate_embeddings_for_inventory_index.py| .make work/%/embeddings
-	poetry run gt-generate-embeddings-for-inventory-index --inventory-index-file $< --embeddings-folder work/$*/embeddings
-	touch $@
-
-#----------------------------------------------------------------------------------------------------
-
+#-----------------------------------------------------------------------------------------------------------------------
 
 .PHONY: help
 help:
@@ -302,13 +316,13 @@ help:
 	@echo -e "  $(BLUE)run-inception$(RESET)              - to start a local inception"
 	@echo -e "  $(BLUE)stop-inception$(RESET)             - to stop the local inception"
 	@echo
+	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
+	@echo
 	@echo -e "  $(BLUE)test-untangle$(RESET)              - to generate and upload segmented text and web-annotations using test settings"
 #	@echo -e "  $(BLUE)test-missive-annotations$(RESET)   - to generate general missive web-annotations using test settings"
 #	@echo -e "  $(BLUE)test-inception-annotations$(RESET) - to generate document web-annotations from the inception export using test settings"
 	@echo -e "  $(BLUE)test-xmi-generation$(RESET)        - to generate xmi using test settings"
 	@echo -e "  $(BLUE)prod-xmi-generation$(RESET)        - to generate xmi using prod settings"
-	@echo
-	@echo -e "  $(BLUE)process-ner-xmi$(RESET)            - to generate web annotations from the ner enriched xmi files"
 	@echo
 	@echo -e "  $(BLUE)convert-example-xmi$(RESET)        - to generate web annotations from the example set of xmi files"
 	@echo -e "  $(BLUE)fix-reading-order$(RESET)          - to generate pagexml with corrected reading order"
@@ -319,9 +333,9 @@ help:
 	@echo -e "  $(BLUE)sample$(RESET)                     - to extract a sample of web annotations where every type is represented"
 	@echo -e "  $(BLUE)detect-copy-paste$(RESET)          - find code duplication"
 	@echo
-	@echo -e "  $(BLUE)browse-globalise-inception$(RESET) - to open the globalise inception in a browser"
-	@echo
+#	@echo -e "  $(BLUE)process-ner-xmi$(RESET)            - to generate web annotations from the ner enriched xmi files"
+#	@echo
 	@echo -e "  $(BLUE)annotation-pages-<inv_nr>$(RESET)  - to generate annotation pages for the given inventory number $(GREEN)inv_nr$(RESET)"
 	@echo -e "  $(BLUE)index-json-<inv_nr>$(RESET)        - to generate the file for indexing the documents in inventory number $(GREEN)inv_nr$(RESET)"
 	@echo
-	@echo -e "  $(BLUE)generate-embeddings-<inv_nr>$(RESET) - to generate embeddings per document for the index.json of the given $(GREEN)inv_nr$(RESET) in work/<inv_nr>/embeddings"
+# 	@echo -e "  $(BLUE)generate-embeddings-<inv_nr>$(RESET) - to generate embeddings per document for the index.json of the given $(GREEN)inv_nr$(RESET) in work/<inv_nr>/embeddings"
